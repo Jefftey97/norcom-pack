@@ -1,0 +1,14 @@
+name = "Patrix 32x"
+filename = "Patrix_26.3_models.zip"
+side = "client"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/olO1TaXd/versions/V9k0Ak3w/Patrix_26.3_models.zip"
+hash-format = "sha512"
+hash = "39d4e6fd92d1daa9fb515ed59f57dc3d09ba5b2067c9f4bc0639447dc74079c9aff46fa1138495074ee3b1eb6ef2b6bbd85d5c2dd576cf69656f9b62163067dd"
+
+[update]
+[update.modrinth]
+mod-id = "olO1TaXd"
+version = "V9k0Ak3w"

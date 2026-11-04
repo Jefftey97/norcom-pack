@@ -1,0 +1,3 @@
+# Set a Discord invite URL to show the Discord button in the NORCOM launcher.
+# Example: https://discord.gg/your-invite
+DISCORD_URL=

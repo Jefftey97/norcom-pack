@@ -1,0 +1,8 @@
+# NORCOM seed (new installs only; preserve=true). Keys verified from a generated 0.9.2-alpha.2 config + jar.
+# Super Resolution stays OFF until the player presses F6.
+enable_upscale = false
+# FSR 2 works on any GPU (NVIDIA/AMD/Intel). Use an SR-adapted shader (Sundial Lite) when enabling.
+upscale_algo = "fsr2"
+upscale_ratio = 1.5
+# Off: compat mode + Complementary caused a white screen (SR bug #208).
+enable_unstable_incompatible_shader_support = false

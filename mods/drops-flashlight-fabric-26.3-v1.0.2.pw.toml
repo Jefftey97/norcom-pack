@@ -1,0 +1,12 @@
+name = "Drops Flashlight"
+filename = "drops-flashlight-fabric-26.3-v1.0.2.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/NF7H7XBQ/versions/ErtgDbnN/drops-flashlight-fabric-26.3-v1.0.2.jar"
+hash-format = "sha512"
+hash = "aef76d37c51dc71da66a13748a5b5ea59c24cfea294599380f7fb91e2eafdfafc6970114992127b7a7d1893ab01fbacc1451186137d71dc80dd1fdb10c91f456"
+
+[update.modrinth]
+mod-id = "drops-flashlight"
+version = "auto"

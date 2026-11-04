@@ -1,0 +1,12 @@
+name = "Mc2Discord"
+filename = "mc2discord-fabric-26.3-4.3.1.jar"
+side = "server"
+
+[download]
+url = "https://cdn.modrinth.com/data/Cfbcv7uF/versions/slMJRJ5A/mc2discord-fabric-26.3-4.3.1.jar"
+hash-format = "sha512"
+hash = "1755baad496df862c3a2192522f98b04ea77ee0a4da5249a8788e225d5946e9cbe4314a9cd8aff35d76277c4fd66ec1d886f9c9c11289fc3393c49de4604adea"
+
+[update.modrinth]
+mod-id = "mc2discord"
+version = "auto"

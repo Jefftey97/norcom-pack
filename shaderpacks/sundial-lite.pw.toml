@@ -1,0 +1,14 @@
+name = "Sundial Lite"
+filename = "Sundial Lite v1.2.0.zip"
+side = "client"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/2cbOUuF5/versions/PjB08fPG/Sundial%20Lite%20v1.2.0.zip"
+hash-format = "sha512"
+hash = "c334f92acc37ef30dfa2cec5c0e7179984ad52651fa8c6e3b4251990305498afb5a3997ba73dfc0b8c7700db4a18edf3b9b35a2ed60050dc2802e5000f83b973"
+
+[update]
+[update.modrinth]
+mod-id = "2cbOUuF5"
+version = "PjB08fPG"

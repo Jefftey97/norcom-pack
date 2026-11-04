@@ -1,0 +1,14 @@
+name = "FFExhaustion"
+filename = "ffexhaustion-0.10.1+26.3-fabric.jar"
+side = "both"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/eDJql3yQ/versions/f5ARaPoU/ffexhaustion-0.10.1%2B26.3-fabric.jar"
+hash-format = "sha512"
+hash = "ab33ab75d051d0c536fb41112e4d8b1c1f105a9ab40ee3123561b41d95263a13ae0b0448e7fb983ffe79b7fe0f063c2058a779707ab5512b2819869724c9582f"
+
+[update]
+[update.modrinth]
+mod-id = "eDJql3yQ"
+version = "f5ARaPoU"

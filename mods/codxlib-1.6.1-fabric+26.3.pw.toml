@@ -1,0 +1,14 @@
+name = "CodxLib"
+filename = "codxlib-1.6.1-fabric+26.3.jar"
+side = "both"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/6oyMM4yX/versions/W7Cpzahs/codxlib-1.6.1-fabric%2B26.3.jar"
+hash-format = "sha512"
+hash = "ecea04cc5957dbe9b870f54918ad5a3d1df7c6286c815ea5589559cd39c1b170fbbc5549499515932a19da065634cac963d7f05d57a353be8b8ce97913cb5242"
+
+[update]
+[update.modrinth]
+mod-id = "6oyMM4yX"
+version = "W7Cpzahs"

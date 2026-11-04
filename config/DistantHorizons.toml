@@ -1,0 +1,8 @@
+[client]
+	[client.advanced]
+		[client.advanced.graphics]
+			[client.advanced.graphics.quality]
+				lodChunkRenderDistanceRadius = 128
+				horizontalQuality = "MEDIUM"
+				verticalQuality = "MEDIUM"
+				maxHorizontalResolution = "BLOCK"

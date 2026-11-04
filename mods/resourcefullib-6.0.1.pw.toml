@@ -1,0 +1,12 @@
+name = "Resourceful Lib"
+filename = "ResourcefulLib-6.0.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/G1hIVOrD/versions/P6Jq77km/ResourcefulLib-6.0.1.jar"
+hash-format = "sha512"
+hash = "9850f92d59beb89e8c3e8ca55e56aacdd42500c4e6f560607e29549e3998f6c912e08bc6ec5350764751ced6a9d7821c4e6c545fb6194e8a0d0ac111c218cd87"
+
+[update.modrinth]
+mod-id = "resourcefullib"
+version = "auto"

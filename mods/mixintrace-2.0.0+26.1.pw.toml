@@ -1,0 +1,14 @@
+name = "MixinTrace Unofficial-TT-Port"
+filename = "mixintrace-2.0.0+26.1.jar"
+side = "both"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/wkk60ci8/versions/27YnuP3l/mixintrace-2.0.0%2B26.1.jar"
+hash-format = "sha512"
+hash = "c73349480c8374e86a9e5c1db1258c8b68e6fed6b8221beb8c04d5c9c736cc498df66de39c623d0c3adba159ff79b17fd2ea359b353e0a0bf50f485fadaf91c7"
+
+[update]
+[update.modrinth]
+mod-id = "wkk60ci8"
+version = "27YnuP3l"

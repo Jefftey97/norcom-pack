@@ -1,0 +1,2 @@
+# NORCOM preferred resource pack order (top = higher priority). Installer merges into options.txt.
+resourcePacks:["file/Patrix_26.3_32x_addon.zip","file/Patrix_26.3_models.zip","file/Patrix_26.3_32x_basic.zip"]

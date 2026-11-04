@@ -1,0 +1,12 @@
+name = "Enhanced Celestials Shader Support"
+filename = "Enhanced-Celestials-2-Shaders-Fabric-26.3-5.0.0.0.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/6cEnKtmZ/versions/FGzzYAfp/Enhanced-Celestials-2-Shaders-Fabric-26.3-5.0.0.0.jar"
+hash-format = "sha512"
+hash = "f3cdbd19edbf1b91e532b63b972f82b363e78b18ac2bad3baaf25ccec1c6967a012bbec56c091849eee1240b1dc1dcde893bf3c42038822b70b47ef7eb92943e"
+
+[update.modrinth]
+mod-id = "enhanced-celestials-shader-support"
+version = "auto"

@@ -1,0 +1,12 @@
+name = "Easy NPC Core"
+filename = "easy_npc-fabric-26.3-7.18.0.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/Epm6R3P2/versions/NGwkdo8f/easy_npc-fabric-26.3-7.18.0.jar"
+hash-format = "sha512"
+hash = "ed101903fa2b4bc1b658926590c4c13d884d7dbb2de1e801684fe40f224daa2962de2f00a51fdad8d1d3e0ba21e4d3dc99116ce1a268cff7d996d9e6c97925fd"
+
+[update.modrinth]
+mod-id = "easy-npc-core"
+version = "auto"

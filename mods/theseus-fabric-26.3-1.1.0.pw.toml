@@ -1,0 +1,12 @@
+name = "Theseus Quests"
+filename = "theseus-fabric-26.3-1.1.0.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/fx73ivjN/versions/bq5lUeVz/theseus-fabric-26.3-1.1.0.jar"
+hash-format = "sha512"
+hash = "e82e907b364d408bbf1fa9ecc548ffa95ff15a902a574eee1b8939f5d6ec95ad40c669c583e8f2f2c42279aa32b75c90bcc07a6c36b0cc9ed053903a60885c1d"
+
+[update.modrinth]
+mod-id = "theseus-quests"
+version = "auto"

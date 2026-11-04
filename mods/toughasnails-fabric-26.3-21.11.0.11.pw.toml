@@ -1,0 +1,14 @@
+name = "Tough As Nails"
+filename = "ToughAsNails-fabric-26.3-21.11.0.11.jar"
+side = "both"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/ge1sOdFH/versions/8ABaOiQL/ToughAsNails-fabric-26.3-21.11.0.11.jar"
+hash-format = "sha512"
+hash = "583511046c1ccdf29c1b7e420b2b3c8852059be72d968d188f6918f41dc1bee096f7cebe6642bb17c36ccf349d3b4a4c22dae338a2c33ef60411562dbed0fd0d"
+
+[update]
+[update.modrinth]
+mod-id = "ge1sOdFH"
+version = "8ABaOiQL"

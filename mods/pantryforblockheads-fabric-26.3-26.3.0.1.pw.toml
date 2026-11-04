@@ -1,0 +1,14 @@
+name = "Pantry for Blockheads"
+filename = "pantryforblockheads-fabric-26.3-26.3.0.1.jar"
+side = "both"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/Q0e0aOtQ/versions/JsGFynFi/pantryforblockheads-fabric-26.3-26.3.0.1.jar"
+hash-format = "sha512"
+hash = "d2a5731d8701054c88dac66666a386a293b8ebb8ec6f7b274542e3935c96f451671533d09e2e1238234a250bf6a85fed118901b83fde5dc48a41663993640e4c"
+
+[update]
+[update.modrinth]
+mod-id = "Q0e0aOtQ"
+version = "JsGFynFi"

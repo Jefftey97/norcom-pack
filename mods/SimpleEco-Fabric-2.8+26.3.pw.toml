@@ -1,0 +1,12 @@
+name = "simple eco"
+filename = "SimpleEco-Fabric-2.8+26.3.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/yIN5aSya/versions/S38a5JO1/SimpleEco-Fabric-2.8%2B26.3.jar"
+hash-format = "sha512"
+hash = "9267bef74fbd1cd14ef1772a13a002745def14091427c62464d1f8b21318b7c689b627a242350797a21f3cced2b66754682a491a19bba1344a43e6fc2b3b9322"
+
+[update.modrinth]
+mod-id = "simple-eco"
+version = "auto"

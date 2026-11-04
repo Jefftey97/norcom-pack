@@ -1,0 +1,14 @@
+name = "Damage Tilt"
+filename = "damagetilt-1.1.0-26.3.jar"
+side = "client"
+
+[download]
+mode = "url"
+url = "https://cdn.modrinth.com/data/zgg7zTBK/versions/iuRkomwM/damagetilt-1.1.0-26.3.jar"
+hash-format = "sha512"
+hash = "c38d20647a50a29e2bffd05b5a3f9c25f0d25d0c629fc53f2bd2fab1f0b2c51097a13c5688f7078371e87c7ac03adba161b4f9bf41b3bb8b96052c4e96964482"
+
+[update]
+[update.modrinth]
+mod-id = "zgg7zTBK"
+version = "iuRkomwM"

@@ -1,0 +1,12 @@
+name = "Data Anchor"
+filename = "dataanchor-fabric-26.3-6.0.0.2.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/z2XEADmE/versions/mlTCCAan/dataanchor-fabric-26.3-6.0.0.2.jar"
+hash-format = "sha512"
+hash = "81c181cd117caf9dca93df9b6dd5c7051abd33a3ddd6da68eb61b11c7cf2f04415e0ae9847c020507ba6fd8fffedc8e86e2bd2bc3b068df9faa7e08f1bfbc652"
+
+[update.modrinth]
+mod-id = "data-anchor"
+version = "auto"

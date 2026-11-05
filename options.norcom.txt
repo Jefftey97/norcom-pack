@@ -1,2 +1,2 @@
-# NORCOM preferred resource pack order (top = higher priority). Installer merges into options.txt.
-resourcePacks:["file/Patrix_26.3_32x_addon.zip","file/Patrix_26.3_models.zip","file/Patrix_26.3_32x_basic.zip"]
+# NORCOM preferred resource pack order (vanilla options.txt order: FIRST = bottom/base, LAST = top priority).
+resourcePacks:["vanilla","continuity:default","continuity:glass_pane_culling_fix","file/Faithful 64x - Release 15.zip","file/Fast Better Grass.zip","file/visual_armor_trims_4.3.zip","file/FreshAnimations_v1.11.2_26.1+.zip","file/FA+All_Extensions-v1.10.1.zip"]

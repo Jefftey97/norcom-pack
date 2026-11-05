@@ -12,7 +12,7 @@ preserve = true
 
 [[files]]
 file = "config/iris.properties"
-hash = "4c3c61ce374ebcadacea46ea514e40434a0c7104c1e8805318e0081052995329"
+hash = "110646b058efe0cc6086b246d6eccafe25ad0be10878f4f9047b8ef14d963d5c"
 preserve = true
 
 [[files]]
@@ -593,12 +593,12 @@ hash = "24f9c695a80aecfd69549280b358d0264679e7590eeda4f27fd8921fbff56740"
 
 [[files]]
 file = "options.norcom.txt"
-hash = "497588b548b0b6bf8b71fbfcd5ef8d20eff27a8b498ce3b7e4731e05059903d7"
+hash = "c6eb67e8f88606a4188365dfd35108bac7cde5440f27e2159aefa429439b9d5f"
 preserve = true
 
 [[files]]
 file = "options.txt"
-hash = "702f6e59d23fd159be6025e4bdbac2c77cf970e8167cf6b069e41f91a17276b0"
+hash = "d166822a9fd7b6742ad4dd68a7c3a571419e77c1c28838a6e39acfa80c763647"
 preserve = true
 
 [[files]]
@@ -608,6 +608,26 @@ hash = "4cd336f8dcd4c6942f1e87d6ff9f22c4047c33baf146d6dbf8ace0a5bdebfe28"
 [[files]]
 file = "pack-notes.txt"
 hash = "acb7e8ed67a56f5d42d743b9765bfe6165bc77a0f84d13798ac304deb53f888b"
+
+[[files]]
+file = "resourcepacks/faithful-64x.pw.toml"
+hash = "88157c283523231533af1979f100db8b77b8aeeb0528b6f770a48e0106238f90"
+metafile = true
+
+[[files]]
+file = "resourcepacks/fast-better-grass.pw.toml"
+hash = "8ab23f47a6374081f5b9d10fd73374615f39ca1bd9f613bbef875b4ff04498a1"
+metafile = true
+
+[[files]]
+file = "resourcepacks/fresh-animations-extensions.pw.toml"
+hash = "479b5e4815b52a2cfafc2b5f4b555e4eda94b8d1ef88e1e24061711e5f70d3db"
+metafile = true
+
+[[files]]
+file = "resourcepacks/fresh-animations.pw.toml"
+hash = "10bd4be0d5f5895f46da555631302128b4a6c4b9095afe6b1319bf2b7c102ca2"
+metafile = true
 
 [[files]]
 file = "resourcepacks/patrix_26.3_32x_addon.pw.toml"
@@ -625,6 +645,11 @@ hash = "df3a118e23706be667d004d3398c57d05cbd0461f0da8987a19116a267d26356"
 metafile = true
 
 [[files]]
+file = "resourcepacks/visual-armor-trims.pw.toml"
+hash = "f105ffef509cdf2f45f1782af4bfa595a59ee1bd7f6121ff47a40c8ea53c7e0f"
+metafile = true
+
+[[files]]
 file = "rules.md"
 hash = "bfd8acf57b334d508b4407c1e2cb46f1dab5e22e6fcafba25b5a44c69db8acd6"
 
@@ -636,6 +661,11 @@ preserve = true
 [[files]]
 file = "shaderpacks/ComplementaryUnbound_r5.9.3.txt"
 hash = "35b020703d553f8c1fff59154717f3244000a3e29ec263a16961710a853e4a2c"
+preserve = true
+
+[[files]]
+file = "shaderpacks/ComplementaryUnbound_r5.9.3.zip.txt"
+hash = "19bec915fd2fcc5d32734004a0074f3c2b3fef44e30a8698bbdc9cec29153abf"
 preserve = true
 
 [[files]]

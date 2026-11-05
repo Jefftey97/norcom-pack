@@ -16,16 +16,16 @@ preserve = true
 
 [[files]]
 file = "config/iris.properties"
-hash = "110646b058efe0cc6086b246d6eccafe25ad0be10878f4f9047b8ef14d963d5c"
+hash = "9bc6a2a1b4cdcf1a44870dea158655f1d3559b7e97d2ed6e43c3107c7edba644"
 preserve = true
 
 [[files]]
 file = "config/particlerain/config.json"
-hash = "e828cf2c0ece7f919a156a42d546a52738a44776a4816b539f24b1d96e69774a"
+hash = "3f450ccb562d8a78b1b8197d3b56f1cf72b7d29f76faf8261e97315687a69e5b"
 
 [[files]]
 file = "config/particlerain/particles.json"
-hash = "3c6ace6d9bd2bf188d2b3a0aa3158e1101791fed02a2340f523db2666a8be90b"
+hash = "1b78f38a328f5aa5bc4a7bf52512a8baf1744cff73cc31b54618c11b3f3f31ab"
 
 [[files]]
 file = "config/roughlyenoughitems/config.json5"
@@ -35,11 +35,6 @@ preserve = true
 [[files]]
 file = "config/sodium-options.json"
 hash = "b865bdf247d5fb138f297871a43c4a1e84053e8a65904ed2c7a31f2600978df2"
-preserve = true
-
-[[files]]
-file = "config/super_resolution/config.toml"
-hash = "28d10be6251a656f8824dc8e09b1deb1d73236d4034043e184859669ed08b270"
 preserve = true
 
 [[files]]
@@ -339,8 +334,8 @@ file = "mods/pantryforblockheads-fabric-26.3-26.3.0.1.pw.toml"
 hash = "64e79dd4bc1608dba59fc9de9ff227953965703e032567543ce3a123eec2304c"
 
 [[files]]
-file = "mods/particlerain-4.0.2+26.3-fabric.pw.toml"
-hash = "7209a4cd237207f98639b40828e10def705a65dade02a5291858e88da7ef857a"
+file = "mods/particlerain-4.0.3+26.3-fabric.pw.toml"
+hash = "050bc38db485639764b88343e8be4072a7ee6f7e408b4e08b805e1ff3efbb80e"
 
 [[files]]
 file = "mods/placeholder-api-3.2.0+26.3.pw.toml"
@@ -411,10 +406,6 @@ file = "mods/styledplayerlist-3.13.0+26.3.pw.toml"
 hash = "a5eb7d1b0fca3d19e3aa916dbea0e4401e358bfd52b964fca4c5656cc5d45a52"
 
 [[files]]
-file = "mods/super_resolution-fabric-26.3-0.9.2-alpha.2+opengl.pw.toml"
-hash = "8d3f60c7c3188468a6aa656aa99a8fbecd6387fc5f0019a618e84159ed7ebb88"
-
-[[files]]
 file = "mods/SVC-Radio-2.2.2+26.3.fabric.pw.toml"
 hash = "80560f4daddb68363d80500496c56917953d6f92a6645592951618621e35b151"
 
@@ -459,10 +450,6 @@ file = "mods/voicechat-fabric-2.6.27+26.3.pw.toml"
 hash = "fb27de5d0a2afd3ebdd058fd35d965fbfcea52490b7cff6951e5a1f270e49ff6"
 
 [[files]]
-file = "mods/wakes-0.7.3+26.3.pw.toml"
-hash = "e6c5f26844c2e2134738051176e2fe95fad0cf6c83c28f7fb4f8de3328fb7e75"
-
-[[files]]
 file = "mods/waystones-fabric-26.3-26.3.0.2.pw.toml"
 hash = "13b514ede7ca61a17cd55c042a3bd43ea629bf8dd4c76272d610f00cb2ef3469"
 
@@ -492,37 +479,21 @@ hash = "24f9c695a80aecfd69549280b358d0264679e7590eeda4f27fd8921fbff56740"
 
 [[files]]
 file = "options.norcom.txt"
-hash = "4b87576072ccfaf6e980455b0b89acdb5e6a4f4509574524863032719bc6726e"
+hash = "112c8a29f5eadff7a3d6f8a527f0b7cbd296112017ad0b2a7709b4fc0d0d7b32"
 preserve = true
 
 [[files]]
 file = "options.txt"
-hash = "a8d263c1355e2055c19a4e729dbd2068001af990447ed713bf361398f926155e"
+hash = "36c4f954f1f3378ba733fd114546b2a13b71a6f23bd782b175297319efee8c3d"
 preserve = true
 
 [[files]]
 file = "pack-notes.md"
-hash = "4cd336f8dcd4c6942f1e87d6ff9f22c4047c33baf146d6dbf8ace0a5bdebfe28"
+hash = "b967eff579d790eb7afb6fab7e7c0265f43bdd59de5488980d77099eb29e4885"
 
 [[files]]
 file = "pack-notes.txt"
-hash = "0dbc3432d0aa8a12604700610664f987be31f24ba549003050a0928b9ea3ad67"
-
-[[files]]
-file = "resourcepacks/faithful-64x.pw.toml"
-hash = "88157c283523231533af1979f100db8b77b8aeeb0528b6f770a48e0106238f90"
-
-[[files]]
-file = "resourcepacks/fast-better-grass.pw.toml"
-hash = "8ab23f47a6374081f5b9d10fd73374615f39ca1bd9f613bbef875b4ff04498a1"
-
-[[files]]
-file = "resourcepacks/fresh-animations.pw.toml"
-hash = "10bd4be0d5f5895f46da555631302128b4a6c4b9095afe6b1319bf2b7c102ca2"
-
-[[files]]
-file = "resourcepacks/fresh-animations-extensions.pw.toml"
-hash = "479b5e4815b52a2cfafc2b5f4b555e4eda94b8d1ef88e1e24061711e5f70d3db"
+hash = "b967eff579d790eb7afb6fab7e7c0265f43bdd59de5488980d77099eb29e4885"
 
 [[files]]
 file = "resourcepacks/patrix_26.3_32x_addon.pw.toml"
@@ -535,10 +506,6 @@ hash = "7c3c27afba928e638e3023bce002d6d89d7f918b3541d6511018556e6674c4db"
 [[files]]
 file = "resourcepacks/patrix_26.3_models.pw.toml"
 hash = "df3a118e23706be667d004d3398c57d05cbd0461f0da8987a19116a267d26356"
-
-[[files]]
-file = "resourcepacks/visual-armor-trims.pw.toml"
-hash = "f105ffef509cdf2f45f1782af4bfa595a59ee1bd7f6121ff47a40c8ea53c7e0f"
 
 [[files]]
 file = "rules.md"
@@ -559,15 +526,14 @@ hash = "f122fbe2bfd2350c2c9a00af0664fa7af83f138e1847c833c96a1b113d9e8bb3"
 
 [[files]]
 file = "shaderpacks/ComplementaryUnbound_r5.9.3.txt"
-hash = "da76076b60710adc023cf40c3d4c3b9f34bdc6f46c50c04046694696cb280a35"
+hash = "1e967aac90d0328c51e671334fcb335bf85e519863eb9966ea858cc8fad75d6d"
 preserve = true
 
 [[files]]
 file = "shaderpacks/ComplementaryUnbound_r5.9.3.zip.txt"
-hash = "cff0c8a4ee90f5447c8e0b5bf12f3d2829cd8e122a132b439bb91e4c680987a9"
+hash = "1e967aac90d0328c51e671334fcb335bf85e519863eb9966ea858cc8fad75d6d"
 preserve = true
 
 [[files]]
 file = "shaderpacks/sundial-lite.pw.toml"
 hash = "f35b5c2ac20b46141dea6cb3c9ad76dd3704bebb1620b7ba8274b015ae29cac4"
-

@@ -1,12 +1,12 @@
 name = "NORCOM"
 author = "Jeffrey"
-version = "1.0.32"
+version = "1.0.35"
 pack-format = "packwiz:1.1.0"
 
 [index]
 file = "index.toml"
 hash-format = "sha256"
-hash = "57503440ae2b38d61da31730265d28aaebaa542ba62ac4beffb085e595f7b24d"
+hash = "5a7c479d82eabaeea17701eab50ca9d59bddc246a2c6f8a435a01a25a137c1ce"
 
 [versions]
 minecraft = "26.3"

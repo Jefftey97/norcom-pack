@@ -1,3 +1,4 @@
 # NORCOM preferred resource pack order (FIRST = bottom/base, LAST = top priority).
-# Patrix 32x labPBR + Fresh Animations. Faithful/FastBetterGrass/visual_armor_trims dropped (64x vs 32x + no PBR maps caused black splotches under Unbound RP_MODE=3).
-resourcePacks:["vanilla","continuity:default","continuity:glass_pane_culling_fix","file/FreshAnimations_v1.11.2_26.1+.zip","file/FA+All_Extensions-v1.10.1.zip","file/Patrix_26.3_32x_basic.zip","file/Patrix_26.3_32x_addon.zip"]
+# Patrix docs: basic at bottom above vanilla/continuity; addon + models on top.
+# Continuity built-ins required for Patrix optifine/ctm. Faithful/FA removed (mobs use Patrix+EMF/ETF/NEA, not Fresh Animations).
+resourcePacks:["vanilla","continuity:default","continuity:glass_pane_culling_fix","file/Patrix_26.3_32x_basic.zip","file/Patrix_26.3_32x_addon.zip","file/Patrix_26.3_models.zip"]

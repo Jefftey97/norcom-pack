@@ -1,34 +1,6 @@
-NORCOM update 2026-11-04
-1.0.32 - Fix black splotches + garbled rain: default resource packs are now Patrix 32x basic+addon + Fresh Animations/FA Extensions + continuity (dropped Faithful 64x / Fast Better Grass / visual_armor_trims — Faithful has no labPBR maps so Unbound RP_MODE=3 caused black spots; 64x under 32x Patrix fought resolutions). Unbound defaults = HIGH profile, motion blur OFF. Particle Rain config: renderDefaultWeather=true, shaderpackTint=false, rain/snow/streak/fog particles density 0 (Iris+Complementary mishandle blended PR particles → garbled rain). Continuity emissive_textures=false. Existing installs: options.txt/iris/shader txt are preserve=true so launcher 1.0.35 migration (or re-apply graphics tier) is needed for friends already seeded with Faithful.
-
-NORCOM update 2026-11-04
-1.0.18 - Fabric API 0.165.2+26.3 (registry/damage/bundle fixes). Server Discord bridge (mc2discord) + military MOTD/tab list/chat styling (server-side). Softened shop price swings. OreShield/underground hider remain off.
-
-NORCOM update 2026-11-04
-1.0.17 â€” Keybinds: removed Zoomify vs creative-toolbar clash (unbound save/load toolbar activators; zoom stays on C). REI recipe/usage moved to Alt+R / Alt+U so they no longer fight Combat Roll (R) or Xaero waypoints (U); REI hide stays Ctrl+O; favorite is Ctrl+A. IPN/REI/Complementary Reimagined shader options marked preserve=true so player changes are never overwritten on sync (new installs still get pack defaults). Existing players keep their current options.txt / graphics; delete config/roughlyenoughitems/config.json5 + config/inventoryprofilesnext/inventoryprofiles.json once if you still see recipe lag or want the new REI binds.
-
-NORCOM update 2026-11-04
-1.0.16 â€” Inventory polish: removed Mouse Tweaks (IPN alone handles clicks/drags/scroll; no other mod depended on it). IPN GuiSettings verified against Inventory Profiles Next 2.3.8 (buttons, profiles bar, continuous-crafting/fast-rename checkboxes off). REI stays installed but hidden by default (Ctrl+O); search timeouts cut by forceLocalRecipes=NEVER, lighter tooltip search, larger async partitions, and fast entry caching.
-
-NORCOM update 2026-11-03
-1.0.9 â€” Super Resolution 26.3-0.9.2-alpha.2+gl-fabric (client-only, side=client). Config seeded with enable_upscale=false (preserve=true). To enable: press F6 (Controls â†’ Super Resolution â†’ Open Configuration Screen) or Mods â†’ Super Resolution â†’ Config. On General â†’ Super Resolution: turn on Enable Super Resolution, then pick algorithm (AMD FidelityFX Super Resolution / AMD FSR 4 / NVIDIA DLSS / Intel XeSS / None). DLSS/XeSS may prompt to download vendor libraries.
-NORCOM update 2026-11-03
-1.0.9 Ã¢â‚¬â€ Super Resolution 26.3-0.9.2-alpha.2+gl-fabric (client-only). Upscaling defaults OFF. To enable: press the Super Resolution config key (Controls Ã¢â€ â€™ Super Resolution Ã¢â€ â€™ Open Configuration Screen; default key code 63) or Mods Ã¢â€ â€™ Super Resolution Ã¢â€ â€™ Config, turn on Enable super-resolution upscaling, then pick algorithm (AMD FSR / FSR1 / FSR2, NVIDIA DLSS, Intel XeSS, etc.).
-NORCOM update 2026-11-03
-1.0.8 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Distant Horizons 3.3.4 (far LOD terrain). Installed for everyone via the launcher. If your PC struggles, open Esc ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Mods ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Distant Horizons and lower Quality / LOD distance, or turn off Enable Rendering. Do not use Chunky for LOD holes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â prefer /dh pregen on the server.
-
-NORCOM update 2026-11-03
-Pack 1.0.7: Complementary Unbound r5.9.3 is the default shader (labPBR). Reimagined remains available. Existing installs keep their current shader until they switch.
-
-NORCOM update 2026-11-03
-Pack 1.0.6: client settings preserve - Play no longer rewrites options.txt / iris.properties / servers.dat after first seed. iris.properties in pack is preserve=true.
-
-NORCOM update 2026-11-03
-Pack 1.0.5: removed AntiXray; added Crash Assistant (client) + MixinTrace Unofficial-TT-Port (client+server). First Aid stays removed.
-
-Security: Simple Eco OreShield (AntiXray removed)
-Economy: Simple Eco NORCOM Coins
-Quests: Theseus
-NPCs: Easy NPC
-Voice: Simple Voice Chat + Radio (UDP 24454 tunnel pending)
-Discord: Mc2Discord installed, bot token pending
+NORCOM 1.0.35
+- Graphics: Low / Medium / Medium High / High / Ultra (default High) + Fix Visuals one-click repair
+- Patrix 32x basic + addon + models + Continuity CTM (Faithful/FA removed from pack)
+- Complementary Unbound r5.9.3 (labPBR) storm-safe: Particle Rain 4.0.3 sole rain, vanilla rain off, Unbound waving rain/puddles off
+- Removed Super Resolution and Wakes (Iris/shader conflicts)
+- EMF/ETF/NEA kept for Patrix entity models

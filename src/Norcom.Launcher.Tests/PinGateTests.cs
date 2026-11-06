@@ -100,12 +100,88 @@ public class PinGateTests
 	}
 
 	[Fact]
+	public async Task PresentPinJarsMatchEvenWhenTheFolderIsNotTheServerRollup()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "mods"));
+		byte[] fabric = Encoding.UTF8.GetBytes("fabric-api-bytes");
+		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "fabric-api.jar"), fabric);
+		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "sodium-fabric.jar"), Encoding.UTF8.GetBytes("client-only"));
+		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "iris-fabric.jar"), Encoding.UTF8.GetBytes("client-only-2"));
+		string fabricSha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fabric)).ToLowerInvariant();
+		string pinJson = FullPin(new[]
+		{
+			Jar("fabric-api.jar", fabricSha, fabric.Length),
+			Jar("server-only-mod.jar", new string('a', 64), 10)
+		});
+		Assert.NotEqual(LivePin, PinGate.Rollup(new[]
+		{
+			("fabric-api.jar", fabricSha, (long)fabric.Length),
+			("server-only-mod.jar", new string('a', 64), 10L)
+		}));
+		string? previous = Environment.GetEnvironmentVariable("NORCOM_PIN_PATH");
+		string pinPath = Path.Combine(dir, "pin.json");
+		await File.WriteAllTextAsync(pinPath, pinJson);
+		try
+		{
+			Environment.SetEnvironmentVariable("NORCOM_PIN_PATH", pinPath);
+			using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
+			await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None);
+			Assert.Equal(LivePin, PinGate.ReadAppliedPin(dir));
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable("NORCOM_PIN_PATH", previous);
+		}
+	}
+
+	[Fact]
+	public async Task DualSidedShaMismatchStillRefuses()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "mods"));
+		byte[] fabric = Encoding.UTF8.GetBytes("wrong-bytes");
+		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "fabric-api.jar"), fabric);
+		string pinJson = FullPin(new[]
+		{
+			Jar("fabric-api.jar", new string('b', 64), fabric.Length)
+		});
+		string? previous = Environment.GetEnvironmentVariable("NORCOM_PIN_PATH");
+		string pinPath = Path.Combine(dir, "pin.json");
+		await File.WriteAllTextAsync(pinPath, pinJson);
+		try
+		{
+			Environment.SetEnvironmentVariable("NORCOM_PIN_PATH", pinPath);
+			using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
+			PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None));
+			Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+			Assert.Contains("fabric-api.jar", ex.Message);
+			Assert.DoesNotContain("Actual rollup", ex.Message);
+			Assert.DoesNotContain("Repair", ex.Message);
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable("NORCOM_PIN_PATH", previous);
+		}
+	}
+
+	[Fact]
 	public async Task AllPinUrls404WarnAndContinue()
 	{
 		TomlLite.Doc pack = TomlLite.Parse(Pack);
 		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>()));
 		await PinGate.EnforceAsync(http, NewDir(), pack, CancellationToken.None);
 		Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
+	}
+
+	private static string Jar(string name, string sha, int size)
+	{
+		return "{\"name\":" + JsonSerializer.Serialize(name) + ",\"sha256\":" + JsonSerializer.Serialize(sha) + ",\"size\":" + size + "}";
+	}
+
+	private static string FullPin(IEnumerable<string> jars)
+	{
+		return "{\"schema\":1,\"minecraft\":\"26.3\",\"fabric_loader\":\"0.20.1\",\"pin_sha256\":\"" + LivePin + "\",\"jars\":[" + string.Join(",", jars) + "]}";
 	}
 
 	private static string Slim(string mc, string loader, string pin)

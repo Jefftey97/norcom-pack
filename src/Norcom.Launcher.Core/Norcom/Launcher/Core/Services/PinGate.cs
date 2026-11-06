@@ -245,12 +245,24 @@ public static class PinGate
 				throw new PinMismatchException("Server pin could not be read. Play was not started.");
 			}
 			List<(string Name, string Sha256, long Size)> parsed = ReadJars(jars);
-			string rollup = Rollup(parsed);
-			if (!string.Equals(rollup, pinSha, StringComparison.OrdinalIgnoreCase))
+			int dualSided = 0;
+			int serverOnly = 0;
+			foreach ((string name, string _, long _) in parsed)
 			{
-				LauncherLog.Write("pin " + source + " pin_sha256=" + pinSha + " rollup=" + rollup + " block rollup");
-				throw new PinMismatchException(BlockCopy + " Expected pin_sha256 " + pinSha + ". Actual rollup " + rollup + ".");
+				if (IsClientOnly(name))
+				{
+					continue;
+				}
+				if (File.Exists(LocateJar(gameDir, name)))
+				{
+					dualSided++;
+				}
+				else
+				{
+					serverOnly++;
+				}
 			}
+			LauncherLog.Write("pin " + source + " pin_sha256=" + pinSha + " dual-sided=" + dualSided + " server-only=" + serverOnly);
 			RequirePack(minecraft, loader, pinSha, gameDir, pack, source);
 			if (!string.IsNullOrWhiteSpace(slimJson))
 			{

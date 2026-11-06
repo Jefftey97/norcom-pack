@@ -441,7 +441,7 @@
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",
-    "launcher_feed": "refuse join/update if pin_sha256 mismatch for dual-sided mods",
+    "launcher_feed": "refuse only when a pin jar present in the client mods folder has a different sha256; ignore server-only jars and client-only jars",
     "autofix": "any quarantine/restore under G:\\\\MinecraftServer\\\\mods MUST regenerate this pin and notify @server"
   }
 }

@@ -77,23 +77,67 @@ public static class GraphicsAuto
 			return GraphicsTier.High;
 		}
 		double num = (double)hardware.VramBytes / 1073741824.0;
+		GraphicsTier tier;
 		if (hardware.Integrated || num < 4.0)
+		{
+			tier = GraphicsTier.Low;
+		}
+		else if (num < 6.0)
+		{
+			tier = GraphicsTier.Medium;
+		}
+		else if (num < 8.0)
+		{
+			tier = GraphicsTier.MediumHigh;
+		}
+		else if (num < 12.0)
+		{
+			tier = GraphicsTier.High;
+		}
+		else
+		{
+			tier = GraphicsTier.Ultra;
+		}
+		return Depth(tier, hardware);
+	}
+
+	public static GraphicsTier Depth(GraphicsTier tier, PcHardware hardware)
+	{
+		if (hardware.LogicalProcessors > 0 && hardware.LogicalProcessors < 4)
+		{
+			tier = Cap(tier, GraphicsTier.Medium);
+		}
+		else if (hardware.LogicalProcessors > 0 && hardware.LogicalProcessors < 6)
+		{
+			tier = Cap(tier, GraphicsTier.MediumHigh);
+		}
+		if (hardware.FreeRamBytes > 0 && hardware.FreeRamBytes < 4L * Gib)
+		{
+			tier = Drop(tier);
+		}
+		if (hardware.RefreshHz > 0 && hardware.RefreshHz < 60 && hardware.VramBytes > 0 && hardware.VramBytes < 6L * Gib)
+		{
+			tier = Cap(tier, GraphicsTier.Medium);
+		}
+		return tier;
+	}
+
+	private static GraphicsTier Cap(GraphicsTier tier, GraphicsTier ceiling)
+	{
+		if (tier > ceiling)
+		{
+			return ceiling;
+		}
+		return tier;
+	}
+
+	private static GraphicsTier Drop(GraphicsTier tier)
+	{
+		if (tier == GraphicsTier.Low)
 		{
 			return GraphicsTier.Low;
 		}
-		if (num < 6.0)
-		{
-			return GraphicsTier.Medium;
-		}
-		if (num < 8.0)
-		{
-			return GraphicsTier.MediumHigh;
-		}
-		if (num < 12.0)
-		{
-			return GraphicsTier.High;
-		}
-		return GraphicsTier.Ultra;
+		return tier - 1;
 	}
 
 	public static bool IsIntegratedName(string? name)

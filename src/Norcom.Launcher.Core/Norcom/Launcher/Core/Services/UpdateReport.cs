@@ -83,7 +83,7 @@ public static class UpdateReport
 		{
 			return "rejected already-applied";
 		}
-		if (string.IsNullOrWhiteSpace(payloadVersion) || !SameRelease(payloadVersion, manifestVersion))
+		if (!PayloadStamp.Identical(payloadVersion, manifestVersion))
 		{
 			return "rejected payload-version";
 		}
@@ -91,7 +91,7 @@ public static class UpdateReport
 		{
 			return "rejected payload-version";
 		}
-		if (string.IsNullOrWhiteSpace(exeFileVersion) || !SameRelease(exeFileVersion, payloadVersion))
+		if (!PayloadStamp.Identical(exeFileVersion, payloadVersion))
 		{
 			return "rejected payload-version";
 		}

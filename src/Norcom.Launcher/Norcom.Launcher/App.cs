@@ -26,6 +26,7 @@ public class App : Application
 
 	protected override async void OnStartup(StartupEventArgs e)
 	{
+		HardwareProbe.Reader = () => new WmiPcProbe().TryRead();
 		_003C_003En__0(e);
 		((Application)this).DispatcherUnhandledException += new DispatcherUnhandledExceptionEventHandler(OnUiException);
 		AppDomain.CurrentDomain.UnhandledException += delegate(object _, UnhandledExceptionEventArgs args)

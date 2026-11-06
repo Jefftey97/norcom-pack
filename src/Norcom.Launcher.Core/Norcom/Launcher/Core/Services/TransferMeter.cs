@@ -20,10 +20,13 @@ public sealed class TransferMeter
 
 	private readonly Queue<(long ticks, long bytes)> _window = new Queue<(long, long)>();
 
+	private long _epoch;
+
 	public void HandOff()
 	{
 		lock (_gate)
 		{
+			_epoch++;
 			_label = "";
 			_base = 1.0;
 			_span = 0.0;
@@ -37,6 +40,7 @@ public sealed class TransferMeter
 	{
 		lock (_gate)
 		{
+			_epoch++;
 			_label = label;
 			_base = baseFraction;
 			_span = span;
@@ -90,7 +94,7 @@ public sealed class TransferMeter
 					eta = TimeSpan.FromSeconds((double)Math.Max(0L, _total.Value - _received) / num);
 				}
 			}
-			return new TransferSnapshot(_label, Math.Clamp(value, 0.0, 1.0), _received, _total, num, eta);
+			return new TransferSnapshot(_label, Math.Clamp(value, 0.0, 1.0), _received, _total, num, eta, _epoch);
 		}
 	}
 

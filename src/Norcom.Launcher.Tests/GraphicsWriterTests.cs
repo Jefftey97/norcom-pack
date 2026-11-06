@@ -150,8 +150,9 @@ public class GraphicsWriterTests
 		Assert.Equal("do-not-touch", File.ReadAllText(Path.Combine(packsDir, "Alacrity.zip")));
 		string marble = Path.Combine(packsDir, GraphicsPack.MarbleFile);
 		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(marble))).ToLowerInvariant();
-		Assert.Equal(GraphicsPack.MarbleSha256, sha);
-		Assert.Equal(GraphicsPack.MarbleBytes, new FileInfo(marble).Length);
+		Assert.NotEqual(GraphicsPack.SupersededMarbleSha256, sha);
+		Assert.NotEqual(GraphicsPack.MarbleSha256, sha);
+		Assert.Equal(3, new FileInfo(marble).Length);
 		string packs = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
 		int alacrity = packs.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
 		int candle = packs.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);
@@ -160,6 +161,8 @@ public class GraphicsWriterTests
 		Assert.DoesNotContain("Patrix", packs);
 		Assert.DoesNotContain(GraphicsPack.NeverEnable, packs);
 		Assert.False(File.Exists(Path.Combine(packsDir, "norcom-held", GraphicsPack.MarbleFile)));
+		Assert.Equal("642da745a516161b4e69d366c29bcaa9270bd42956c114706e1f19d6b901f039", GraphicsPack.MarbleSha256);
+		Assert.Equal(24710796, GraphicsPack.MarbleBytes);
 	}
 
 	[Fact]
@@ -182,6 +185,7 @@ public class GraphicsWriterTests
 		TransferSnapshot snap = meter.Snapshot();
 		Assert.Equal("", snap.Label);
 		Assert.Equal(1.0, snap.Fraction);
+		Assert.True(snap.Epoch > 1);
 	}
 
 	private sealed class MarbleHandler : HttpMessageHandler
@@ -375,6 +379,128 @@ public class GraphicsWriterTests
 		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=false\n", GraphicsTier.Low));
 		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=1\n", GraphicsTier.High));
 		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=0.5\n", GraphicsTier.High));
+	}
+
+	[Fact]
+	public void PlayLeavesCustomGraphicsWhenTheOverlayHasNotDrifted()
+	{
+		string dir = NewGame();
+		Directory.CreateDirectory(Path.Combine(dir, "shaderpacks"));
+		string shader = "profile=HIGH\nRAIN_STYLE=1\nshadowDistance=40.0\n";
+		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
+		string options = "renderDistance:6\nmaxFps:80\nresourcePacks:[\"vanilla\",\"continuity:default\",\"file/Patrix_26.3_32x_basic.zip\",\"file/norcom_marble.zip\"]\nkey_key.attack:key.mouse.left\n";
+		File.WriteAllText(Path.Combine(dir, "options.txt"), options);
+		GraphicsPlay.Probe = () => null;
+		try
+		{
+			Assert.Equal(GraphicsTier.High, GraphicsPlay.ApplyAuto(dir));
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+		}
+		Assert.Equal(options, File.ReadAllText(Path.Combine(dir, "options.txt")));
+		Assert.Equal(shader, File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
+		Assert.Contains("Patrix_26.3_32x_basic.zip", File.ReadAllText(Path.Combine(dir, "options.txt")));
+		Assert.DoesNotContain("file/Alacrity.zip", File.ReadAllText(Path.Combine(dir, "options.txt")));
+	}
+
+	[Fact]
+	public void PlayEnablesCarraraAfterContinuityAndKeepsPatrixWhenAlacrityIsOff()
+	{
+		string dir = NewGame();
+		string options = "renderDistance:9\nmaxFps:260\nresourcePacks:[\"vanilla\",\"continuity:default\",\"file/Patrix_26.3_32x_basic.zip\"]\nkey_key.attack:key.mouse.left\n";
+		File.WriteAllText(Path.Combine(dir, "options.txt"), options);
+		GraphicsPlay.Probe = () => null;
+		try
+		{
+			GraphicsPlay.ApplyAuto(dir);
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+		}
+		string healed = File.ReadAllText(Path.Combine(dir, "options.txt"));
+		Assert.Contains("renderDistance:9", healed);
+		Assert.Contains("maxFps:260", healed);
+		Assert.Contains("file/Patrix_26.3_32x_basic.zip", healed);
+		Assert.Contains("continuity:default", healed);
+		Assert.Contains("file/norcom_marble.zip", healed);
+		Assert.DoesNotContain("file/Alacrity.zip", healed);
+		Assert.Contains("key_key.attack:key.mouse.left", healed);
+	}
+
+	[Fact]
+	public void PlayHealsAlacrityCandleAndCarraraWithoutWipingRenderDistance()
+	{
+		string dir = NewGame();
+		string packs = Path.Combine(dir, "resourcepacks");
+		Directory.CreateDirectory(packs);
+		Directory.CreateDirectory(Path.Combine(dir, "shaderpacks"));
+		File.WriteAllText(Path.Combine(packs, "Alacrity.zip"), "keep-alacrity");
+		string shader = "profile=HIGH\nRAIN_STYLE=2\nshadowDistance=40.0\n";
+		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
+		File.WriteAllText(Path.Combine(dir, "options.txt"), "renderDistance:9\nresourcePacks:[\"vanilla\",\"file/Alacrity.zip\",\"file/Patrix_26.3_32x_basic.zip\"]\n");
+		GraphicsPlay.Probe = () => new PcHardware("NVIDIA GeForce RTX 3070", 8L * GraphicsAuto.Gib, 32L * GraphicsAuto.Gib, 16, false, 16L * GraphicsAuto.Gib, 144);
+		try
+		{
+			Assert.Equal(GraphicsTier.High, GraphicsPlay.ApplyAuto(dir));
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+		}
+		string options = File.ReadAllText(Path.Combine(dir, "options.txt"));
+		Assert.Contains("renderDistance:9", options);
+		string list = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
+		int alacrity = list.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
+		int candle = list.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);
+		int marbleAt = list.IndexOf("file/" + GraphicsPack.MarbleFile, StringComparison.Ordinal);
+		Assert.True(alacrity >= 0 && alacrity < candle && candle < marbleAt);
+		Assert.Contains("continuity:default", list);
+		Assert.DoesNotContain("Patrix", list);
+		Assert.Equal("keep-alacrity", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
+		Assert.Equal(shader, File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
+		Assert.Contains("sticky=3070", File.ReadAllText(Path.Combine(dir, "norcom-graphics-tier.txt")));
+	}
+
+	[Fact]
+	public void PlayFixesOnlyAFalseRainStyle()
+	{
+		string dir = NewGame();
+		Directory.CreateDirectory(Path.Combine(dir, "shaderpacks"));
+		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), "profile=HIGH\nRAIN_STYLE=false\nshadowDistance=40.0\n");
+		File.WriteAllText(Path.Combine(dir, "options.txt"), "renderDistance:8\nresourcePacks:" + GraphicsPack.AlacrityPacks + "\n");
+		string packs = Path.Combine(dir, "resourcepacks");
+		Directory.CreateDirectory(packs);
+		File.WriteAllBytes(Path.Combine(packs, GraphicsPack.OverlayFile), System.Security.Cryptography.SHA256.HashData(new byte[] { 1 }));
+		GraphicsPlay.Probe = () => null;
+		try
+		{
+			GraphicsPlay.ApplyAuto(dir);
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+		}
+		string shader = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", shader);
+		Assert.DoesNotContain("RAIN_STYLE=false", shader);
+		Assert.Contains("shadowDistance=40.0", shader);
+		Assert.Contains("renderDistance:8", File.ReadAllText(Path.Combine(dir, "options.txt")));
+	}
+
+	[Fact]
+	public void AutoDepthUsesFreeRamCpusAndRefreshWithoutLiftingA3070()
+	{
+		PcHardware weak = new PcHardware("NVIDIA GeForce RTX 4070", 12L * GraphicsAuto.Gib, 32L * GraphicsAuto.Gib, 4, false, 3L * GraphicsAuto.Gib, 60);
+		Assert.Equal(GraphicsTier.Medium, GraphicsAuto.Choose(weak));
+		PcHardware strong = new PcHardware("NVIDIA GeForce RTX 4070", 12L * GraphicsAuto.Gib, 32L * GraphicsAuto.Gib, 16, false, 16L * GraphicsAuto.Gib, 144);
+		Assert.Equal(GraphicsTier.Ultra, GraphicsAuto.Choose(strong));
+		PcHardware card = new PcHardware("NVIDIA GeForce RTX 3070", 8L * GraphicsAuto.Gib, 32L * GraphicsAuto.Gib, 4, false, 2L * GraphicsAuto.Gib, 144);
+		Assert.Equal(GraphicsTier.High, GraphicsAuto.Choose(card));
+		PcHardware lowHz = new PcHardware("NVIDIA GeForce GTX 1650", 4L * GraphicsAuto.Gib, 16L * GraphicsAuto.Gib, 8, false, 8L * GraphicsAuto.Gib, 50);
+		Assert.Equal(GraphicsTier.Medium, GraphicsAuto.Choose(lowHz));
 	}
 
 	[Fact]

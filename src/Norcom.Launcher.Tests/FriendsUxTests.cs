@@ -14,7 +14,8 @@ public class FriendsUxTests
 		Assert.True(status.ShowOnline);
 		Assert.Equal("Online", status.Headline);
 		Assert.Equal("4 online", status.PlayersText);
-		Assert.Equal(NorcomPaths.ServerHost + ":" + NorcomPaths.ServerPort, status.Source);
+		Assert.Equal(FriendsServer.FallbackDisplay, status.Source);
+		Assert.DoesNotContain(":25565", status.Source);
 		Assert.DoesNotContain("Alice", status.Detail);
 		Assert.DoesNotContain("secret", status.Detail);
 		Assert.DoesNotContain("not published", status.Detail);
@@ -29,7 +30,8 @@ public class FriendsUxTests
 		Assert.Equal("—", status.PlayersText);
 		Assert.Equal("Timed out reaching the server.", status.Detail);
 		Assert.DoesNotContain("not published", status.Detail);
-		Assert.Equal("shrimp-cub.tun.ply.gg:25565", status.Source);
+		Assert.Equal(FriendsServer.FallbackDisplay, status.Source);
+		Assert.DoesNotContain(":25565", status.Source);
 	}
 
 	[Fact]
@@ -80,6 +82,9 @@ public class FriendsUxTests
 		string text = RepairTrace.Fail("pack resync", PinGate.BlockCopy);
 		Assert.Contains("pack resync", text);
 		Assert.Contains(PinGate.BlockCopy, text);
+		Assert.DoesNotContain("Repair", text);
+		Assert.DoesNotContain("Repair", PinGate.BlockCopy);
+		Assert.Contains("press Play again", PinGate.BlockCopy);
 		Assert.Contains("Worlds", RepairTrace.SuccessLine());
 	}
 

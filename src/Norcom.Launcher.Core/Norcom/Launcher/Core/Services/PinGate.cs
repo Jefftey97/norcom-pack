@@ -34,7 +34,7 @@ public static class PinGate
 
 	public const string AppliedPinFile = "norcom-applied-pin.txt";
 
-	public const string BlockCopy = "Pack doesn't match live server pin — wait for update. Repair before you play.";
+	public const string BlockCopy = "Pack doesn't match the live server pin. Wait for a pack update or a pin republish, then press Play again.";
 
 	public const string MissingCopy = "Server pin is not published yet. Play will continue.";
 

@@ -18,7 +18,8 @@ public static class PrismPlay
 			};
 		}
 		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, ramMb);
-		IReadOnlyList<string> arguments = PrismCommand.Build("shrimp-cub.tun.ply.gg", 25565);
+		FriendsEndpoint endpoint = FriendsServer.Resolve();
+		IReadOnlyList<string> arguments = PrismCommand.Build(endpoint.Host, endpoint.Port);
 		return new PrismPreparation
 		{
 			CanStart = true,

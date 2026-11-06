@@ -29,7 +29,7 @@ public static class RepairTrace
 	public static string Fail(string stage, string why)
 	{
 		SetStage(stage);
-		return "Repair failed during " + stage + ". " + why.Trim();
+		return "Could not finish " + stage + ". " + why.Trim();
 	}
 
 	public static string SuccessLine()
@@ -41,7 +41,7 @@ public static class RepairTrace
 	{
 		if (!string.IsNullOrWhiteSpace(javaNote))
 		{
-			return "Repair finished the pack resync. Java check failed: " + javaNote.Trim() + " Worlds were not wiped.";
+			return "Pack resync finished. Java check failed: " + javaNote.Trim() + " Worlds were not wiped.";
 		}
 		return "Pack files were checked. Worlds, keybinds, servers, and screenshots were left in place.";
 	}

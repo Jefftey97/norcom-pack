@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using Norcom.Launcher.Core;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -12,9 +13,9 @@ public static class ServersDat
 		Directory.CreateDirectory(gameDir);
 		if (File.Exists(path))
 		{
-			Encoding.UTF8.GetString(File.ReadAllBytes(path)).Contains(host, StringComparison.OrdinalIgnoreCase);
 			return;
 		}
+		host = ListedAddress(host);
 		using MemoryStream memoryStream = new MemoryStream();
 		memoryStream.WriteByte(10);
 		WriteString(memoryStream, "");
@@ -34,6 +35,15 @@ public static class ServersDat
 		memoryStream.WriteByte(0);
 		memoryStream.WriteByte(0);
 		File.WriteAllBytes(path, memoryStream.ToArray());
+	}
+
+	private static string ListedAddress(string host)
+	{
+		if (string.IsNullOrWhiteSpace(host) || host.Contains(NorcomPaths.ServerHost, StringComparison.OrdinalIgnoreCase))
+		{
+			return FriendsServer.Resolve().Display;
+		}
+		return host.Trim();
 	}
 
 	private static void WriteString(Stream s, string value)

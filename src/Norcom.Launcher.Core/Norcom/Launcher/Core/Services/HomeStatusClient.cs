@@ -22,20 +22,26 @@ public static class HomeStatusClient
 		{
 			return over;
 		}
+		FriendsEndpoint endpoint = FriendsServer.Resolve();
 		try
 		{
-			ServerStatus ping = ServerStatusClient.PingAsync(NorcomPaths.ServerHost, NorcomPaths.ServerPort, NorcomPaths.ProtocolVersion, CancellationToken.None).GetAwaiter().GetResult();
-			return FromPing(ping);
+			ServerStatus ping = ServerStatusClient.PingAsync(endpoint.Host, endpoint.Port, NorcomPaths.ProtocolVersion, CancellationToken.None).GetAwaiter().GetResult();
+			return FromPing(ping, endpoint.Display);
 		}
 		catch (Exception)
 		{
-			return FromPing(new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), "The friends server did not answer."));
+			return FromPing(new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), "The friends server did not answer."), endpoint.Display);
 		}
 	}
 
 	public static HomeStatus FromPing(ServerStatus status)
 	{
-		string where = NorcomPaths.ServerHost + ":" + NorcomPaths.ServerPort;
+		return FromPing(status, FriendsServer.FallbackDisplay);
+	}
+
+	public static HomeStatus FromPing(ServerStatus status, string source)
+	{
+		string where = string.IsNullOrWhiteSpace(source) ? FriendsServer.FallbackDisplay : source.Trim();
 		if (!status.Online)
 		{
 			string detail = string.IsNullOrWhiteSpace(status.Error) ? "The friends server did not answer." : status.Error.Trim();

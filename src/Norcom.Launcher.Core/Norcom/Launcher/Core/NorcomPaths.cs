@@ -15,8 +15,6 @@ public static class NorcomPaths
 
 	public const string ServerHost = "shrimp-cub.tun.ply.gg";
 
-	public const int ServerPort = 25565;
-
 	public const int ProtocolVersion = 770;
 
 	public const string MinecraftVersion = "26.3";

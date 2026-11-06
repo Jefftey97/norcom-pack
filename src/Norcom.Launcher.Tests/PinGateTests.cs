@@ -22,9 +22,9 @@ public class PinGateTests
 	public void FriendsFetchSlimPinThenCompat()
 	{
 		IReadOnlyList<string> urls = PinGate.CandidateUrls(null, null);
-		Assert.Equal(PinGate.ServerPinUrl, urls[0]);
-		Assert.Equal(PinGate.CompatPinUrl, urls[1]);
-		Assert.DoesNotContain(urls, url => url.Contains("norcom-mod-pin.json", StringComparison.Ordinal));
+		Assert.Equal(PinGate.FriendsPinUrl, urls[0]);
+		Assert.Equal(PinGate.ServerPinUrl, urls[1]);
+		Assert.Equal(PinGate.CompatPinUrl, urls[2]);
 	}
 
 	[Fact]

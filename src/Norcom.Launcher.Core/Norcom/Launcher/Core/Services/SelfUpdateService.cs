@@ -138,7 +138,16 @@ public sealed class SelfUpdateService
 
 	public async Task<string> DownloadVerifiedAsync(LauncherManifest manifest, TransferMeter meter, CancellationToken ct)
 	{
-		await PinGate.EnforceFeedAsync(_http, NorcomPaths.GameDir, ct).ConfigureAwait(continueOnCapturedContext: false);
+		HealHint hint = await PinHeal.FetchHintAsync(_http, ct).ConfigureAwait(continueOnCapturedContext: false);
+		bool newer = !string.IsNullOrWhiteSpace(manifest.Version) && VersionCompare.Compare(manifest.Version, NorcomVersion.Current) > 0;
+		if (newer || PinHeal.NeedsUpdate(NorcomVersion.Current, null, hint))
+		{
+			LauncherLog.Write("pin feed update first version=" + manifest.Version + " minLauncher=" + hint.MinLauncher);
+		}
+		else
+		{
+			await PinGate.EnforceFeedAsync(_http, NorcomPaths.GameDir, ct).ConfigureAwait(continueOnCapturedContext: false);
+		}
 		string text = Path.Combine(Path.GetTempPath(), "norcom-launcher-upd-" + Guid.NewGuid().ToString("N"));
 		Directory.CreateDirectory(text);
 		string zip = Path.Combine(text, "update.zip");

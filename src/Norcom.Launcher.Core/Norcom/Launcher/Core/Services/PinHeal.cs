@@ -85,7 +85,8 @@ public static class PinHeal
 		{
 			LauncherLog.Write("pin feed behind minLauncher=" + hint.MinLauncher + " packVersion=" + hint.PackVersion);
 		}
-		NoteJava();
+		RetargetJunction(gameDir);
+		await NoteJavaAsync(http, ct).ConfigureAwait(false);
 		int max = MaxAttempts(hint.RepairAction);
 		for (int attempt = 1; attempt <= max; attempt++)
 		{
@@ -126,12 +127,39 @@ public static class PinHeal
 		throw new PinMismatchException(PinGate.BlockCopy);
 	}
 
-	private static void NoteJava()
+	private static void RetargetJunction(string gameDir)
+	{
+		if (!PrismInstance.EndsWithNorcomGame(gameDir))
+		{
+			return;
+		}
+		string link = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PrismLauncher", "instances", "NORCOM", "minecraft");
+		try
+		{
+			PrismInstance.EnsureGameLink(link, gameDir);
+			LauncherLog.Write("pin heal junction " + link);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pin heal junction " + ex.GetType().Name);
+		}
+	}
+
+	private static async Task NoteJavaAsync(HttpClient http, CancellationToken ct)
 	{
 		string? java = Environment.GetEnvironmentVariable("NORCOM_JAVA");
-		if (!string.IsNullOrWhiteSpace(java) && !File.Exists(java))
+		if (string.IsNullOrWhiteSpace(java) || File.Exists(java))
 		{
-			LauncherLog.Write("pin heal java missing " + java);
+			return;
+		}
+		LauncherLog.Write("pin heal java missing " + java);
+		try
+		{
+			await JavaRuntime.EnsureAsync(http, new TransferMeter(), ct).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pin heal java recheck " + ex.GetType().Name);
 		}
 	}
 
@@ -159,7 +187,7 @@ public static class PinHeal
 			Pin = string.IsNullOrWhiteSpace(hint.Pin) ? Text(root, "pin") : hint.Pin,
 			Mc = string.IsNullOrWhiteSpace(hint.Mc) ? Text(root, "mc") : hint.Mc,
 			Loader = string.IsNullOrWhiteSpace(hint.Loader) ? Text(root, "loader") : hint.Loader,
-			MinLauncher = hint.MinLauncher,
+			MinLauncher = string.IsNullOrWhiteSpace(hint.MinLauncher) ? Text(root, "minLauncher") : hint.MinLauncher,
 			PackVersion = string.IsNullOrWhiteSpace(hint.PackVersion) ? Text(root, "packVersion") : hint.PackVersion,
 			RepairAction = hint.RepairAction
 		};

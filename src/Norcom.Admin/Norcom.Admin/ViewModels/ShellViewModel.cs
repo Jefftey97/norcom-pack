@@ -147,25 +147,38 @@ public partial class ShellViewModel : ObservableObject
         if (!HealBlocked && (DateTime.UtcNow - _lastRawCheck).TotalSeconds > 20)
         {
             _lastRawCheck = DateTime.UtcNow;
-            _ = MarkAlreadyLiveAsync(pin, index);
+            _ = MarkAlreadyLiveAsync(pin);
         }
     }
 
-    private async Task MarkAlreadyLiveAsync(string pin, string index)
+    private async Task MarkAlreadyLiveAsync(string pin)
     {
-        bool same;
-        try
+        if (!NorcomPin.TryReadProof(Ops.ServerPath, out var proof, out _))
         {
-            same = await MetaRemote.SameAsOriginMain(Publish.PackPath, new ProcessCommandRunner(), CancellationToken.None);
-        }
-        catch
-        {
-            same = false;
+            PinNudge = "pin " + NorcomPin.Prefix(pin) + " marble — same-as-raw: no. Live admin pin could not be read. Not ALREADY_LIVE.";
+            return;
         }
 
-        if (!same)
+        if (pin.Trim().Length > 0 && !string.Equals(pin.Trim(), proof.Pin, StringComparison.OrdinalIgnoreCase))
         {
-            PinNudge = "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Click Meta Publish.";
+            PinNudge = "pin " + NorcomPin.Prefix(pin) + " marble " + NorcomPin.Prefix(proof.MarbleSha) + " same-as-raw: no. Live pin is " + NorcomPin.Prefix(proof.Pin) + ". Not ALREADY_LIVE.";
+            return;
+        }
+
+        MetaAudit audit;
+        try
+        {
+            audit = await MetaRemote.AuditContentsAsync(proof, new HttpRemoteMetaCheck(), CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException)
+        {
+            PinNudge = "pin " + NorcomPin.Prefix(proof.Pin) + " marble " + NorcomPin.Prefix(proof.MarbleSha) + " same-as-raw: no. Contents API check failed. Not ALREADY_LIVE.";
+            return;
+        }
+
+        if (!audit.Ok)
+        {
+            PinNudge = "pin " + NorcomPin.Prefix(proof.Pin) + " marble " + NorcomPin.Prefix(proof.MarbleSha) + " same-as-raw: no. " + audit.Report + " Not ALREADY_LIVE.";
             return;
         }
 
@@ -178,7 +191,7 @@ public partial class ShellViewModel : ObservableObject
         }
 
         PinChanged = false;
-        PinNudge = "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Flag cleared. Nothing was pushed.";
+        PinNudge = "ALREADY_LIVE pin " + NorcomPin.Prefix(proof.Pin) + " marble " + NorcomPin.Prefix(proof.MarbleSha) + " contents API matches LIVE. Flag cleared. Nothing was pushed.";
     }
 
     private static bool PackPinMatches(string? serverPin, string packPin) =>

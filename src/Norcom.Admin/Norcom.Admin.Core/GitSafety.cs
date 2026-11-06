@@ -44,7 +44,8 @@ public static class GitSafety
     [
         "meta/server-pin.json",
         "meta/server-compat.json",
-        "meta/norcom-mod-pin.json"
+        "meta/norcom-mod-pin.json",
+        "meta/heal-hint.json"
     ];
 
     public static bool DropsPackMeta(string porcelain)

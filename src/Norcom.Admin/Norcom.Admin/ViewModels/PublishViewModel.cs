@@ -25,6 +25,7 @@ public partial class PublishViewModel : ObservableObject
     [ObservableProperty] private string packPath = "";
     [ObservableProperty] private string confirmText = "";
     [ObservableProperty] private string status = "Click Meta Publish or Packwiz config Publish. Pin match, heal-hint, and fast-forward still apply. Incomplete meta is refused.";
+    [ObservableProperty] private bool statusFailed;
     [ObservableProperty] private bool busy;
 
     [RelayCommand]
@@ -49,12 +50,14 @@ public partial class PublishViewModel : ObservableObject
                 ? await _publisher.PublishMetaAsync(PackPath, _serverPath(), new HttpRemoteMetaCheck(), CancellationToken.None)
                 : await _publisher.PublishAsync(PackPath, _serverPath(), CancellationToken.None);
             Status = _redactor.Clean(result.Message);
+            StatusFailed = !result.Ok;
             _redactor.WriteLog(Status);
             return result with { Message = Status };
         }
         catch (Exception ex)
         {
             Status = _redactor.Clean(ex.Message);
+            StatusFailed = true;
             return new PublishResult(false, false, Status);
         }
         finally

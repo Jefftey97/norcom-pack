@@ -13,6 +13,7 @@
   <SolidColorBrush x:Key="Muted" Color="#93A4BD"/>
   <SolidColorBrush x:Key="Cyan" Color="#00E5FF"/>
   <SolidColorBrush x:Key="Pink" Color="#FF3DB8"/>
+  <SolidColorBrush x:Key="Danger" Color="#FF4D6A"/>
   <SolidColorBrush x:Key="Ok" Color="#7CFFB2"/>
   <SolidColorBrush x:Key="Panel" Color="#10182A"/>
   <SolidColorBrush x:Key="PanelEdge" Color="#1C3148"/>

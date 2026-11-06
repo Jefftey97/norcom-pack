@@ -11,7 +11,10 @@ public sealed class PackPublisher
         _redactor = redactor;
     }
 
-    public async Task<PublishResult> PublishAsync(string packDirectory, string serverDirectory, CancellationToken cancellationToken)
+    public Task<PublishResult> PublishAsync(string packDirectory, string serverDirectory, CancellationToken cancellationToken) =>
+        PublishAsync(packDirectory, serverDirectory, github: null, cancellationToken);
+
+    public async Task<PublishResult> PublishAsync(string packDirectory, string serverDirectory, IRemoteMetaCheck? github, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(packDirectory) || !Directory.Exists(packDirectory))
         {
@@ -115,7 +118,20 @@ public sealed class PackPublisher
             return Fail("Push was rejected. The remote was not force-updated. " + Tail(push));
         }
 
-        return new PublishResult(true, true, "Packwiz config Publish finished with a fast-forward push. launcher/ stayed. Nothing was force-pushed.");
+        if (!NorcomPin.TryReadProof(serverDirectory, out var proof, out var proofError))
+        {
+            return Fail(proofError ?? "Publish refused. Live pin could not be read. Nothing was pushed.");
+        }
+
+        var head = await Git(packDirectory, ["rev-parse", "HEAD"], cancellationToken).ConfigureAwait(false);
+        var sha = head.ExitCode == 0 ? head.Stdout.Trim() : "";
+        var audit = await MetaRemote.AuditPushedAsync(sha, proof, github ?? new HttpRemoteMetaCheck(), cancellationToken).ConfigureAwait(false);
+        if (!audit.Ok || sha.Length == 0)
+        {
+            return new PublishResult(false, true, _redactor.Clean("Publish verify failed. " + audit.Report + " Not ALREADY_LIVE. Flag left in place."));
+        }
+
+        return new PublishResult(true, true, "Packwiz config Publish finished with a fast-forward push. " + audit.Report + ". launcher/ stayed. Nothing was force-pushed.");
     }
 
     public async Task<PublishResult> PublishMetaAsync(string packDirectory, string serverDirectory, IRemoteMetaCheck remote, CancellationToken cancellationToken)
@@ -131,16 +147,20 @@ public sealed class PackPublisher
             return Fail(pinBlock);
         }
 
-        var pin = ReadField(Path.Combine(packDirectory, "meta", "server-pin.json"), "pin");
-        var index = ReadField(Path.Combine(packDirectory, "meta", "server-compat.json"), "indexSha256");
-        if (HealFails.BlocksMetaPublish(serverDirectory, pin))
+        if (!NorcomPin.TryReadProof(serverDirectory, out var proof, out var proofError))
+        {
+            return Fail(proofError ?? "Publish refused. Live pin could not be read. Nothing was pushed.");
+        }
+
+        if (HealFails.BlocksMetaPublish(serverDirectory, proof.Pin))
         {
             return Fail("Meta Publish stopped. Launcher PinGate or a dual-sided heal may be the issue for this pin. Nothing was pushed.");
         }
 
-        if (await MetaRemote.SameAsOriginMain(packDirectory, _git, cancellationToken).ConfigureAwait(false))
+        var already = await MetaRemote.AuditContentsAsync(proof, remote, cancellationToken).ConfigureAwait(false);
+        if (already.Ok)
         {
-            return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
+            return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(proof.Pin) + " marble " + NorcomPin.Prefix(proof.MarbleSha) + " " + already.Report + ". Nothing was pushed.", true);
         }
 
         var repoBlock = await RequireGitRepo(packDirectory, cancellationToken).ConfigureAwait(false);
@@ -163,15 +183,13 @@ public sealed class PackPublisher
             return Fail("Meta Publish could not read the staged files. " + Tail(staged));
         }
 
-        if (string.IsNullOrWhiteSpace(staged.Stdout))
+        if (!string.IsNullOrWhiteSpace(staged.Stdout))
         {
-            return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
-        }
-
-        var commit = await Git(packDirectory, CommitArgs("Update NORCOM friends meta"), cancellationToken).ConfigureAwait(false);
-        if (commit.ExitCode != 0)
-        {
-            return Fail("Meta Publish commit failed. " + Tail(commit));
+            var commit = await Git(packDirectory, CommitArgs("Update NORCOM friends meta"), cancellationToken).ConfigureAwait(false);
+            if (commit.ExitCode != 0)
+            {
+                return Fail("Meta Publish commit failed. " + Tail(commit));
+            }
         }
 
         var pull = await Git(packDirectory, ["pull", "--ff-only", "origin", "main"], cancellationToken).ConfigureAwait(false);
@@ -188,23 +206,13 @@ public sealed class PackPublisher
 
         var head = await Git(packDirectory, ["rev-parse", "HEAD"], cancellationToken).ConfigureAwait(false);
         var sha = head.ExitCode == 0 ? head.Stdout.Trim() : "";
-        var verify = await MetaRemote.VerifyCommitAsync(sha, pin, index, remote, cancellationToken).ConfigureAwait(false);
-        var clear = verify.Ok == verify.Total && sha.Length > 0;
-        var message = verify.Report + (clear ? " flag cleared" : " verify incomplete. Flag left in place.");
-        return new PublishResult(clear, true, message, clear);
-    }
+        var verify = await MetaRemote.AuditPushedAsync(sha, proof, remote, cancellationToken).ConfigureAwait(false);
+        if (!verify.Ok || sha.Length == 0)
+        {
+            return new PublishResult(false, true, "Publish verify failed. " + verify.Report + " Not ALREADY_LIVE. Flag left in place.");
+        }
 
-    private static string ReadField(string path, string name)
-    {
-        try
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
-            return document.RootElement.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
-        }
-        catch
-        {
-            return "";
-        }
+        return new PublishResult(true, true, "commit " + sha + " " + verify.Report + " flag cleared", true);
     }
 
     private static string[] CommitArgs(string message) =>

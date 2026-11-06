@@ -10,7 +10,7 @@ public class GraphicsWriterTests
 	[InlineData(GraphicsTier.Low, "8", "8", "64.0", "0")]
 	[InlineData(GraphicsTier.Medium, "10", "10", "96.0", "1")]
 	[InlineData(GraphicsTier.MediumHigh, "12", "12", "112.0", "1")]
-	[InlineData(GraphicsTier.High, "12", "12", "128.0", "1")]
+	[InlineData(GraphicsTier.High, "12", "7", "112.0", "1")]
 	[InlineData(GraphicsTier.Ultra, "14", "14", "160.0", "1")]
 	public void EachTierAppliesTheAlacrityPack(GraphicsTier tier, string renderDistance, string irisShadow, string shadowDistance, string graphicsMode)
 	{
@@ -70,7 +70,25 @@ public class GraphicsWriterTests
 		Assert.Equal("1", options["graphicsMode"]);
 		Assert.Equal("260", options["maxFps"]);
 		Assert.Contains("LIGHTSHAFT_QUALI_DEFINE=2", shader);
-		Assert.Contains("shadowDistance=128.0", shader);
+		Assert.Contains("shadowDistance=112.0", shader);
+		Assert.Contains("LIGHTSHAFT_QUALI_DEFINE=2", shader);
+		Assert.Contains("LIGHTSHAFT_BEHAVIOUR=1", shader);
+		Assert.Contains("LIGHTSHAFT_NOON_I=100", shader);
+		Assert.Contains("BLOOM_ENABLED=1", shader);
+		Assert.Contains("BLOOM_STRENGTH=0.075", shader);
+		Assert.Contains("ENTITY_SHADOW=-1", shader);
+		Assert.Contains("PLAYER_SHADOW=1", shader);
+		Assert.Contains("LEAF_SHADOW_OPTIMISATION_DEFINE=1", shader);
+		Assert.Contains("CLOUD_SHADOWS=false", shader);
+		Assert.Contains("BLOCK_REFLECT_QUALITY=1", shader);
+		Assert.Contains("WATER_REFLECT_QUALITY=2", shader);
+		Assert.Contains("SSAO_QUALI_DEFINE=2", shader);
+		Assert.Contains("SSAO_I=100", shader);
+		Assert.Contains("COLORED_LIGHTING=128", shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=true", shader);
+		Assert.Contains("FANCY_GLASS=true", shader);
+		Assert.Contains("TAA_SMOOTHING=2", shader);
+		Assert.Equal("7", ReadProperties(Path.Combine(dir, "config", "iris.properties"))["maxShadowRenderDistance"]);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
 		Assert.Contains("lodChunkRenderDistanceRadius = 160", dh);
 		Assert.Contains("horizontalQuality = \"MEDIUM\"", dh);

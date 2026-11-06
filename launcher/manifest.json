@@ -1,7 +1,7 @@
 {
-  "version": "2.0.37",
+  "version": "2.0.38",
   "minVersion": "2.0.0",
-  "sha256": "1c58aab6f249764a16531545af371a86683d7c3795bf210d83f814365e316560",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8c992c06a012445778f9bfc724b75271db8e5568/launcher/NorcomWpf-2.0.37.zip",
-  "notes": "Launcher 2.0.37. ProductVersion is 2.0.37 and FileVersion is 2.0.37.0. Play clears a stale rejected update stamp and keeps going. A published server pin replaces the applied pin after pack sync without a pin-mismatch refusal. RAIN_STYLE is 1. After Minecraft starts, Play leaves Pack ready. Play downloads norcom_marble.zip 80770a4a8735188b8b9ac5e2f0d1ca8247bd76b17b86edde659261b7b1c21db5 (3515313 bytes) and enables it after Alacrity and the candle overlay. It will not write the superseded e3ed6e06 or 368ffaaa packs. Continuity stays on. Patrix stays off. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 265e123e7aecbc5bec35ce1856ba7b28e86d3924e5a59924d9f5ac925650531c. Install SHA256 a32b3adebf26b009b6651906a2251ed9f1818adb40816e31b9fdf1bbee095caa."
+  "sha256": "a324a5ba20a5fe38742b08062d3295306b24f367e2cd33ce49fce2a5cb8c6d70",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/1117b2494e26f5c351e2f48e8d50cea3f0909369/launcher/NorcomWpf-2.0.38.zip",
+  "notes": "EMERGENCY rollback. Launcher 2.0.37 (265e123e) crashes on start: Cannot locate resource app.xaml (decompiled WPF publish). Restores known-good exe 8e3005d9fe22551bccfaafc11b3dc90e348133c1710b935838fa8c6bb6e2aecc (same bits as feed 2.0.36 tip 803a3bab). Marble tip RP 80770a4a and jar 47fe426d stay on release assets; Discord held. Do not tip another decompiled single-file until Windows GUI smoke PASS."
 }

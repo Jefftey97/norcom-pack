@@ -23,6 +23,8 @@ public class ShellWindow : Window, IComponentConnector
 
 	private DispatcherTimer? _gameWatch;
 
+	private DispatcherTimer? _pinPoll;
+
 	private DispatcherTimer? _glideFallback;
 
 	private TrayHost? _tray;
@@ -115,6 +117,20 @@ public class ShellWindow : Window, IComponentConnector
 			vm.RefreshLaunchedGame();
 		};
 		_gameWatch.Start();
+		_pinPoll = new DispatcherTimer
+		{
+			Interval = TimeSpan.FromSeconds(4.0)
+		};
+		_pinPoll.Tick += delegate
+		{
+			vm.PollLivePinAsync(force: false);
+		};
+		_pinPoll.Start();
+		((Window)this).Activated += delegate
+		{
+			vm.PollLivePinAsync(force: true);
+		};
+		vm.PollLivePinAsync(force: false);
 	}
 
 	private void PaintNav()
@@ -258,6 +274,11 @@ public class ShellWindow : Window, IComponentConnector
 		if (gameWatch != null)
 		{
 			gameWatch.Stop();
+		}
+		DispatcherTimer? pinPoll = _pinPoll;
+		if (pinPoll != null)
+		{
+			pinPoll.Stop();
 		}
 		TryEndPeriod();
 		_tray?.Dispose();

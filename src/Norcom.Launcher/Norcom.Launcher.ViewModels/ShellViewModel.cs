@@ -57,6 +57,12 @@ public class ShellViewModel : ObservableObject
 
 	private string? _packDiscordText;
 
+	private int _pinBusy;
+
+	private string _pinStatus = "fetching";
+
+	private string _pinDetail = "Checking the live server pin";
+
 	[ObservableProperty]
 	private LauncherPage page;
 
@@ -221,6 +227,10 @@ public class ShellViewModel : ObservableObject
 	public string PlayAccountText => AccountStatus;
 
 	public string PlayLabel => LaunchedGame.PlayCaption(GameRunning);
+
+	public string PinStatus => _pinStatus;
+
+	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
 
@@ -1215,6 +1225,42 @@ public class ShellViewModel : ObservableObject
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
+	public async Task PollLivePinAsync(bool force)
+	{
+		if (Interlocked.CompareExchange(ref _pinBusy, 1, 0) != 0)
+		{
+			return;
+		}
+		try
+		{
+			SetPinStatus("fetching", force ? "Fixing the live server pin" : "Checking the live server pin");
+			PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, force).ConfigureAwait(continueOnCapturedContext: true);
+			SetPinStatus(result.State, result.Detail);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pin poll " + ex.GetType().Name);
+			SetPinStatus("mismatch", "published pin could not be fetched");
+		}
+		finally
+		{
+			Interlocked.Exchange(ref _pinBusy, 0);
+		}
+	}
+
+	public Task FixPinAsync()
+	{
+		return PollLivePinAsync(force: true);
+	}
+
+	private void SetPinStatus(string state, string detail)
+	{
+		_pinStatus = string.IsNullOrWhiteSpace(state) ? "mismatch" : state.Trim();
+		_pinDetail = detail ?? "";
+		OnPropertyChanged(nameof(PinStatus));
+		OnPropertyChanged(nameof(PinDetail));
+	}
+
 	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct)
 	{
 		_ = 1;
@@ -1309,6 +1355,7 @@ public class ShellViewModel : ObservableObject
 		IsBusy = true;
 		ProgressFraction = 0.02;
 		ProgressLabel = "Preparing NORCOM";
+		await PollLivePinAsync(force: true).ConfigureAwait(continueOnCapturedContext: true);
 		TransferMeter meter = new TransferMeter();
 		CancellationTokenSource pump = StartPump(meter);
 		try

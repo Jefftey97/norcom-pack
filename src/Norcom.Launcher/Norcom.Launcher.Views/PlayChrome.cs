@@ -137,7 +137,102 @@ internal static class PlayChrome
 		host.Children.Add(play);
 		host.Children.Add(StopButton(vm));
 		panel.Children.Insert(index, host);
+		AttachPinStatus(panel, index, vm);
 		return true;
+	}
+
+	private static void AttachPinStatus(Panel panel, int index, ShellViewModel vm)
+	{
+		for (int i = 0; i < panel.Children.Count; i++)
+		{
+			if (panel.Children[i] is FrameworkElement existing && (existing.Tag as string) == "norcom-pin-status")
+			{
+				return;
+			}
+		}
+		TextBlock word = new TextBlock
+		{
+			FontFamily = new FontFamily("Segoe UI"),
+			FontWeight = FontWeights.SemiBold,
+			FontSize = 13.0,
+			VerticalAlignment = VerticalAlignment.Center,
+			Margin = new Thickness(8.0, 0.0, 0.0, 0.0)
+		};
+		AutomationProperties.SetAutomationId(word, "PinStatus");
+		TextBlock caption = new TextBlock
+		{
+			Text = "PIN",
+			FontFamily = new FontFamily("Segoe UI"),
+			FontSize = 11.0,
+			Foreground = Brush(138, 160, 194),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		Button fix = new Button
+		{
+			Content = "Fix",
+			Margin = new Thickness(10.0, 0.0, 0.0, 0.0),
+			FontFamily = new FontFamily("Segoe UI"),
+			FontWeight = FontWeights.SemiBold,
+			FontSize = 12.0,
+			Foreground = Brush(61, 240, 255),
+			Cursor = Cursors.Hand,
+			Focusable = false,
+			ToolTip = "Fetch the live server pin and adopt it",
+			Template = (ControlTemplate)XamlReader.Parse("<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{x:Type Button}'><Border Background='#0C1324' BorderBrush='#3DF0FF' BorderThickness='1' CornerRadius='6' Padding='10,4'><ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center'/></Border></ControlTemplate>")
+		};
+		AutomationProperties.SetAutomationId(fix, "FixPin");
+		AutomationProperties.SetName(fix, "Fix pin");
+		fix.Click += delegate
+		{
+			vm.FixPinAsync();
+		};
+		StackPanel row = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		row.Children.Add(caption);
+		row.Children.Add(word);
+		row.Children.Add(fix);
+		Border card = new Border
+		{
+			Background = Brush(12, 19, 36),
+			BorderBrush = Brush(61, 240, 255),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(8.0),
+			Padding = new Thickness(10.0, 6.0, 8.0, 6.0),
+			Margin = new Thickness(0.0, 0.0, 0.0, 8.0),
+			HorizontalAlignment = HorizontalAlignment.Left,
+			Tag = "norcom-pin-status",
+			Child = row
+		};
+		AutomationProperties.SetName(card, "Pin status");
+		void Paint()
+		{
+			string state = vm.PinStatus ?? "";
+			word.Text = state;
+			if (state == "correct")
+			{
+				word.Foreground = Brush(61, 255, 176);
+			}
+			else if (state == "fetching")
+			{
+				word.Foreground = Brush(61, 240, 255);
+			}
+			else
+			{
+				word.Foreground = Brush(255, 93, 122);
+			}
+		}
+		vm.PropertyChanged += delegate(object _, System.ComponentModel.PropertyChangedEventArgs args)
+		{
+			if (args.PropertyName == "PinStatus")
+			{
+				Paint();
+			}
+		};
+		Paint();
+		panel.Children.Insert(index, card);
 	}
 
 	private static Button StopButton(ShellViewModel vm)

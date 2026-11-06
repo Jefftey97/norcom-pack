@@ -1,5 +1,5 @@
 {
-  "lodChunkRenderDistanceRadius": "192",
+  "lodChunkRenderDistanceRadius": "160",
   "horizontalQuality": "MEDIUM",
   "verticalQuality": "MEDIUM",
   "maxHorizontalResolution": "BLOCK",

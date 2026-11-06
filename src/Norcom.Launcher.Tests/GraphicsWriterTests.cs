@@ -65,10 +65,17 @@ public class GraphicsWriterTests
 		Assert.Contains("COLORED_CANDLE_LIGHT=true", shader);
 		Assert.Contains("FANCY_GLASS=true", shader);
 		Assert.Equal("true", options["improvedTransparency"]);
+		Assert.Equal("2", options["particles"]);
+		Assert.Equal("1.0", options["entityDistanceScaling"]);
+		Assert.Equal("1", options["graphicsMode"]);
+		Assert.Equal("260", options["maxFps"]);
 		Assert.Contains("LIGHTSHAFT_QUALI_DEFINE=2", shader);
 		Assert.Contains("shadowDistance=128.0", shader);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
-		Assert.Contains("lodChunkRenderDistanceRadius = 192", dh);
+		Assert.Contains("lodChunkRenderDistanceRadius = 160", dh);
+		Assert.Contains("horizontalQuality = \"MEDIUM\"", dh);
+		Assert.Contains("verticalQuality = \"MEDIUM\"", dh);
+		Assert.Contains("enableSsao = false", dh);
 	}
 
 	[Fact]

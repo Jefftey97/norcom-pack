@@ -8,7 +8,7 @@
   "simulationDistance": "10",
   "ao": "true",
   "entityShadows": "true",
-  "particles": "1",
+  "particles": "2",
   "biomeBlendRadius": "2",
   "mipmapLevels": "4",
   "prioritizeChunkUpdates": "0",

@@ -252,7 +252,104 @@ def stone_colors(color: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     )
 
 
+def _warp(field: np.ndarray, seed: int, amp: float) -> np.ndarray:
+    size = field.shape[0]
+    wx = fbm(size, seed, ((_cells(size, 3), 1.0),))
+    wy = fbm(size, seed + 1, ((_cells(size, 3), 1.0),))
+    yy, xx = np.mgrid[0:size, 0:size]
+    sx = np.mod(xx + (wx - 0.5) * amp, size)
+    sy = np.mod(yy + (wy - 0.5) * amp, size)
+    x0 = np.floor(sx).astype(np.int32) % size
+    y0 = np.floor(sy).astype(np.int32) % size
+    x1 = (x0 + 1) % size
+    y1 = (y0 + 1) % size
+    fx = (sx - np.floor(sx)).astype(np.float32)
+    fy = (sy - np.floor(sy)).astype(np.float32)
+    return (
+        field[y0, x0] * (1 - fx) * (1 - fy)
+        + field[y0, x1] * fx * (1 - fy)
+        + field[y1, x0] * (1 - fx) * fy
+        + field[y1, x1] * fx * fy
+    ).astype(np.float32)
+
+
+def mottled_norcom_blue(seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """White clouds locked into deep blue, matching the veined blue concept cube."""
+    cloud = fbm(SIZE, seed, ((_cells(SIZE, 3), 0.55), (_cells(SIZE, 6), 0.30), (_cells(SIZE, 12), 0.15)))
+    cloud = _warp(cloud, seed + 8, SIZE * 0.12)
+    grain = crystal_grain(SIZE, seed + 21, "veined")
+    t = np.clip((cloud - 0.36) / 0.30, 0.0, 1.0)
+    t = t * t * (3.0 - 2.0 * t)
+    deep = np.array([24.0, 58.0, 138.0], np.float32)
+    mid = np.array([62.0, 118.0, 196.0], np.float32)
+    pale = np.array([228.0, 236.0, 246.0], np.float32)
+    low = deep + (mid - deep) * np.clip(t * 1.35, 0.0, 1.0)[..., None]
+    high = mid + (pale - mid) * np.clip((t - 0.42) / 0.58, 0.0, 1.0)[..., None]
+    body = np.where(t[..., None] < 0.42, low, high)
+    body = body + (grain[..., None] - 0.5) * 10.0
+    vein = marble_veins(SIZE, seed)
+    ink = np.array([32.0, 62.0, 128.0], np.float32)
+    rgb = body * (1.0 - vein[..., None] * 0.55) + ink * (vein[..., None] * 0.55)
+    return np.clip(rgb, 0, 255).astype(np.uint8), grain, vein
+
+
+def satin_norcom_blue(seed: int, soft: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Cube 3 is an even powder blue. Cube 4 is the same blue family with cloudy grain."""
+    grain = crystal_grain(SIZE, seed, "soft" if soft else "solid")
+    vein = np.zeros((SIZE, SIZE), np.float32)
+    if soft:
+        low = np.array([150.0, 162.0, 176.0], np.float32)
+        high = np.array([198.0, 208.0, 220.0], np.float32)
+        body = low + (high - low) * grain[..., None]
+    else:
+        # Tight range so the face reads as one satin color, not cobalt speckle.
+        tone = 0.45 + (grain - 0.5) * 0.18
+        low = np.array([132.0, 168.0, 206.0], np.float32)
+        high = np.array([168.0, 198.0, 230.0], np.float32)
+        body = low + (high - low) * tone[..., None]
+    return np.clip(body, 0, 255).astype(np.uint8), grain, vein
+
+
+def thin_cracks(seed: int) -> np.ndarray:
+    """Jagged mineral cracks. Thickness stays near one pixel, so they are not contour bands."""
+    field = fbm(SIZE, seed, ((_cells(SIZE, 5), 0.5), (_cells(SIZE, 9), 0.3), (_cells(SIZE, 16), 0.2)))
+    jitter = fbm(SIZE, seed + 6, ((_cells(SIZE, 18), 0.7), (_cells(SIZE, 28), 0.3)))
+    field = _warp(field, seed + 2, SIZE * 0.07)
+    field = np.clip(field + (jitter - 0.5) * 0.22, 0.0, 1.0)
+    gy, gx = np.gradient(field.astype(np.float32))
+    grad = np.sqrt(gx * gx + gy * gy) + 1e-4
+    dist = np.abs(field - 0.5) / grad
+    mask = np.exp(-((dist / 1.05) ** 2)).astype(np.float32)
+    breaker = fbm(SIZE, seed + 11, ((_cells(SIZE, 4), 0.6), (_cells(SIZE, 8), 0.4)))
+    keep = np.clip((breaker - 0.40) / 0.34, 0.0, 1.0)
+    return np.clip(mask * keep, 0.0, 1.0).astype(np.float32)
+
+
+def neon_slate_veined(seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Dark slate with thin cyan-violet cracks. Color is in the albedo only."""
+    grain = crystal_grain(SIZE, seed, "veined")
+    low = np.array([18.0, 22.0, 34.0], np.float32)
+    high = np.array([46.0, 54.0, 74.0], np.float32)
+    body = low + (high - low) * grain[..., None]
+    vein = thin_cracks(seed + 4)
+    tint = fbm(SIZE, seed + 33, ((_cells(SIZE, 6), 1.0),))
+    cyan = np.array([36.0, 118.0, 176.0], np.float32)
+    violet = np.array([104.0, 68.0, 164.0], np.float32)
+    vcol = cyan * (1.0 - tint[..., None]) + violet * tint[..., None]
+    strength = 0.78
+    rgb = body * (1.0 - vein[..., None] * strength) + vcol * (vein[..., None] * strength)
+    return np.clip(rgb, 0, 255).astype(np.uint8), grain, vein
+
+
 def build_field(kind: str, color: str, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if color == "blue" and kind == "veined":
+        return mottled_norcom_blue(seed)
+    if color == "blue" and kind == "solid":
+        return satin_norcom_blue(seed, soft=False)
+    if color == "blue" and kind == "soft":
+        return satin_norcom_blue(seed, soft=True)
+    if color == "slate" and kind == "veined":
+        return neon_slate_veined(seed)
     grain = crystal_grain(SIZE, seed, kind)
     low, high, vein_color = stone_colors(color)
     body = low + (high - low) * grain[..., None]
@@ -744,5 +841,59 @@ def main() -> None:
     print(f"preview {PREVIEW}")
 
 
+FIX_BASES = (
+    "veined_norcom_blue",
+    "solid_norcom_blue",
+    "soft_norcom_blue",
+    "veined_neon_slate",
+)
+
+
+def fix_open_colors() -> None:
+    """Replace only the open blue and neon-slate tiles. Leave passing textures byte-for-byte."""
+    tex_dir = PACK / "assets" / NS / "textures" / "block"
+    before = {path.name: sha256(path) for path in tex_dir.glob("*.png")}
+    by_name = {base: (kind, color, seed) for base, kind, color, seed in FAMILIES}
+    previews = []
+    for base in FIX_BASES:
+        kind, color, seed = by_name[base]
+        rgb, grain, vein = build_field(kind, color, seed)
+        glow = False
+        normal, spec = normals_and_spec(kind, grain, vein, glow=glow)
+        if np.any(spec[..., 3] != 255):
+            raise SystemExit(f"{base} must not emit")
+        if color == "blue" and rgb[..., 2].mean() <= rgb[..., 1].mean():
+            raise SystemExit(f"{base} reads green")
+        save_png(tex_dir / f"{base}.png", rgb)
+        save_png(tex_dir / f"{base}_n.png", normal)
+        save_png(tex_dir / f"{base}_s.png", spec)
+        print(
+            f"{base}: mean {rgb.reshape(-1, 3).mean(0).round(1).tolist()} "
+            f"std {rgb.std():.1f} smooth {int(spec[..., 0].mean())} f0 {int(spec[..., 1].mean())}"
+        )
+    for name, digest in before.items():
+        stem = name.replace("_n.png", "").replace("_s.png", "").replace(".png", "")
+        if stem in FIX_BASES:
+            continue
+        if sha256(tex_dir / name) != digest:
+            raise SystemExit(f"passing texture changed: {name}")
+    lines = []
+    for path in sorted(PACK.rglob("*")):
+        if path.is_file() and path.name != "SHA256SUMS.txt":
+            lines.append(f"{sha256(path)}  {path.relative_to(PACK).as_posix()}")
+    (PACK / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    build_zip()
+    for base, _kind, _color, _seed in FAMILIES:
+        albedo = np.asarray(Image.open(tex_dir / f"{base}.png").convert("RGB"))
+        previews.append((base, albedo, albedo))
+    contact_sheet(previews)
+    print(f"zip {ZIP_PATH} {sha256(ZIP_PATH)}")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--fix-blue-slate":
+        fix_open_colors()
+    else:
+        main()

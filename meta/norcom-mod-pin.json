@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-06T02:39:45-07:00",
+  "generated_at": "2026-11-06T13:04:44-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
@@ -278,8 +278,8 @@
     },
     {
       "name": "norcom-marble-1.0.0.jar",
-      "sha256": "47fe426d3c4edca916b605a6196bd32831f5b00c01c3e61d6e34410e5e82230d",
-      "size": 1318583
+      "sha256": "3566420dd6cfc2a104c4b7b17bfeebedb20551d2f32b1502fe03748ca9728c48",
+      "size": 137632
     },
     {
       "name": "pantryforblockheads-fabric-26.3-26.3.0.1.jar",
@@ -442,11 +442,11 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1",
+  "pin_sha256": "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",
     "launcher_feed": "refuse join/update if pin_sha256 mismatch for dual-sided mods",
-    "autofix": "any quarantine/restore under G:\\MinecraftServer\\mods MUST regenerate this pin and notify @server"
+    "autofix": "any quarantine/restore under G:\\\\MinecraftServer\\\\mods MUST regenerate this pin and notify @server"
   }
 }

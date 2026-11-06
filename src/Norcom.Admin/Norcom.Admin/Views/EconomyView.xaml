@@ -51,6 +51,63 @@
         </StackPanel>
         <TextBlock Text="{Binding Bank.LedgerNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,6"/>
         <ListBox ItemsSource="{Binding Bank.Ledger}" MaxHeight="140" Margin="0,0,0,16"/>
+        <TextBlock Text="Shop prices" Style="{StaticResource PageTitle}"/>
+        <TextBlock Text="{Binding Bank.ShopNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <Button Content="Save stall prices" Command="{Binding Bank.SavePricesCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" AutomationProperties.Name="Save stall prices"/>
+        <TextBlock Text="Stall buy" Style="{StaticResource Label}"/>
+        <ItemsControl ItemsSource="{Binding Bank.BuyOffers}" Margin="0,0,0,8">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="120"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="50"/>
+                  <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Pos}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Tag}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding Sku}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding Item}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding Qty}" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="5" Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="Buyback sell" Style="{StaticResource Label}"/>
+        <ItemsControl ItemsSource="{Binding Bank.SellOffers}" Margin="0,0,0,12">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="120"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="50"/>
+                  <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Pos}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Tag}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding Sku}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding Item}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding Qty}" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="5" Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Style="{StaticResource PanelCard}" Margin="0,0,0,16" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" Background="{StaticResource ButtonFill}">
+          <StackPanel>
+            <TextBlock Text="Wandering trader" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Bank.TraderSchedule}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,8"/>
+            <ItemsControl ItemsSource="{Binding Bank.TraderBooks}"/>
+            <TextBlock Text="{Binding Bank.TraderNote}" Foreground="#93A4BD" Margin="0,8,0,0"/>
+          </StackPanel>
+        </Border>
         <TextBlock Text="Mod configs" Style="{StaticResource PageTitle}"/>
         <Button Content="Refresh configs" Command="{Binding Mods.RefreshCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"/>
         <ItemsControl ItemsSource="{Binding Mods.Mods}">

@@ -311,6 +311,23 @@ public class Admin140Tests
         Assert.Equal("shop", merged[^1].Op);
         Assert.Equal(-3, merged[^1].Amount);
         Assert.Equal("npc debit", merged[^1].RconResult);
+        File.WriteAllText(Path.Combine(root, "admin", "economy-ledger.jsonl"), "{\"ts\":\"2026-11-06T06:06:00Z\",\"tx\":\"NORCOM-TX-100-BREAD\",\"who\":\"Steve\",\"why\":\"stall buy\",\"amount\":-4,\"src\":\"shop\",\"last_gametime\":100}\n");
+        var withShop = BankLedger.ReadMerged(root, 10, ledger);
+        Assert.Contains(withShop, row => row.TxId == "NORCOM-TX-100-BREAD" && row.Player == "Steve" && row.Op == "shop" && row.Amount == -4);
+        var prices = Path.Combine(root, "admin", "shop-prices.json");
+        File.WriteAllText(prices, """
+        {"stalls":[{"pos":"1 2 3","tag":"market","supplies":[{"sku":"BREAD","item":"minecraft:bread","qty":1,"price":4}],"buyback":[{"sku":"WHEAT","item":"minecraft:wheat","qty":8,"price":1}]}],"wandering_trader":{"interval_ticks":48000,"stay_ticks":4800,"mending":{"price":128,"emeralds":"64+64"},"books":[{"enchant":"sharpness","level":3,"price":32,"max_uses":1}]}}
+        """);
+        var desk = ShopPriceDesk.Load(root);
+        Assert.Contains(desk.Offers, offer => offer.Side == "buy" && offer.Sku == "BREAD" && offer.Price == "4");
+        Assert.Contains(desk.Offers, offer => offer.Side == "sell" && offer.Sku == "WHEAT");
+        Assert.Contains(desk.Trader.Books, book => book.Enchant == "Mending" && book.Price == "128");
+        Assert.Contains("Server-owned", desk.Trader.Schedule, StringComparison.Ordinal);
+        var bread = desk.Offers.First(offer => offer.Sku == "BREAD");
+        Assert.Null(desk.Save(new Dictionary<string, string> { [bread.Pointer] = "9" }));
+        var again = ShopPriceDesk.Load(root);
+        Assert.Equal("9", again.Offers.First(offer => offer.Sku == "BREAD").Price);
+        Assert.Equal("1", again.Offers.First(offer => offer.Sku == "WHEAT").Price);
         var rows = BankLedger.ReadLast(10, ledger);
         Assert.Single(rows);
         Assert.Equal("tx1", rows[0].TxId);

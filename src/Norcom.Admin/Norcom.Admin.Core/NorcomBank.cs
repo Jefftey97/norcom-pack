@@ -216,6 +216,7 @@ public static class BankLedger
         var rows = new List<BankLedgerRow>();
         rows.AddRange(ReadAll(adminPath ?? PathFor()));
         rows.AddRange(ReadAll(ServerPath(serverDirectory)));
+        rows.AddRange(ReadAll(Path.Combine(serverDirectory, "admin", "economy-ledger.jsonl")));
         return rows
             .OrderBy(row => row.Time, StringComparer.Ordinal)
             .TakeLast(Math.Max(1, count))
@@ -261,22 +262,29 @@ public static class BankLedger
                 {
                     using var document = JsonDocument.Parse(line);
                     var root = document.RootElement;
-                    var tx = First(root, "txId", "tx-id", "id");
+                    var tx = First(root, "txId", "tx-id", "tx", "id");
                     var who = First(root, "player", "who");
-                    var kind = First(root, "op", "kind");
+                    var kind = First(root, "op", "kind", "src");
                     if (tx.Length == 0 && who.Length == 0 && kind.Length == 0)
                     {
                         continue;
                     }
 
+                    var why = First(root, "rconResult", "why", "reason");
+                    var game = First(root, "last_gametime", "lastGametime");
+                    if (game.Length > 0)
+                    {
+                        why = (why + " gametime " + game).Trim();
+                    }
+
                     rows.Add(new BankLedgerRow(
-                        First(root, "time", "when"),
+                        First(root, "time", "when", "ts"),
                         tx,
                         who,
                         kind,
                         Long(root, "amount"),
                         First(root, "target"),
-                        First(root, "rconResult", "why", "reason")));
+                        why));
                 }
                 catch (JsonException)
                 {

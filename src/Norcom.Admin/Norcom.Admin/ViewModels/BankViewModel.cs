@@ -11,6 +11,7 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
     private readonly SecretRedactor _redactor;
     private readonly RconClient _rcon;
     private readonly HashSet<string> _txIds = new(StringComparer.OrdinalIgnoreCase);
+    private ShopPriceDesk _shop = ShopPriceDesk.Load("");
     private bool _busy;
 
     public BankViewModel(Func<string> serverPath, Func<int> rconPort, Func<string> password, SecretRedactor redactor, RconClient rcon)
@@ -26,6 +27,12 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
 
     public ObservableCollection<string> Ledger { get; } = new();
 
+    public ObservableCollection<ShopPriceEdit> BuyOffers { get; } = new();
+
+    public ObservableCollection<ShopPriceEdit> SellOffers { get; } = new();
+
+    public ObservableCollection<string> TraderBooks { get; } = new();
+
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string status = "NORCOM Bank reads economy.json. Money writes go through RCON on 127.0.0.1.";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string currencyName = NorcomBank.DefaultName;
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string currencySymbol = NorcomBank.DefaultSymbol;
@@ -36,6 +43,9 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string transferTo = "";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private BankAccount? selected;
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string ledgerNote = "No Admin bank ops yet";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string shopNote = "Stall prices load from admin\\shop-prices.json.";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string traderSchedule = "Schedule is Server-owned. Admin shows this SoT only.";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string traderNote = "";
 
     [CommunityToolkit.Mvvm.Input.RelayCommand]
     public void Refresh()
@@ -64,7 +74,7 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
         }
         else
         {
-            LedgerNote = "Admin Set/Transfer plus Server lines from admin\\bank-ledger.jsonl. Price history is not a statement.";
+            LedgerNote = "Admin Set/Transfer, bank-ledger.jsonl, and shop rows from economy-ledger.jsonl. Price history is not a statement.";
             foreach (var row in rows.Reverse())
             {
                 var who = row.Target.Length == 0 ? row.Player : row.Player + " → " + row.Target;
@@ -73,7 +83,61 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
             }
         }
 
+        LoadShop();
         Status = snapshot.Note;
+    }
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void SavePrices()
+    {
+        if (!Ask.Yes("Save stall prices to admin\\shop-prices.json?"))
+        {
+            Status = "Shop price save cancelled. The file was not changed.";
+            return;
+        }
+
+        var prices = BuyOffers.Concat(SellOffers).ToDictionary(row => row.Pointer, row => row.Price);
+        var error = _shop.Save(prices);
+        if (error != null)
+        {
+            Status = error;
+            return;
+        }
+
+        _redactor.WriteLog("Saved stall prices in admin\\shop-prices.json");
+        LoadShop();
+        Status = "Stall prices saved to admin\\shop-prices.json.";
+    }
+
+    private void LoadShop()
+    {
+        _shop = ShopPriceDesk.Load(_serverPath());
+        ShopNote = _shop.Note;
+        BuyOffers.Clear();
+        SellOffers.Clear();
+        foreach (var offer in _shop.Offers)
+        {
+            var row = new ShopPriceEdit(offer.Side, offer.Pos, offer.Tag, offer.Sku, offer.Item, offer.Qty, offer.Pointer, offer.Price);
+            if (offer.Side == "sell")
+            {
+                SellOffers.Add(row);
+            }
+            else
+            {
+                BuyOffers.Add(row);
+            }
+        }
+
+        TraderSchedule = _shop.Trader.Schedule;
+        TraderNote = _shop.Trader.Note;
+        TraderBooks.Clear();
+        foreach (var book in _shop.Trader.Books)
+        {
+            var level = book.Level.Length == 0 ? "" : " " + book.Level;
+            var uses = book.MaxUses.Length == 0 ? "" : "  max " + book.MaxUses;
+            var note = book.Note.Length == 0 ? "" : "  (" + book.Note + ")";
+            TraderBooks.Add(book.Enchant + level + "  " + book.Price + " C" + uses + note);
+        }
     }
 
     partial void OnSelectedChanged(BankAccount? value) => ApplyHero();

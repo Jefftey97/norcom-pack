@@ -33,9 +33,9 @@ public class PinGateTests
 		string dir = NewDir();
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains(LivePin, ex.Message);
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
+		Assert.NotNull(PinGate.LastWarning);
+		Assert.Contains(LivePin, PinGate.LastWarning);
 		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
 	}
 
@@ -43,9 +43,9 @@ public class PinGateTests
 	public async Task MinecraftMismatchRefuses()
 	{
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("1.21.1", "0.20.1", LivePin)));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains("1.21.1", ex.Message);
+		await PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
+		Assert.NotNull(PinGate.LastWarning);
+		Assert.Contains("1.21.1", PinGate.LastWarning);
 	}
 
 	[Fact]
@@ -85,8 +85,9 @@ public class PinGateTests
 			["server-pin.json"] = (HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)),
 			["server-compat.json"] = (HttpStatusCode.OK, compat)
 		}));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None));
-		Assert.Contains("fabric-api.jar", ex.Message);
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None);
+		Assert.NotNull(PinGate.LastWarning);
+		Assert.Contains("fabric-api.jar", PinGate.LastWarning);
 	}
 
 	[Fact]

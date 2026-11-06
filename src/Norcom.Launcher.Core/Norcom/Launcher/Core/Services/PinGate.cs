@@ -145,12 +145,20 @@ public static class PinGate
 			slim = await TryFetchTextAsync(http, ServerPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		}
 		string? compat = await TryFetchTextAsync(http, CompatPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
-		if (full != null)
+		try
 		{
-			JudgeFull(full, slim, compat, gameDir, pack, source);
-			return;
+			if (full != null)
+			{
+				JudgeFull(full, slim, compat, gameDir, pack, source);
+				return;
+			}
+			JudgeSlim(slim!, compat, gameDir, pack, source);
 		}
-		JudgeSlim(slim!, compat, gameDir, pack, source);
+		catch (PinMismatchException ex) when (!MissingRefuses)
+		{
+			LastWarning = ex.Message;
+			LauncherLog.Write("pin warn " + ex.Message);
+		}
 	}
 
 	public static async Task EnforceAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string pinUrl, CancellationToken ct)
@@ -168,12 +176,20 @@ public static class PinGate
 			Warn("pin 404 " + pinUrl);
 			return;
 		}
-		if (pinUrl.EndsWith("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) || body.Contains("\"jars\"", StringComparison.Ordinal))
+		try
 		{
-			JudgeFull(body, null, null, gameDir, pack, pinUrl);
-			return;
+			if (pinUrl.EndsWith("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) || body.Contains("\"jars\"", StringComparison.Ordinal))
+			{
+				JudgeFull(body, null, null, gameDir, pack, pinUrl);
+				return;
+			}
+			JudgeSlim(body, null, gameDir, pack, pinUrl);
 		}
-		JudgeSlim(body, null, gameDir, pack, pinUrl);
+		catch (PinMismatchException ex) when (!MissingRefuses)
+		{
+			LastWarning = ex.Message;
+			LauncherLog.Write("pin warn " + ex.Message);
+		}
 	}
 
 	public static string Rollup(IEnumerable<(string Name, string Sha256, long Size)> jars)

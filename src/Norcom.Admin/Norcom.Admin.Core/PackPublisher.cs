@@ -11,7 +11,7 @@ public sealed class PackPublisher
         _redactor = redactor;
     }
 
-    public async Task<PublishResult> PublishAsync(string packDirectory, CancellationToken cancellationToken)
+    public async Task<PublishResult> PublishAsync(string packDirectory, string serverDirectory, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(packDirectory) || !Directory.Exists(packDirectory))
         {
@@ -26,6 +26,12 @@ public sealed class PackPublisher
         if (!Directory.Exists(Path.Combine(packDirectory, "launcher")))
         {
             return Fail("Refusing to publish because launcher/ is missing.");
+        }
+
+        var pinBlock = NorcomPin.PublishBlock(packDirectory, serverDirectory);
+        if (pinBlock != null)
+        {
+            return Fail(pinBlock);
         }
 
         var indexPath = Path.Combine(packDirectory, "index.toml");

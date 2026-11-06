@@ -19,7 +19,7 @@ public partial class ShellViewModel : ObservableObject
         Settings = new SettingsViewModel(_settings, () => Ops.ServerPath, () => Ops.RconPort, () => Ops.PasswordForSession(), redactor, Save);
         Mods = new ServerModsViewModel(() => Ops.ServerPath, redactor);
         Configs = new ConfigsViewModel(() => Ops.ServerPath, redactor);
-        Publish = new PublishViewModel(_settings, redactor, Save);
+        Publish = new PublishViewModel(_settings, redactor, Save, () => Ops.ServerPath);
         AutoFix = new AutoFixViewModel(_settings, () => Ops.ServerPath, ServerHasProcess, redactor, Save);
         Ops.PathChanged += () =>
         {

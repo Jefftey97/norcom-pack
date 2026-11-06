@@ -11,19 +11,21 @@ public partial class PublishViewModel : ObservableObject
     private readonly SecretRedactor _redactor;
     private readonly Action _save;
     private readonly PackPublisher _publisher;
+    private readonly Func<string> _serverPath;
 
-    public PublishViewModel(AdminSettings settings, SecretRedactor redactor, Action save)
+    public PublishViewModel(AdminSettings settings, SecretRedactor redactor, Action save, Func<string> serverPath)
     {
         _settings = settings;
         _redactor = redactor;
         _save = save;
+        _serverPath = serverPath;
         _publisher = new PackPublisher(new ProcessCommandRunner(), redactor);
         PackPath = settings.PackPath;
     }
 
     [ObservableProperty] private string packPath = "";
     [ObservableProperty] private string confirmText = "";
-    [ObservableProperty] private string status = "Type PUBLISH. This is a normal push to Jefftey97/norcom-pack. No force-push. launcher/ stays.";
+    [ObservableProperty] private string status = "Type PUBLISH. Push is refused unless the pack index pin matches G:\\MinecraftServer\\.norcom\\server-pin.json. No force-push. launcher/ stays.";
     [ObservableProperty] private bool busy;
 
     [RelayCommand]
@@ -52,7 +54,7 @@ public partial class PublishViewModel : ObservableObject
         Busy = true;
         try
         {
-            var result = await _publisher.PublishAsync(PackPath, CancellationToken.None);
+            var result = await _publisher.PublishAsync(PackPath, _serverPath(), CancellationToken.None);
             Status = result.Message;
             _redactor.WriteLog(result.Message);
         }

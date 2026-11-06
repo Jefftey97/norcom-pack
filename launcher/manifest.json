@@ -1,7 +1,7 @@
 {
-  "version": "2.0.41",
+  "version": "2.0.42",
   "minVersion": "2.0.0",
-  "sha256": "f5163a04f0beb17e95e1014993ffe0849aba3a35470bc7053cbeb55ce47ec1da",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/24f89548e4cadebd86ccfe095fd97f381766f317/launcher/NorcomWpf-2.0.41.zip",
-  "notes": "Launcher 2.0.41. Playing shows while the game is open, and the red X stops it. Pin status and Fix follow the live server pin. Carrara marble stays with the pack."
+  "sha256": "ad9b515eb5ede178561ae9959dada4872ec21b4adbcde0b719343ccc30e061cf",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/1df6f5e5269b8438d07a69e4002b7b264f6d5301/launcher/NorcomWpf-2.0.42.zip",
+  "notes": "Launcher 2.0.42. Updates install into the NORCOM Launcher folder. Play reuses a Prism NORCOM instance already on this PC and keeps the saves. Playing shows while the game is open, and the red X stops it. Pin status and Fix follow the live server pin. Carrara marble stays with the pack."
 }

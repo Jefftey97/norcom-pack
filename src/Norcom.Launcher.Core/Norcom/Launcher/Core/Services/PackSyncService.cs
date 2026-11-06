@@ -25,6 +25,7 @@ public sealed class PackSyncService
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
 		await PinHeal.RunAsync(_http, gameDir, doc, packUrl, async _ =>
 		{
+		meter.SetPhase("Repair: resyncing the pack", 0.08, 0.8);
 		string value;
 		string text = (doc.Keys.TryGetValue("index.file", out value) ? value : "index.toml");
 		string indexHash = doc.Keys.GetValueOrDefault("index.hash") ?? "";

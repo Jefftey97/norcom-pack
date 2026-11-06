@@ -63,6 +63,7 @@ public sealed class SelfUpdateService
 					LauncherManifest launcherManifest = JsonSerializer.Deserialize<LauncherManifest>(text2);
 					if (launcherManifest != null && !string.IsNullOrWhiteSpace(launcherManifest.Version))
 					{
+						UpdateNotes.Remember(NorcomPaths.LauncherDir, launcherManifest, NorcomVersion.Current);
 						return launcherManifest;
 					}
 					goto end_IL_00ff;

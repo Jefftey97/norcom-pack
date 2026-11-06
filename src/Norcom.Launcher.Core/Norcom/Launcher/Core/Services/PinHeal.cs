@@ -86,6 +86,7 @@ public static class PinHeal
 
 	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct)
 	{
+		RepairTrace.Begin();
 		PinGate.PinCheck check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 		HealHint hint = await FetchHintAsync(http, ct).ConfigureAwait(false);
 		LauncherLog.Write("heal-hint " + HintUrl + " repairAction=" + hint.RepairAction + " pin=" + hint.Pin + " minLauncher=" + hint.MinLauncher + " source=" + hint.Source);
@@ -96,9 +97,12 @@ public static class PinHeal
 		}
 		if (IsResync(hint.RepairAction))
 		{
+			RepairTrace.SetStage("the .norcom junction");
 			RetargetJunction(gameDir);
+			RepairTrace.SetStage("Java");
 			await NoteJavaAsync(http, ct).ConfigureAwait(false);
 		}
+		RepairTrace.SetStage("pack resync");
 		int max = MaxAttempts(hint.RepairAction);
 		for (int attempt = 1; attempt <= max; attempt++)
 		{
@@ -129,7 +133,7 @@ public static class PinHeal
 				LauncherLog.Write("pin heal failed " + ex.GetType().Name);
 				if (attempt >= max)
 				{
-					throw new PinMismatchException(PinGate.BlockCopy);
+					throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
 				}
 				continue;
 			}
@@ -139,7 +143,7 @@ public static class PinHeal
 				return;
 			}
 		}
-		throw new PinMismatchException(PinGate.BlockCopy);
+		throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
 	}
 
 	private static bool IsResync(string? repairAction)
@@ -179,6 +183,10 @@ public static class PinHeal
 		catch (Exception ex)
 		{
 			LauncherLog.Write("pin heal junction " + ex.GetType().Name);
+			if (ex.Message.Contains("must end with", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("was not replaced", StringComparison.OrdinalIgnoreCase))
+			{
+				throw new InvalidOperationException(RepairTrace.Fail("the .norcom junction", ex.Message));
+			}
 		}
 	}
 
@@ -196,6 +204,7 @@ public static class PinHeal
 		}
 		catch (Exception ex)
 		{
+			RepairTrace.NoteJava(ex.GetType().Name);
 			LauncherLog.Write("pin heal java recheck " + ex.GetType().Name);
 		}
 	}

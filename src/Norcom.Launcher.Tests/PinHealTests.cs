@@ -124,7 +124,8 @@ public class PinHealTests
 			calls++;
 			return Task.CompletedTask;
 		}, CancellationToken.None));
-		Assert.Equal(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("pack resync", ex.Message);
+		Assert.Contains(PinGate.BlockCopy, ex.Message);
 		Assert.Equal(2, calls);
 		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
 	}

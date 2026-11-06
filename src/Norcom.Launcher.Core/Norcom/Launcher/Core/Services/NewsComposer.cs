@@ -1,6 +1,7 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Text;
+using Norcom.Launcher.Core;
 using System.Text.RegularExpressions;
 using System.Text.RegularExpressions.Generated;
 
@@ -11,6 +12,12 @@ public static class NewsComposer
 	public static string Compose(string launcherVersion, string? newsMarkdown, string? packNotes, string? packVersion)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
+		string? update = UpdateNotes.Section(NorcomPaths.LauncherDir, launcherVersion);
+		if (!string.IsNullOrWhiteSpace(update))
+		{
+			stringBuilder.AppendLine(update);
+			stringBuilder.AppendLine();
+		}
 		stringBuilder.Append("Launcher ").Append(launcherVersion).AppendLine();
 		stringBuilder.AppendLine("Native Windows build for the NORCOM SERVER.");
 		if (!string.IsNullOrWhiteSpace(packVersion))

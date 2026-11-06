@@ -32,6 +32,69 @@ public class PinHealTests
 		Assert.False(PinHeal.NeedsUpdate("9.0.0", "1.0.35", hint));
 	}
 
+	private const string LiveHint = """
+		{"schema":1,"pin":"07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac","mc":"26.3","loader":"0.20.1","minLauncher":"2.0.1","repairAction":"resync-pack","updatedUtc":"2026-11-06T02:46:16Z","source":"admin"}
+		""";
+
+	[Fact]
+	public async Task LiveHealHintIsFetchedAfterThePinFiles()
+	{
+		string dir = NewDir();
+		string save = Path.Combine(dir, "saves", "world", "level.dat");
+		Directory.CreateDirectory(Path.GetDirectoryName(save)!);
+		await File.WriteAllTextAsync(save, "keep");
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
+		List<string> seen = new List<string>();
+		int calls = 0;
+		using HttpClient http = new(new PinHttp(Slim(), LiveHint, seen));
+		HealHint hint = await PinHeal.FetchHintAsync(http, CancellationToken.None);
+		int before = seen.Count;
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			calls++;
+			File.WriteAllText(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+			return Task.CompletedTask;
+		}, CancellationToken.None);
+		Assert.Equal("resync-pack", hint.RepairAction);
+		Assert.Equal(PinGate.LivePin, hint.Pin);
+		Assert.Equal("2.0.1", hint.MinLauncher);
+		Assert.Equal("26.3", hint.Mc);
+		Assert.Equal("0.20.1", hint.Loader);
+		Assert.Equal("admin", hint.Source);
+		Assert.Equal("2026-11-06T02:46:16Z", hint.UpdatedUtc);
+		Assert.False(PinHeal.NeedsUpdate("2.0.26", "1.0.35", hint));
+		Assert.True(PinHeal.NeedsUpdate("2.0.0", "1.0.35", hint));
+		Assert.False(PackSyncService.IsSafeToDelete("saves/world/level.dat"));
+		Assert.Equal("keep", await File.ReadAllTextAsync(save));
+		Assert.Equal(1, calls);
+		List<string> play = seen.GetRange(before, seen.Count - before);
+		int pinAt = play.FindIndex(name => name is "norcom-mod-pin.json" or "server-pin.json" or "server-compat.json");
+		int hintAt = play.FindIndex(name => name == "heal-hint.json");
+		Assert.True(pinAt >= 0 && hintAt > pinAt);
+	}
+
+	[Fact]
+	public async Task BehindMinLauncherChecksTheFeedThenHeals()
+	{
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
+		string hint = LiveHint.Replace("\"minLauncher\":\"2.0.1\"", "\"minLauncher\":\"9.0.0\"");
+		List<string> seen = new List<string>();
+		bool synced = false;
+		using HttpClient http = new(new PinHttp(Slim(), hint, seen));
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			synced = true;
+			File.WriteAllText(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+			return Task.CompletedTask;
+		}, CancellationToken.None);
+		Assert.Contains("manifest.json", seen);
+		int manifestAt = seen.IndexOf("manifest.json");
+		Assert.True(manifestAt >= 0);
+		Assert.True(synced);
+		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+	}
+
 	[Fact]
 	public async Task MismatchTriggersHealThenAllowsPlay()
 	{
@@ -89,16 +152,28 @@ public class PinHealTests
 	private sealed class PinHttp : HttpMessageHandler
 	{
 		private readonly string _pin;
+		private readonly string? _hint;
+		private readonly List<string>? _seen;
 
-		public PinHttp(string pin)
+		public PinHttp(string pin, string? hint = null, List<string>? seen = null)
 		{
 			_pin = pin;
+			_hint = hint;
+			_seen = seen;
 		}
 
 		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			string name = request.RequestUri?.Segments.Last() ?? "";
-			if (name is "heal-hint.json" or "server-compat.json" or "norcom-mod-pin.json")
+			_seen?.Add(name);
+			if (name == "heal-hint.json" && _hint != null)
+			{
+				return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+				{
+					Content = new StringContent(_hint, Encoding.UTF8, "application/json")
+				});
+			}
+			if (name is "heal-hint.json" or "server-compat.json" or "norcom-mod-pin.json" or "manifest.json")
 			{
 				return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
 			}

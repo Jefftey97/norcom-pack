@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
@@ -21,6 +22,10 @@ public sealed class HealHint
 	public string PackVersion { get; init; } = "";
 
 	public string RepairAction { get; init; } = "resync-pack";
+
+	public string UpdatedUtc { get; init; } = "";
+
+	public string Source { get; init; } = "";
 }
 
 public static class PinHeal
@@ -71,7 +76,9 @@ public static class PinHeal
 				Loader = hint.Loader,
 				MinLauncher = hint.MinLauncher,
 				PackVersion = hint.PackVersion,
-				RepairAction = "resync-pack"
+				RepairAction = "resync-pack",
+				UpdatedUtc = hint.UpdatedUtc,
+				Source = hint.Source
 			};
 		}
 		return hint;
@@ -79,18 +86,26 @@ public static class PinHeal
 
 	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct)
 	{
+		PinGate.PinCheck check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 		HealHint hint = await FetchHintAsync(http, ct).ConfigureAwait(false);
+		LauncherLog.Write("heal-hint " + HintUrl + " repairAction=" + hint.RepairAction + " pin=" + hint.Pin + " minLauncher=" + hint.MinLauncher + " source=" + hint.Source);
 		pack.Keys.TryGetValue("version", out var packVersion);
 		if (NeedsUpdate(NorcomVersion.Current, packVersion, hint))
 		{
-			LauncherLog.Write("pin feed behind minLauncher=" + hint.MinLauncher + " packVersion=" + hint.PackVersion);
+			await FeedCheckAsync(http, hint, ct).ConfigureAwait(false);
 		}
-		RetargetJunction(gameDir);
-		await NoteJavaAsync(http, ct).ConfigureAwait(false);
+		if (IsResync(hint.RepairAction))
+		{
+			RetargetJunction(gameDir);
+			await NoteJavaAsync(http, ct).ConfigureAwait(false);
+		}
 		int max = MaxAttempts(hint.RepairAction);
 		for (int attempt = 1; attempt <= max; attempt++)
 		{
-		PinGate.PinCheck check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
+			if (attempt > 1)
+			{
+				check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
+			}
 		if (check == PinGate.PinCheck.Open)
 			{
 				await resync(ct).ConfigureAwait(false);
@@ -125,6 +140,28 @@ public static class PinHeal
 			}
 		}
 		throw new PinMismatchException(PinGate.BlockCopy);
+	}
+
+	private static bool IsResync(string? repairAction)
+	{
+		return string.Equals(repairAction, "resync-pack", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(repairAction);
+	}
+
+	private static async Task FeedCheckAsync(HttpClient http, HealHint hint, CancellationToken ct)
+	{
+		LauncherLog.Write("pin feed behind minLauncher=" + hint.MinLauncher + " packVersion=" + hint.PackVersion);
+		try
+		{
+			LauncherManifest? manifest = await new SelfUpdateService(http).FetchManifestAsync(ct).ConfigureAwait(false);
+			if (manifest != null && VersionCompare.Compare(manifest.Version, NorcomVersion.Current) > 0)
+			{
+				LauncherLog.Write("pin feed update available " + manifest.Version);
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pin feed check " + ex.GetType().Name);
+		}
 	}
 
 	private static void RetargetJunction(string gameDir)
@@ -174,7 +211,9 @@ public static class PinHeal
 			Loader = Text(root, "loader"),
 			MinLauncher = Text(root, "minLauncher"),
 			PackVersion = Text(root, "packVersion"),
-			RepairAction = Text(root, "repairAction")
+			RepairAction = Text(root, "repairAction"),
+			UpdatedUtc = Text(root, "updatedUtc"),
+			Source = Text(root, "source")
 		};
 	}
 
@@ -189,7 +228,9 @@ public static class PinHeal
 			Loader = string.IsNullOrWhiteSpace(hint.Loader) ? Text(root, "loader") : hint.Loader,
 			MinLauncher = string.IsNullOrWhiteSpace(hint.MinLauncher) ? Text(root, "minLauncher") : hint.MinLauncher,
 			PackVersion = string.IsNullOrWhiteSpace(hint.PackVersion) ? Text(root, "packVersion") : hint.PackVersion,
-			RepairAction = hint.RepairAction
+			RepairAction = hint.RepairAction,
+			UpdatedUtc = hint.UpdatedUtc,
+			Source = hint.Source
 		};
 	}
 

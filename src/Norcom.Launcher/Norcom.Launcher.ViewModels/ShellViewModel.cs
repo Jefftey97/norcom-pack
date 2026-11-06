@@ -1278,7 +1278,9 @@ public class ShellViewModel : ObservableObject
 				report("No update manifest. Continuing.", 1.0);
 				return false;
 			}
-			if (UpdateReport.SameSha(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256))
+			bool fromAlt = LauncherInstall.IsAltInstall(Environment.ProcessPath, FriendInstaller.InstalledExePath);
+			string? primaryVersion = NorcomVersion.TryReadExeVersion(FriendInstaller.InstalledExePath);
+			if (UpdateReport.SkipApplied(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256, NorcomVersion.Current, manifest.Version, primaryVersion, fromAlt))
 			{
 				NoteUpdate("rejected already-applied");
 				report("rejected already-applied", 1.0);
@@ -1286,6 +1288,12 @@ public class ShellViewModel : ObservableObject
 			}
 			if (SelfUpdateService.Decide(NorcomVersion.Current, manifest, updates.UsedPrivateManifest) == UpdateKind.None)
 			{
+				if (fromAlt && LauncherInstall.ShouldCopyRunningToPrimary(true, NorcomVersion.Current, primaryVersion, manifest.Version) && !string.IsNullOrWhiteSpace(Environment.ProcessPath))
+				{
+					report("Installing " + NorcomVersion.Current, 0.95);
+					LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
+					return true;
+				}
 				string text = (SelfUpdateService.IsAllowedPackageUrl(manifest.ZipUrl, updates.UsedPrivateManifest) ? "up-to-date" : "rejected not-https");
 				NoteUpdate(text);
 				report("Launcher " + NorcomVersion.Current + ". Published manifest is " + manifest.Version + ".", 1.0);

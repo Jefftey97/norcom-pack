@@ -13,6 +13,7 @@ internal static class Program
 		{
 			string source = ExtractBundledLauncher();
 			FriendInstaller.InstallLauncher(source, FriendInstaller.InstallDirectory);
+			FriendInstaller.PublishShortcuts(FriendInstaller.InstalledExePath, createIfMissing: true);
 			Process.Start(new ProcessStartInfo(FriendInstaller.InstalledExePath)
 			{
 				UseShellExecute = true

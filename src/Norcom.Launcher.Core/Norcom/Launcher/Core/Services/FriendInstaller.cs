@@ -36,13 +36,16 @@ public static class FriendInstaller
 		}
 		Directory.CreateDirectory(installDirectory);
 		string text = Path.Combine(installDirectory, "NorcomLauncher.exe");
-		string fullPath = Path.GetFullPath(sourceExe);
-		string fullPath2 = Path.GetFullPath(text);
-		if (!fullPath.Equals(fullPath2, StringComparison.OrdinalIgnoreCase))
-		{
-			File.Copy(fullPath, text, overwrite: true);
-		}
+		LauncherInstall.CopyLauncher(sourceExe, text);
 		File.WriteAllText(Path.Combine(installDirectory, "installer-version.txt"), NorcomVersion.Current + Environment.NewLine);
+		try
+		{
+			LauncherInstall.TrySyncAlt(text);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("alt sync " + ex.GetType().Name);
+		}
 		try
 		{
 			string home = Path.GetDirectoryName(Path.GetFullPath(installDirectory)) ?? installDirectory;
@@ -51,6 +54,24 @@ public static class FriendInstaller
 		catch (Exception ex)
 		{
 			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
+	}
+
+	public static void PublishShortcuts(string primaryExe, bool createIfMissing)
+	{
+		if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(primaryExe) || !File.Exists(primaryExe))
+		{
+			return;
+		}
+		WindowsShortcut.PointAt(Path.Combine(NorcomPaths.DesktopDirectory, ShortcutName), primaryExe, createIfMissing, anyLauncherExe: true);
+		if (NorcomPaths.DisposableProfile)
+		{
+			return;
+		}
+		string programs = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+		if (!string.IsNullOrWhiteSpace(programs))
+		{
+			WindowsShortcut.PointAt(Path.Combine(programs, "NORCOM", ShortcutName), primaryExe, createIfMissing, anyLauncherExe: true);
 		}
 	}
 }

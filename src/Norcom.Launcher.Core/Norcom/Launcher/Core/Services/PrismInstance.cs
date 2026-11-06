@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -17,11 +18,12 @@ public static class PrismInstance
 		{
 			throw new InvalidOperationException("The NORCOM game folder and the Prism instance overlap. Nothing was linked.");
 		}
-		if (Directory.Exists(text) && !IsOurs(text))
-		{
-			throw new InvalidOperationException("A Prism instance named NORCOM already exists and was not created by this launcher. It was left unchanged, and Minecraft was not started.");
-		}
+		bool foreign = Directory.Exists(text) && !IsOurs(text);
 		Directory.CreateDirectory(text);
+		if (foreign)
+		{
+			LauncherLog.Write("prism " + PrismMessages.Claimed);
+		}
 		File.WriteAllText(Path.Combine(text, "norcom-managed.txt"), "NORCOM");
 		WriteConfig(Path.Combine(text, "instance.cfg"), javaPath, ramMb);
 		WritePack(Path.Combine(text, "mmc-pack.json"));
@@ -151,9 +153,21 @@ public static class PrismInstance
 			}
 			Directory.Delete(linkPath);
 		}
-		else if (Directory.Exists(linkPath) || File.Exists(linkPath))
+		else if (File.Exists(linkPath) && !Directory.Exists(linkPath))
 		{
-			throw new InvalidOperationException("NORCOM's Prism instance already has a minecraft folder that is not the NORCOM game folder. It was not replaced, and Minecraft was not started.");
+			throw new InvalidOperationException(PrismMessages.LinkBlocked);
+		}
+		else if (Directory.Exists(linkPath))
+		{
+			try
+			{
+				PreserveSaves(linkPath, fullPath);
+				Directory.Move(linkPath, KeptPath(linkPath));
+			}
+			catch (Exception ex)
+			{
+				throw new InvalidOperationException(PrismMessages.LinkKept, ex);
+			}
 		}
 		Directory.CreateDirectory(Path.GetDirectoryName(linkPath));
 		if (OperatingSystem.IsWindows())
@@ -164,6 +178,80 @@ public static class PrismInstance
 		{
 			Directory.CreateSymbolicLink(linkPath, fullPath);
 		}
+	}
+
+	public static int PreserveSaves(string minecraftDir, string gameDir)
+	{
+		if (string.IsNullOrWhiteSpace(minecraftDir) || !Directory.Exists(minecraftDir))
+		{
+			return 0;
+		}
+		int copied = CopyMissingDirectory(Path.Combine(minecraftDir, "saves"), Path.Combine(gameDir, "saves"));
+		CopyIfMissing(Path.Combine(minecraftDir, "options.txt"), Path.Combine(gameDir, "options.txt"));
+		CopyIfMissing(Path.Combine(minecraftDir, "optionsof.txt"), Path.Combine(gameDir, "optionsof.txt"));
+		return copied;
+	}
+
+	public static string KeptPath(string minecraftDir)
+	{
+		string kept = minecraftDir + ".norcom-kept";
+		if (!Directory.Exists(kept) && !File.Exists(kept))
+		{
+			return kept;
+		}
+		return minecraftDir + ".norcom-kept-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+	}
+
+	private static int CopyMissingDirectory(string source, string dest)
+	{
+		if (!Directory.Exists(source))
+		{
+			return 0;
+		}
+		Directory.CreateDirectory(dest);
+		int copied = 0;
+		foreach (string dir in Directory.EnumerateDirectories(source))
+		{
+			string target = Path.Combine(dest, Path.GetFileName(dir));
+			if (Directory.Exists(target))
+			{
+				continue;
+			}
+			CopyTree(dir, target);
+			copied++;
+		}
+		return copied;
+	}
+
+	private static void CopyTree(string source, string dest)
+	{
+		Directory.CreateDirectory(dest);
+		foreach (string file in Directory.EnumerateFiles(source))
+		{
+			string target = Path.Combine(dest, Path.GetFileName(file));
+			if (!File.Exists(target))
+			{
+				File.Copy(file, target, overwrite: false);
+			}
+		}
+		foreach (string dir in Directory.EnumerateDirectories(source))
+		{
+			CopyTree(dir, Path.Combine(dest, Path.GetFileName(dir)));
+		}
+	}
+
+	private static void CopyIfMissing(string source, string dest)
+	{
+		if (!File.Exists(source) || File.Exists(dest))
+		{
+			return;
+		}
+		string? parent = Path.GetDirectoryName(dest);
+		if (!string.IsNullOrEmpty(parent))
+		{
+			Directory.CreateDirectory(parent);
+		}
+		File.Copy(source, dest, overwrite: false);
 	}
 
 	private static bool IsOurs(string instanceDir)

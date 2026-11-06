@@ -16,7 +16,7 @@ public class PinGateTests
 		fabric = "0.20.1"
 		""";
 
-	private const string LivePin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac";
+	private const string LivePin = "fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73";
 
 	[Fact]
 	public void FriendsFetchSlimPinThenCompat()

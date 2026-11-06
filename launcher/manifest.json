@@ -1,7 +1,7 @@
 {
   "version": "2.0.31",
   "minVersion": "2.0.0",
-  "sha256": "5246030c3d0e841ffd6106a2c09b7c2d4b78e857a78c97aca21f65d86994bcb7",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8d6e0ab23a72785a46f86329f2d804dcb112d8dc/launcher/NorcomWpf-2.0.31.zip",
-  "notes": "Launcher 2.0.31. Every Play removes obsolete launcher copies and keeps the current install only. Close exits. Auto uses Alacrity. Home SRV port 60313; host PC 127.0.0.1:25565. Dual-sided pin check stays. Exe SHA256 549469f1eff0d7e7de8097c5a7d235bd9191832d4273481c5bdc896123b48bba."
+  "sha256": "7a5839c877a032c4e992671c54fae4143b3dd66583e6ed7dff56486a25cc4c82",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/9c779fba28adc7da27d8a9bb5704e180ed1ea00b/launcher/NorcomWpf-2.0.31.zip",
+  "notes": "Launcher 2.0.31. Every Play removes obsolete launcher copies and keeps the current install only. Close exits. Auto uses Alacrity. Home SRV port 60313; host PC 127.0.0.1:25565. Dual-sided pin check stays. Exe SHA256 549a73737164e7ccb4bfaabf3b78d0bd68b3a20b6c9da2cec65e0f504335ec73."
 }

@@ -322,6 +322,20 @@ public class Admin140Tests
         Assert.Contains(desk.Offers, offer => offer.Side == "buy" && offer.Sku == "BREAD" && offer.Price == "4");
         Assert.Contains(desk.Offers, offer => offer.Side == "sell" && offer.Sku == "WHEAT");
         Assert.Contains(desk.Trader.Books, book => book.Enchant == "Mending" && book.Price == "128");
+        File.WriteAllText(prices, """
+        {"stalls":{"supplies":[{"sku":"BREAD","item":"minecraft:bread","qty":1,"price":4}],"buyback":[{"sku":"WHEAT","item":"minecraft:wheat","qty":8,"price":1}]},"trader":{"tag":"wanderer","buy":[{"sku":"GAPPLE","item":"minecraft:golden_apple","qty":1,"price":20,"shelf":"top"}],"sell":[{"sku":"IRON","item":"minecraft:iron_ingot","qty":4,"price":2,"shelf":"low"}]},"wandering_trader":{"interval_ticks":[54000,108000],"stay_ticks":[36000,48000],"books_price_emerald_or_coin_1to1":[{"sku":"BK01","enchantment":"sharpness","level":1,"price":8,"max_uses":3,"pay":"emerald"}],"mending":{"price":128,"inputs":"64+64","max_uses":1,"sku":"BK00-MENDING1","tier":"rare"}}}
+        """);
+        var live = ShopPriceDesk.Load(root);
+        Assert.Equal(2, live.Offers.Count);
+        Assert.DoesNotContain(live.Offers, offer => offer.Sku is "GAPPLE" or "IRON");
+        Assert.Equal(2, live.Trader.Books.Count);
+        Assert.Contains("1 commons + Mending (2 offers)", live.Trader.Note, StringComparison.Ordinal);
+        Assert.Contains("54000", live.Trader.Schedule, StringComparison.Ordinal);
+        Assert.Contains("108000", live.Trader.Schedule, StringComparison.Ordinal);
+        Assert.Contains(live.Trader.Books, book => book.Sku == "BK00-MENDING1" && book.Pay == "64+64" && book.Tier == "rare" && book.MaxUses == "1");
+        Assert.Contains(live.Trader.Books, book => book.Sku == "BK01" && book.Enchant == "sharpness");
+        Assert.Contains(live.Trader.Shelves, shelf => shelf.Side == "buy" && shelf.Sku == "GAPPLE" && shelf.Shelf == "top");
+        Assert.Contains(live.Trader.Shelves, shelf => shelf.Side == "sell" && shelf.Sku == "IRON");
         Assert.Contains("Server-owned", desk.Trader.Schedule, StringComparison.Ordinal);
         var bread = desk.Offers.First(offer => offer.Sku == "BREAD");
         Assert.Null(desk.Save(new Dictionary<string, string> { [bread.Pointer] = "9" }));

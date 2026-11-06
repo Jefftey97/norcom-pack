@@ -33,6 +33,8 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
 
     public ObservableCollection<string> TraderBooks { get; } = new();
 
+    public ObservableCollection<string> TraderShelves { get; } = new();
+
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string status = "NORCOM Bank reads economy.json. Money writes go through RCON on 127.0.0.1.";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string currencyName = NorcomBank.DefaultName;
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string currencySymbol = NorcomBank.DefaultSymbol;
@@ -133,10 +135,18 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
         TraderBooks.Clear();
         foreach (var book in _shop.Trader.Books)
         {
+            var sku = book.Sku.Length == 0 ? "" : book.Sku + "  ";
             var level = book.Level.Length == 0 ? "" : " " + book.Level;
             var uses = book.MaxUses.Length == 0 ? "" : "  max " + book.MaxUses;
-            var note = book.Note.Length == 0 ? "" : "  (" + book.Note + ")";
-            TraderBooks.Add(book.Enchant + level + "  " + book.Price + " C" + uses + note);
+            var pay = book.Pay.Length == 0 ? "" : "  " + book.Pay;
+            var tier = book.Tier.Length == 0 ? "" : "  " + book.Tier;
+            TraderBooks.Add(sku + book.Enchant + level + "  " + book.Price + " C" + pay + uses + tier);
+        }
+
+        TraderShelves.Clear();
+        foreach (var shelf in _shop.Trader.Shelves)
+        {
+            TraderShelves.Add(shelf.Side + "  " + shelf.Sku + "  " + shelf.Item + "  qty " + shelf.Qty + "  " + shelf.Price + " C  " + shelf.Shelf);
         }
     }
 

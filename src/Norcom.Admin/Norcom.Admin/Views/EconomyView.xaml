@@ -105,6 +105,8 @@
             <TextBlock Text="Wandering trader" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding Bank.TraderSchedule}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,8"/>
             <ItemsControl ItemsSource="{Binding Bank.TraderBooks}"/>
+            <TextBlock Text="Wanderer shelves (read-only)" Style="{StaticResource Label}" Margin="0,10,0,4"/>
+            <ItemsControl ItemsSource="{Binding Bank.TraderShelves}"/>
             <TextBlock Text="{Binding Bank.TraderNote}" Foreground="#93A4BD" Margin="0,8,0,0"/>
           </StackPanel>
         </Border>

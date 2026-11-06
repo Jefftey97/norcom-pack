@@ -13,9 +13,11 @@ public sealed record ShopOffer(
     string Pointer,
     string Price);
 
-public sealed record TraderBook(string Enchant, string Level, string Price, string MaxUses, string Note);
+public sealed record TraderBook(string Sku, string Enchant, string Level, string Price, string MaxUses, string Pay, string Tier);
 
-public sealed record TraderCard(string Schedule, IReadOnlyList<TraderBook> Books, string Note);
+public sealed record TraderShelf(string Side, string Sku, string Item, string Qty, string Price, string Shelf);
+
+public sealed record TraderCard(string Schedule, IReadOnlyList<TraderBook> Books, IReadOnlyList<TraderShelf> Shelves, string Note);
 
 public sealed class ShopPriceDesk
 {
@@ -58,7 +60,7 @@ public sealed class ShopPriceDesk
     public static ShopPriceDesk Load(string serverDirectory)
     {
         var path = FilePath(serverDirectory);
-        var emptyTrader = new TraderCard("Schedule is Server-owned. Admin shows this SoT only.", Array.Empty<TraderBook>(), "No wandering trader block in shop-prices.json.");
+        var emptyTrader = new TraderCard("Schedule is Server-owned. Admin shows this SoT only.", Array.Empty<TraderBook>(), Array.Empty<TraderShelf>(), "No wandering trader block in shop-prices.json.");
         if (!File.Exists(path))
         {
             return new ShopPriceDesk(path, "shop-prices.json was not found. Nothing was invented.", null, Array.Empty<ShopOffer>(), emptyTrader);
@@ -75,8 +77,19 @@ public sealed class ShopPriceDesk
             var offers = new List<ShopOffer>();
             var prices = new Dictionary<string, (JsonObject Owner, string Key, JsonValueKind Kind)>();
             TraderCard? trader = null;
-            Walk(root, "", new WalkCtx("", "", ""), offers, prices, ref trader);
-            return new ShopPriceDesk(path, offers.Count + " stall prices from shop-prices.json.", root, offers, trader ?? emptyTrader, prices);
+            var shelves = new List<TraderShelf>();
+            Walk(root, "", new WalkCtx("", "", ""), offers, prices, ref trader, shelves);
+            if (trader == null)
+            {
+                trader = emptyTrader;
+            }
+
+            if (shelves.Count > 0)
+            {
+                trader = trader with { Shelves = shelves };
+            }
+
+            return new ShopPriceDesk(path, offers.Count + " stall prices from shop-prices.json.", root, offers, trader, prices);
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
@@ -126,13 +139,14 @@ public sealed class ShopPriceDesk
         WalkCtx ctx,
         List<ShopOffer> offers,
         Dictionary<string, (JsonObject, string, JsonValueKind)> prices,
-        ref TraderCard? trader)
+        ref TraderCard? trader,
+        List<TraderShelf> shelves)
     {
         if (node is JsonArray array)
         {
             for (var i = 0; i < array.Count; i++)
             {
-                Walk(array[i], pointer + "/" + i, ctx, offers, prices, ref trader);
+                Walk(array[i], pointer + "/" + i, ctx, offers, prices, ref trader, shelves);
             }
 
             return;
@@ -175,6 +189,12 @@ public sealed class ShopPriceDesk
                 continue;
             }
 
+            if (property.Key.Equals("trader", StringComparison.OrdinalIgnoreCase))
+            {
+                shelves.AddRange(ReadShelves(property.Value as JsonObject));
+                continue;
+            }
+
             var side = next.Side;
             if (IsBuyList(property.Key))
             {
@@ -185,7 +205,7 @@ public sealed class ShopPriceDesk
                 side = "sell";
             }
 
-            Walk(property.Value, pointer + "/" + property.Key, next with { Side = side }, offers, prices, ref trader);
+            Walk(property.Value, pointer + "/" + property.Key, next with { Side = side }, offers, prices, ref trader, shelves);
         }
     }
 
@@ -194,14 +214,14 @@ public sealed class ShopPriceDesk
         var scheduleNote = "Schedule is Server-owned. Admin shows this SoT only.";
         if (trader == null)
         {
-            return new TraderCard(scheduleNote, Array.Empty<TraderBook>(), "No wandering trader block.");
+            return new TraderCard(scheduleNote, Array.Empty<TraderBook>(), Array.Empty<TraderShelf>(), "No wandering trader block.");
         }
 
-        var interval = Text(trader, "interval_ticks", "intervalTicks", "interval");
-        var stay = Text(trader, "stay_ticks", "stayTicks", "stay");
+        var interval = Span(trader, "interval_ticks", "intervalTicks", "interval");
+        var stay = Span(trader, "stay_ticks", "stayTicks", "stay");
         var schedule = "Interval " + (interval.Length == 0 ? "—" : interval) + " ticks. Stay " + (stay.Length == 0 ? "—" : stay) + " ticks. " + scheduleNote;
         var books = new List<TraderBook>();
-        if (trader["books"] is JsonArray list)
+        if ((trader["books_price_emerald_or_coin_1to1"] ?? trader["books"]) is JsonArray list)
         {
             foreach (var entry in list)
             {
@@ -210,21 +230,76 @@ public sealed class ShopPriceDesk
                     continue;
                 }
 
-                books.Add(new TraderBook(
-                    Text(book, "enchant", "enchantment", "name"),
-                    Text(book, "level"),
-                    Text(book, "price"),
-                    Text(book, "max_uses", "maxUses"),
-                    Text(book, "note", "emeralds", "pay")));
+                books.Add(BookFrom(book));
             }
         }
 
+        var commons = books.Count;
+        var hasMending = false;
         if (trader["mending"] is JsonObject mending)
         {
-            books.Insert(0, new TraderBook("Mending", Text(mending, "level"), Text(mending, "price"), Text(mending, "max_uses", "maxUses"), Prefer(Text(mending, "note", "emeralds", "pay"), "64+64")));
+            hasMending = true;
+            books.Add(new TraderBook(
+                Text(mending, "sku", "SKU"),
+                "Mending",
+                Text(mending, "level"),
+                Text(mending, "price"),
+                Text(mending, "max_uses", "maxUses"),
+                Text(mending, "inputs", "emeralds", "pay", "note"),
+                Text(mending, "tier")));
         }
 
-        return new TraderCard(schedule, books, books.Count + " trader books from shop-prices.json.");
+        var note = hasMending
+            ? commons + " commons + Mending (" + books.Count + " offers)."
+            : books.Count + " trader offers.";
+        return new TraderCard(schedule, books, Array.Empty<TraderShelf>(), note);
+    }
+
+    private static TraderBook BookFrom(JsonObject book) =>
+        new(
+            Text(book, "sku", "SKU"),
+            Text(book, "enchantment", "enchant", "name"),
+            Text(book, "level"),
+            Text(book, "price"),
+            Text(book, "max_uses", "maxUses"),
+            Text(book, "pay", "inputs", "note", "emeralds"),
+            Text(book, "tier"));
+
+    private static IReadOnlyList<TraderShelf> ReadShelves(JsonObject? trader)
+    {
+        var shelves = new List<TraderShelf>();
+        if (trader == null)
+        {
+            return shelves;
+        }
+
+        AddShelves(shelves, "buy", trader["buy"] as JsonArray);
+        AddShelves(shelves, "sell", trader["sell"] as JsonArray);
+        return shelves;
+    }
+
+    private static void AddShelves(List<TraderShelf> shelves, string side, JsonArray? list)
+    {
+        if (list == null)
+        {
+            return;
+        }
+
+        foreach (var entry in list)
+        {
+            if (entry is not JsonObject row)
+            {
+                continue;
+            }
+
+            shelves.Add(new TraderShelf(
+                side,
+                Text(row, "sku", "SKU"),
+                Text(row, "item", "itemId"),
+                Text(row, "qty", "quantity", "count"),
+                Text(row, "price", "price_c", "priceC"),
+                Text(row, "shelf", "tag")));
+        }
     }
 
     private static string? PriceKey(JsonObject obj)
@@ -249,6 +324,39 @@ public sealed class ShopPriceDesk
         key.Equals("buyback", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("sell", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("sells", StringComparison.OrdinalIgnoreCase);
+
+    private static string Span(JsonObject obj, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!obj.TryGetPropertyValue(name, out var value) || value == null)
+            {
+                continue;
+            }
+
+            if (value is JsonArray array)
+            {
+                var parts = new List<string>();
+                foreach (var entry in array)
+                {
+                    var text = entry?.ToJsonString().Trim('"') ?? "";
+                    if (text.Length > 0)
+                    {
+                        parts.Add(text);
+                    }
+                }
+
+                return string.Join("–", parts);
+            }
+
+            if (value is JsonValue)
+            {
+                return Text(obj, name);
+            }
+        }
+
+        return "";
+    }
 
     private static string Text(JsonObject obj, params string[] names)
     {

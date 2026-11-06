@@ -1,7 +1,7 @@
 {
-  "version": "2.0.32",
+  "version": "2.0.33",
   "minVersion": "2.0.0",
-  "sha256": "68802d3343889030e9343ef05593b00ac0e7b2bff88677abdceb4d0228c54233",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/a2cb4d3eb209272981b3fe13b6d91325587200e9/launcher/NorcomWpf-2.0.32.zip",
-  "notes": "Launcher 2.0.32. Play applies a newer launcher before launch. Every Play applies Alacrity plus the candle-glass overlay and does not enable glass pane culling. A 3070 stays on High and a short heap is raised when the PC can spare it. Close exits. Home SRV port 60313; host PC 127.0.0.1:25565. Exe SHA256 3b0b34769236d62a3e45bd60e5c7cf8975f635f8ccef50e2143692396acd41d8."
+  "sha256": "1b20c05443011c2e385cfceeccc1b42b1d8ee6510f02be793f9b24bfb904cf08",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/c619cc477f8f35084eaa8743b1493c0408f9a057/launcher/NorcomWpf-2.0.33.zip",
+  "notes": "Launcher 2.0.33. Supersedes the interim 2.0.32 exe d5381830. Same run44 headroom and sticky High build, version-stamped so that client can update. A 3070 stays on High and a short heap is raised when the PC can spare it. Alacrity plus the candle-glass overlay; glass pane culling stays off. Exe SHA256 cc06ecc432259b74814635c919c56663dcee2b4c86de8cf3dd7aa13262799af3."
 }

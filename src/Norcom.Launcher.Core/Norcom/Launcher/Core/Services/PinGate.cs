@@ -47,6 +47,10 @@ public static class PinGate
 
 	public const string LivePin = "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48";
 
+	public const string LivePinGeneratedAt = "2026-11-06T13:04:44-07:00";
+
+	public const string PreviousPin = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
+
 	public const string LiveMarbleSha = "3566420dd6cfc2a104c4b7b17bfeebedb20551d2f32b1502fe03748ca9728c48";
 
 	public static string? PublishedPin { get; private set; }
@@ -385,6 +389,11 @@ public static class PinGate
 			LauncherLog.Write("pin refuse TEMP " + pin.Trim());
 			return Mismatch(gameDir, "published pin is temporary");
 		}
+		if (IsDowngradeDocument(json))
+		{
+			LauncherLog.Write("pin refuse downgrade baked=" + LivePin + " published=" + pin.Trim());
+			return Mismatch(gameDir, "published pin is older than the baked pin");
+		}
 		if (!hasJars)
 		{
 			return Mismatch(gameDir, "published pin has no jar list");
@@ -418,6 +427,48 @@ public static class PinGate
 			Pin = pin,
 			Detail = "published pin"
 		};
+	}
+
+	public static bool IsDowngradeDocument(string json)
+	{
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return false;
+		}
+		try
+		{
+			using JsonDocument document = JsonDocument.Parse(json);
+			JsonElement root = document.RootElement;
+			string pin = Optional(root, "pin_sha256") ?? Optional(root, "pin") ?? "";
+			string generatedAt = Optional(root, "generated_at") ?? "";
+			return IsDowngrade(pin, generatedAt);
+		}
+		catch (JsonException)
+		{
+			return false;
+		}
+	}
+
+	public static bool IsDowngrade(string? pin, string? generatedAt)
+	{
+		string text = (pin ?? "").Trim();
+		if (text.Length == 0)
+		{
+			return false;
+		}
+		if (string.Equals(text, LivePin, StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		if (string.Equals(text, PreviousPin, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		if (DateTimeOffset.TryParse(generatedAt, out DateTimeOffset published) && DateTimeOffset.TryParse(LivePinGeneratedAt, out DateTimeOffset baked))
+		{
+			return published <= baked;
+		}
+		return false;
 	}
 
 	public static bool IsTemporaryPin(string? pin)

@@ -32,7 +32,7 @@ public static class PinFetch
 {
 	public const string Repo = "Jefftey97/norcom-pack";
 
-	public const string KnownTip = "0e94a8e6ceac5c52b683b3e51c48e4f2a170f641";
+	public const string KnownTip = "bd13a9ce9c6fcc7bdf3cd1945e83c3884df65056";
 
 	private static readonly string[] MetaFiles = new string[4] { "norcom-mod-pin.json", "server-pin.json", "server-compat.json", "heal-hint.json" };
 
@@ -53,13 +53,18 @@ public static class PinFetch
 	{
 		string sha = string.IsNullOrWhiteSpace(tip) ? KnownTip : tip.Trim();
 		string token = string.IsNullOrWhiteSpace(bust) ? "0" : bust.Trim();
-		return new PinSource[4]
+		List<PinSource> sources = new List<PinSource>
 		{
-			new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + sha + "/meta/" + file, contents: false),
-			new PinSource("jsdelivr", "https://cdn.jsdelivr.net/gh/" + Repo + "@main/meta/" + file, contents: false),
 			new PinSource("contents-api", "https://api.github.com/repos/" + Repo + "/contents/meta/" + file + "?ref=main", contents: true),
-			new PinSource("raw-busted", "https://raw.githubusercontent.com/" + Repo + "/main/meta/" + file + "?t=" + token, contents: false)
+			new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + KnownTip + "/meta/" + file, contents: false)
 		};
+		if (!sha.Equals(KnownTip, StringComparison.OrdinalIgnoreCase))
+		{
+			sources.Add(new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + sha + "/meta/" + file, contents: false));
+		}
+		sources.Add(new PinSource("jsdelivr", "https://cdn.jsdelivr.net/gh/" + Repo + "@main/meta/" + file, contents: false));
+		sources.Add(new PinSource("raw-busted", "https://raw.githubusercontent.com/" + Repo + "/main/meta/" + file + "?t=" + token, contents: false));
+		return sources;
 	}
 
 	public static void ResetForTests()
@@ -73,6 +78,7 @@ public static class PinFetch
 	{
 		await RefreshTipAsync(http, ct, forceTip).ConfigureAwait(continueOnCapturedContext: false);
 		string bust = DateTime.UtcNow.Ticks.ToString();
+		string? stale = null;
 		foreach (PinSource source in Sources(file, _resolvedTip, bust))
 		{
 			string? body = await TryGetAsync(http, source, ct).ConfigureAwait(continueOnCapturedContext: false);
@@ -88,13 +94,23 @@ public static class PinFetch
 					body = decoded;
 				}
 			}
-			if (LooksLikePin(body))
+			if (!LooksLikePin(body))
 			{
-				LauncherLog.Write("pin fetch " + source.Kind + " " + file);
-				return body;
+				continue;
 			}
+			if (file.Equals("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) && PinGate.IsDowngradeDocument(body))
+			{
+				LauncherLog.Write("pin fetch stale " + source.Kind + " " + file);
+				if (stale == null)
+				{
+					stale = body;
+				}
+				continue;
+			}
+			LauncherLog.Write("pin fetch " + source.Kind + " " + file);
+			return body;
 		}
-		return null;
+		return stale;
 	}
 
 	public static async Task<string?> FetchCandidateAsync(HttpClient http, string url, CancellationToken ct)

@@ -12,20 +12,22 @@ public class PinFetchTests
 	private const string Published = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
 
 	[Fact]
-	public void SourceOrderIsCommitRefThenJsDelivrThenContentsThenBustedRaw()
+	public void SourceOrderIsContentsThenLiveCommitThenJsDelivrThenBustedRaw()
 	{
 		PinFetch.ResetForTests();
 		IReadOnlyList<PinSource> sources = PinFetch.Sources("norcom-mod-pin.json", PinFetch.KnownTip, "42");
 		Assert.Equal(4, sources.Count);
-		Assert.Equal("commit-ref", sources[0].Kind);
-		Assert.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json", sources[0].Url);
-		Assert.Equal("jsdelivr", sources[1].Kind);
-		Assert.Contains("cdn.jsdelivr.net/gh/Jefftey97/norcom-pack@main/meta/norcom-mod-pin.json", sources[1].Url);
-		Assert.Equal("contents-api", sources[2].Kind);
-		Assert.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json?ref=main", sources[2].Url);
+		Assert.Equal("contents-api", sources[0].Kind);
+		Assert.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json?ref=main", sources[0].Url);
+		Assert.Equal("commit-ref", sources[1].Kind);
+		Assert.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json", sources[1].Url);
+		Assert.Equal("bd13a9ce9c6fcc7bdf3cd1945e83c3884df65056", PinFetch.KnownTip);
+		Assert.Equal("jsdelivr", sources[2].Kind);
+		Assert.Contains("cdn.jsdelivr.net/gh/Jefftey97/norcom-pack@main/meta/norcom-mod-pin.json", sources[2].Url);
 		Assert.Equal("raw-busted", sources[3].Kind);
 		Assert.Contains("?t=42", sources[3].Url);
 		Assert.DoesNotContain(sources, source => source.Url == PinFetch.BareRawMain("norcom-mod-pin.json"));
+		Assert.DoesNotContain(sources, source => source.Url.Contains("/0e94a8e6ceac5c52b683b3e51c48e4f2a170f641/"));
 	}
 
 	[Fact]
@@ -36,13 +38,16 @@ public class PinFetchTests
 		string dir = NewDir();
 		string primary = Path.Combine(dir, "primary");
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
-		using HttpClient http = new(new OrderHandler(urls, commitRefBody: Full(Published, null)));
+		using HttpClient http = new(new OrderHandler(urls, commitRefBody: Full(Published, null), contentsBody: Full(PinGate.LivePin, null)));
 		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: false, primary);
-		Assert.Equal(Published, PinGate.ReadPrimaryAppliedPin(primary));
+		Assert.Equal(PinGate.LivePin, PinGate.ReadPrimaryAppliedPin(primary));
 		Assert.Equal("correct", result.State);
-		Assert.Equal(Published, result.Pin);
-		Assert.Equal(Published, PinGate.ReadAppliedPin(dir));
-		Assert.Contains(urls, url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
+		Assert.Equal(PinGate.LivePin, result.Pin);
+		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+		int contents = urls.FindIndex(url => url.Contains("/contents/meta/norcom-mod-pin.json"));
+		int commit = urls.FindIndex(url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
+		Assert.True(contents >= 0);
+		Assert.True(commit < 0 || commit > contents);
 		Assert.DoesNotContain(urls, url => url.Contains("cdn.jsdelivr.net"));
 		Assert.DoesNotContain(urls, url => url == PinFetch.BareRawMain("norcom-mod-pin.json"));
 	}
@@ -52,23 +57,48 @@ public class PinFetchTests
 	{
 		PinFetch.ResetForTests();
 		List<string> urls = new List<string>();
-		string pinJson = Full(Published, null);
-		string wrapped = JsonSerializer.Serialize(new
-		{
-			encoding = "base64",
-			content = Convert.ToBase64String(Encoding.UTF8.GetBytes(pinJson))
-		});
+		string pinJson = Full(PinGate.LivePin, null);
 		string dir = NewDir();
-		using HttpClient http = new(new OrderHandler(urls, commitRefBody: null, jsDelivrBody: null, contentsBody: wrapped));
+		using HttpClient http = new(new OrderHandler(urls, commitRefBody: null, jsDelivrBody: pinJson, contentsBody: null));
 		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true, Path.Combine(dir, "primary"));
 		Assert.Equal("correct", result.State);
-		Assert.Equal(Published, PinGate.ReadAppliedPin(dir));
+		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+		int api = urls.FindIndex(url => url.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json"));
 		int commit = urls.FindIndex(url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
 		int js = urls.FindIndex(url => url.Contains("cdn.jsdelivr.net/gh/Jefftey97/norcom-pack@main/meta/norcom-mod-pin.json"));
-		int api = urls.FindIndex(url => url.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json"));
-		Assert.True(commit >= 0 && js > commit && api > js);
+		Assert.True(api >= 0 && commit > api && js > commit);
 		Assert.DoesNotContain(urls, url => url.Contains("/main/meta/norcom-mod-pin.json?t="));
 		Assert.DoesNotContain(urls, url => url == PinFetch.BareRawMain("norcom-mod-pin.json"));
+	}
+
+	[Fact]
+	public async Task StaleCommitRefDoesNotHealOrDowngradeStamps()
+	{
+		PinFetch.ResetForTests();
+		string dir = NewDir();
+		string primary = Path.Combine(dir, "primary");
+		Directory.CreateDirectory(Path.Combine(dir, "mods"));
+		Directory.CreateDirectory(primary);
+		byte[] live = Encoding.UTF8.GetBytes("live-marble-keep");
+		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", PinGate.MarbleJarName), live);
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+		await File.WriteAllTextAsync(Path.Combine(primary, PinGate.PrimaryAppliedPinFile), "{\"schema\":1,\"pin_sha256\":\"" + PinGate.LivePin + "\"}");
+		string stale = "{\"schema\":1,\"generated_at\":\"2026-11-06T02:39:45-07:00\",\"minecraft\":\"26.3\",\"fabric_loader\":\"0.20.1\",\"pin_sha256\":\"" + PinGate.PreviousPin + "\",\"jars\":[{\"name\":\"" + PinGate.MarbleJarName + "\",\"sha256\":\"" + new string('b', 64) + "\",\"size\":4,\"url\":\"https://pins.test/mods/norcom-marble-1.0.0.jar\"}]}";
+		List<string> urls = new List<string>();
+		using HttpClient http = new(new OrderHandler(urls, commitRefBody: stale));
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true, primary);
+		Assert.Equal("mismatch", result.State);
+		Assert.Equal("published pin is older than the baked pin", result.Detail);
+		Assert.Equal(PinGate.LivePin, result.Pin);
+		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+		Assert.Equal(PinGate.LivePin, PinGate.ReadPrimaryAppliedPin(primary));
+		Assert.Equal("live-marble-keep", Encoding.UTF8.GetString(await File.ReadAllBytesAsync(Path.Combine(dir, "mods", PinGate.MarbleJarName))));
+		Assert.Contains(urls, url => url.Contains("/contents/meta/norcom-mod-pin.json"));
+		Assert.Contains(urls, url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
+		Assert.DoesNotContain(urls, url => url.Contains("pins.test"));
+		Assert.True(PinGate.IsDowngrade(PinGate.PreviousPin, "2026-11-06T02:39:45-07:00"));
+		Assert.False(PinGate.IsDowngrade(PinGate.LivePin, null));
+		Assert.False(PinGate.IsDowngrade(new string('a', 64), "2026-11-07T00:00:00Z"));
 	}
 
 	[Fact]

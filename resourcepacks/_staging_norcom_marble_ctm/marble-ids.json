@@ -1,6 +1,6 @@
 {
   "namespace": "norcom_marble",
-  "texture_size": 128,
+  "texture_size": 256,
   "ctm_method": "ctm",
   "connect": "tile",
   "inner_seams": false,

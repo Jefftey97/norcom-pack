@@ -40,6 +40,8 @@ public static class PinGate
 
 	public const string DefaultPackUrl = "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml";
 
+	public const string LivePin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac";
+
 	public const string RequireVariable = "NORCOM_PIN_REQUIRED";
 
 	public static readonly string[] PinUrls = new string[3] { FriendsPinUrl, ServerPinUrl, CompatPinUrl };
@@ -132,11 +134,6 @@ public static class PinGate
 		}
 		if (full == null && slim == null)
 		{
-			if (MissingRefuses)
-			{
-				LauncherLog.Write("pin missing required");
-				throw new PinMismatchException(BlockCopy);
-			}
 			Warn("pin 404");
 			return;
 		}
@@ -145,20 +142,12 @@ public static class PinGate
 			slim = await TryFetchTextAsync(http, ServerPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		}
 		string? compat = await TryFetchTextAsync(http, CompatPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
-		try
+		if (full != null)
 		{
-			if (full != null)
-			{
-				JudgeFull(full, slim, compat, gameDir, pack, source);
-				return;
-			}
-			JudgeSlim(slim!, compat, gameDir, pack, source);
+			JudgeFull(full, slim, compat, gameDir, pack, source);
+			return;
 		}
-		catch (PinMismatchException ex) when (!MissingRefuses)
-		{
-			LastWarning = ex.Message;
-			LauncherLog.Write("pin warn " + ex.Message);
-		}
+		JudgeSlim(slim!, compat, gameDir, pack, source);
 	}
 
 	public static async Task EnforceAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string pinUrl, CancellationToken ct)
@@ -168,28 +157,15 @@ public static class PinGate
 		string? body = await TryFetchTextAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		if (body == null)
 		{
-			if (MissingRefuses)
-			{
-				LauncherLog.Write("pin missing required " + pinUrl);
-				throw new PinMismatchException(BlockCopy);
-			}
 			Warn("pin 404 " + pinUrl);
 			return;
 		}
-		try
+		if (pinUrl.EndsWith("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) || body.Contains("\"jars\"", StringComparison.Ordinal))
 		{
-			if (pinUrl.EndsWith("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) || body.Contains("\"jars\"", StringComparison.Ordinal))
-			{
-				JudgeFull(body, null, null, gameDir, pack, pinUrl);
-				return;
-			}
-			JudgeSlim(body, null, gameDir, pack, pinUrl);
+			JudgeFull(body, null, null, gameDir, pack, pinUrl);
+			return;
 		}
-		catch (PinMismatchException ex) when (!MissingRefuses)
-		{
-			LastWarning = ex.Message;
-			LauncherLog.Write("pin warn " + ex.Message);
-		}
+		JudgeSlim(body, null, gameDir, pack, pinUrl);
 	}
 
 	public static string Rollup(IEnumerable<(string Name, string Sha256, long Size)> jars)
@@ -303,6 +279,10 @@ public static class PinGate
 		if (!SameToken(loader, packLoader))
 		{
 			throw new PinMismatchException(BlockCopy + " Expected fabric_loader " + loader + " pin_sha256 " + pin + ". Actual fabric_loader " + packLoader + ".");
+		}
+		if (!string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
+		{
+			throw new PinMismatchException(BlockCopy + " Expected pin " + LivePin + ". Actual pin " + pin + ".");
 		}
 		if (actualPin.Length > 0 && !string.Equals(actualPin, pin, StringComparison.OrdinalIgnoreCase))
 		{

@@ -33,9 +33,9 @@ public class PinGateTests
 		string dir = NewDir();
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
-		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
-		Assert.NotNull(PinGate.LastWarning);
-		Assert.Contains(LivePin, PinGate.LastWarning);
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains(LivePin, ex.Message);
 		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
 	}
 
@@ -43,9 +43,9 @@ public class PinGateTests
 	public async Task MinecraftMismatchRefuses()
 	{
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("1.21.1", "0.20.1", LivePin)));
-		await PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
-		Assert.NotNull(PinGate.LastWarning);
-		Assert.Contains("1.21.1", PinGate.LastWarning);
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("1.21.1", ex.Message);
 	}
 
 	[Fact]
@@ -85,31 +85,27 @@ public class PinGateTests
 			["server-pin.json"] = (HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)),
 			["server-compat.json"] = (HttpStatusCode.OK, compat)
 		}));
-		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None);
-		Assert.NotNull(PinGate.LastWarning);
-		Assert.Contains("fabric-api.jar", PinGate.LastWarning);
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("fabric-api.jar", ex.Message);
 	}
 
 	[Fact]
-	public async Task MissingPinWarnsUnlessTheFlagIsOn()
+	public async Task WrongLivePinRefuses()
+	{
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", new string('a', 64))));
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains(PinGate.LivePin, ex.Message);
+	}
+
+	[Fact]
+	public async Task AllPinUrls404WarnAndContinue()
 	{
 		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		using (HttpClient open = new(new StubHandler(HttpStatusCode.NotFound, "")))
-		{
-			await PinGate.EnforceAsync(open, NewDir(), pack, PinGate.ServerPinUrl, CancellationToken.None);
-			Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
-		}
-		string previous = Environment.GetEnvironmentVariable(PinGate.RequireVariable);
-		Environment.SetEnvironmentVariable(PinGate.RequireVariable, "1");
-		try
-		{
-			using HttpClient closed = new(new StubHandler(HttpStatusCode.NotFound, ""));
-			await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(closed, NewDir(), pack, PinGate.ServerPinUrl, CancellationToken.None));
-		}
-		finally
-		{
-			Environment.SetEnvironmentVariable(PinGate.RequireVariable, previous);
-		}
+		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>()));
+		await PinGate.EnforceAsync(http, NewDir(), pack, CancellationToken.None);
+		Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
 	}
 
 	private static string Slim(string mc, string loader, string pin)

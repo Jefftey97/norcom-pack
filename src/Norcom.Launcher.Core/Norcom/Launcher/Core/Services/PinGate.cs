@@ -99,6 +99,26 @@ public static class PinGate
 		await EnforceAsync(http, gameDir, TomlLite.Parse(body), ct, packUrl, null).ConfigureAwait(continueOnCapturedContext: false);
 	}
 
+	public enum PinCheck
+	{
+		Open,
+		Match,
+		Mismatch
+	}
+
+	public static async Task<PinCheck> CheckAsync(HttpClient http, string gameDir, TomlLite.Doc pack, CancellationToken ct, string? packUrl, string? manifestUrl)
+	{
+		try
+		{
+			await EnforceAsync(http, gameDir, pack, ct, packUrl, manifestUrl).ConfigureAwait(false);
+			return LastWarning != null ? PinCheck.Open : PinCheck.Match;
+		}
+		catch (PinMismatchException)
+		{
+			return PinCheck.Mismatch;
+		}
+	}
+
 	public static Task EnforceAsync(HttpClient http, string gameDir, TomlLite.Doc pack, CancellationToken ct)
 	{
 		return EnforceAsync(http, gameDir, pack, ct, null, null);

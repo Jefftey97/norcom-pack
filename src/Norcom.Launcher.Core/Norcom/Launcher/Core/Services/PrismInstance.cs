@@ -145,11 +145,7 @@ public static class PrismInstance
 		if (IsLink(linkPath))
 		{
 			FileSystemInfo fileSystemInfo = Directory.ResolveLinkTarget(linkPath, returnFinalTarget: true);
-			if (fileSystemInfo == null || !EndsWithNorcomGame(fileSystemInfo.FullName))
-			{
-				throw new InvalidOperationException("Play refused. The instance link does not end with \\.norcom.");
-			}
-			if (PathsEqual(fileSystemInfo.FullName, fullPath))
+			if (fileSystemInfo != null && PathsEqual(fileSystemInfo.FullName, fullPath))
 			{
 				return;
 			}

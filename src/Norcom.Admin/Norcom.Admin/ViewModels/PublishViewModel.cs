@@ -1,4 +1,3 @@
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Norcom.Admin.Core;
@@ -25,7 +24,7 @@ public partial class PublishViewModel : ObservableObject
 
     [ObservableProperty] private string packPath = "";
     [ObservableProperty] private string confirmText = "";
-    [ObservableProperty] private string status = "Type PUBLISH. Ships meta from the server pin, including heal-hint.json. Refused if that set would be incomplete. Fast-forward only. launcher/ stays.";
+    [ObservableProperty] private string status = "Click Meta Publish or Packwiz config Publish. Pin match, heal-hint, and fast-forward still apply. Incomplete meta is refused.";
     [ObservableProperty] private bool busy;
 
     [RelayCommand]
@@ -40,22 +39,6 @@ public partial class PublishViewModel : ObservableObject
     {
         if (Busy)
         {
-            return new PublishResult(false, false, Status);
-        }
-
-        if (!Confirm.Matches(ConfirmText, "PUBLISH"))
-        {
-            Status = "Type PUBLISH to confirm " + label + ".";
-            return new PublishResult(false, false, Status);
-        }
-
-        if (MessageBox.Show(
-                label + " to Jefftey97/norcom-pack on main?\n\nFast-forward only. launcher/ stays. Meta Publish stamps the friends-heal files from the live server pin.\n\nAdmin is not part of Install-NORCOM.",
-                "NORCOM Admin",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) != MessageBoxResult.Yes)
-        {
-            Status = label + " cancelled. Nothing was pushed.";
             return new PublishResult(false, false, Status);
         }
 

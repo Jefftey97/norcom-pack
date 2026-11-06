@@ -31,6 +31,8 @@ public partial class OpsViewModel : ObservableObject
     private SparkReport _report = SparkReport.Empty;
     private bool _armSparkUrl;
     private string _playerLine = "—";
+    private bool _localProbe;
+    private int _probeBusy;
 
     public OpsViewModel(AdminSettings settings, SecretRedactor redactor, Action save)
     {
@@ -53,6 +55,7 @@ public partial class OpsViewModel : ObservableObject
         {
             LoadSecretFromServerFile();
             RefreshPresence();
+            _ = RefreshLocalProbe();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -66,7 +69,7 @@ public partial class OpsViewModel : ObservableObject
 
     public ObservableCollection<string> Crashes => _crashes;
 
-    public MetricTile Online { get; } = new("Online", "process or session.lock");
+    public MetricTile Online { get; } = new("Online", "level lock, fabric java, or local probe");
 
     public MetricTile PlayerMetric { get; } = new("Players", "RCON list");
 
@@ -419,7 +422,7 @@ public partial class OpsViewModel : ObservableObject
         if (++_ticks % 5 == 0)
         {
             RefreshOverview();
-            _ = RefreshPlayers();
+            _ = RefreshLocalProbe();
         }
 
         if (_ticks % 15 == 0)
@@ -653,9 +656,10 @@ public partial class OpsViewModel : ObservableObject
         var ram = HostSnapshot.ReadRam();
         var swap = HostSnapshot.ReadSwap();
         var backup = BackupArchive.Age(ServerPath);
-        var online = ServerCommands.JavaAppearsUp(ServerPath);
+        var online = ServerPresence.IsOnline(ServerPath, _localProbe);
         Online.Value = !overview.FolderExists ? "Missing" : online ? "Online" : "Offline";
-        Online.Alert = !online;
+        Online.Alert = overview.FolderExists && !online;
+        Online.Hint = ServerPresence.LevelName(ServerPath) + " session.lock, fabric java, or local SLP/RCON";
         PlayerMetric.Value = _playerLine;
         Tps.Value = _report.TpsLine;
         Mspt.Value = _report.MsptLine;
@@ -829,25 +833,52 @@ public partial class OpsViewModel : ObservableObject
         Status = _session.Inspect(ServerPath, AdminSettings.LiveHeapMb).Message;
     }
 
-    private async Task RefreshPlayers()
+    private async Task RefreshLocalProbe()
     {
-        if (_password.Length == 0)
+        if (Interlocked.Exchange(ref _probeBusy, 1) == 1)
         {
             return;
         }
 
         try
         {
-            var text = await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "list", CancellationToken.None);
-            if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
+            var slp = await ServerListPing.TryAsync("127.0.0.1", 25565, TimeSpan.FromMilliseconds(800));
+            var rcon = false;
+            if (_password.Length > 0)
             {
-                _playerLine = online + " / " + max;
-                PlayerMetric.Value = _playerLine;
-                Replace(_players, names.ToList());
+                try
+                {
+                    var text = await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "list", CancellationToken.None);
+                    if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
+                    {
+                        rcon = true;
+                        _playerLine = online + " / " + max;
+                        PlayerMetric.Value = _playerLine;
+                        Replace(_players, names.ToList());
+                    }
+                    else if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        rcon = true;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            _localProbe = slp || rcon;
+            if (_localProbe && Directory.Exists(ServerPath))
+            {
+                Online.Value = "Online";
+                Online.Alert = false;
             }
         }
         catch
         {
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _probeBusy, 0);
         }
     }
 

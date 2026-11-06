@@ -5,8 +5,6 @@
     <TextBlock Text="Publish" Style="{StaticResource PageTitle}"/>
     <TextBlock Text="Pack folder" Style="{StaticResource Label}"/>
     <TextBox Text="{Binding PackPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
-    <TextBlock Text="Type PUBLISH" Style="{StaticResource Label}"/>
-    <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
     <Button Content="Meta Publish" Command="{Binding PublishMetaCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
     <TextBlock Text="Friends pin meta only: server-pin, server-compat, norcom-mod-pin, heal-hint. This is not a packwiz config publish." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
     <Button Content="Packwiz config Publish" Command="{Binding PublishCommand}" Style="{StaticResource PinkButton}" HorizontalAlignment="Left"/>

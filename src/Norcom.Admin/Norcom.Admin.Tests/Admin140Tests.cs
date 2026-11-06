@@ -213,6 +213,43 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Online_uses_level_name_lock_not_a_stale_pid()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "world_norcom"));
+        File.WriteAllText(Path.Combine(root, "server.properties"), "level-name=world_norcom\n");
+        File.WriteAllText(Path.Combine(root, "norcom-admin.pid"), "999999");
+        Assert.False(ServerPresence.IsOnline(root, false, Array.Empty<JavaSeen>()));
+        File.WriteAllText(Path.Combine(root, "world_norcom", "session.lock"), "held");
+        Assert.True(ServerPresence.SessionLockExists(root));
+        Assert.True(ServerPresence.IsOnline(root, false, Array.Empty<JavaSeen>()));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
+    public void Online_accepts_fabric_java_and_local_probe()
+    {
+        Assert.True(ServerPresence.CommandMatches(
+            @"C:\Java\bin\java.exe -Xms8G -Xmx8G -jar G:\MinecraftServer\fabric-server-launch.jar nogui",
+            "",
+            @"G:\MinecraftServer"));
+        Assert.True(ServerPresence.CommandMatches(
+            "java.exe -jar fabric-server-launch.jar nogui",
+            @"G:\MinecraftServer",
+            @"G:\MinecraftServer"));
+        Assert.False(ServerPresence.CommandMatches(
+            @"java.exe -jar D:\other\fabric-server-launch.jar",
+            @"D:\other",
+            @"G:\MinecraftServer"));
+        var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        Assert.False(ServerPresence.IsOnline(root, false, Array.Empty<JavaSeen>()));
+        Assert.True(ServerPresence.IsOnline(root, true, Array.Empty<JavaSeen>()));
+        Assert.Equal("world_norcom", ServerPresence.LevelName(root));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
     public void Settings_upsert_rejects_simulation_distance_and_passwords()
     {
         Assert.Throws<InvalidOperationException>(() =>

@@ -135,7 +135,7 @@ public partial class ShellViewModel : ObservableObject
         PinChanged = true;
         PinNudge = HealBlocked
             ? "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Launcher PinGate or a dual-sided heal may be the issue. Meta Publish is not offered."
-            : "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: checking. Friends meta is stale until Meta Publish.";
+            : "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: checking. Click Meta Publish. No typed confirm.";
         if (!HealBlocked && (DateTime.UtcNow - _lastRawCheck).TotalSeconds > 20)
         {
             _lastRawCheck = DateTime.UtcNow;
@@ -157,7 +157,7 @@ public partial class ShellViewModel : ObservableObject
 
         if (!same)
         {
-            PinNudge = "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Type PUBLISH for Meta Publish.";
+            PinNudge = "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Click Meta Publish.";
             return;
         }
 

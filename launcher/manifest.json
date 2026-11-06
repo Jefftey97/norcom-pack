@@ -1,7 +1,7 @@
 {
-  "version": "2.0.31",
+  "version": "2.0.32",
   "minVersion": "2.0.0",
-  "sha256": "7a5839c877a032c4e992671c54fae4143b3dd66583e6ed7dff56486a25cc4c82",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/9c779fba28adc7da27d8a9bb5704e180ed1ea00b/launcher/NorcomWpf-2.0.31.zip",
-  "notes": "Launcher 2.0.31. Every Play removes obsolete launcher copies and keeps the current install only. Close exits. Auto uses Alacrity. Home SRV port 60313; host PC 127.0.0.1:25565. Dual-sided pin check stays. Exe SHA256 549a73737164e7ccb4bfaabf3b78d0bd68b3a20b6c9da2cec65e0f504335ec73."
+  "sha256": "e716e45e4e4d1e5bd9192ddc418dd6059fdfa90eedef57584f9e133dbf1c7c3c",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/bbb1ac893736b43f9e9d1c771d9dfa2939b4be48/launcher/NorcomWpf-2.0.32.zip",
+  "notes": "Launcher 2.0.32. Play applies a newer launcher before launch. Every Play applies Alacrity plus the candle-glass overlay and does not enable glass pane culling. Close exits. Home SRV port 60313; host PC 127.0.0.1:25565. Exe SHA256 d5381830b4cbc6175279cbcb0459a4d36f3b3554471d816331de2dd3abba1966."
 }

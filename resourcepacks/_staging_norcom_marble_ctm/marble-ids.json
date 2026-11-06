@@ -222,5 +222,10 @@
       ],
       "emissive": "specular alpha on blue veins only; stone alpha 255 (labPBR ignores 255)"
     }
-  ]
+  ],
+  "hq_version": "v3d-solid-slate-almost-black",
+  "beat_sha_prefix": "f9378761",
+  "ship": "HELD",
+  "discord": "HELD",
+  "jeff_t922u": "solid_neon_slate almost solid black"
 }

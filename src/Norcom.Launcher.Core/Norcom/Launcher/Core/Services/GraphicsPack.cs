@@ -9,7 +9,7 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class GraphicsPack
 {
-	public const string AlacrityPacks = "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]";
+	public const string AlacrityPacks = "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]";
 
 	public const string OverlayFile = "norcom-alacrity-candle-glass-fix.zip";
 

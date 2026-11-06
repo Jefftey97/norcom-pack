@@ -37,7 +37,7 @@
         "chunkSectionFadeInTime": "0.5",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
@@ -129,7 +129,7 @@
         "chunkSectionFadeInTime": "0.5",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
@@ -217,7 +217,7 @@
         "chunkSectionFadeInTime": "0.75",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
@@ -305,7 +305,7 @@
         "chunkSectionFadeInTime": "0.75",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
@@ -396,7 +396,7 @@
         "chunkSectionFadeInTime": "0.75",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
@@ -488,7 +488,7 @@
         "chunkSectionFadeInTime": "0.75",
         "preferredGraphicsBackend": "opengl"
       },
-      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+      "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
       "iris": {
         "enableShaders": true,
         "shaderPack": "ComplementaryUnbound_r5.9.3.zip",

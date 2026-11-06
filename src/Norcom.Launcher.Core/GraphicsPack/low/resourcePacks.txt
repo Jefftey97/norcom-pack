@@ -1,1 +1,1 @@
-["vanilla","continuity:default","file/Alacrity.zip","file/norcom-alacrity-candle-glass-fix.zip"]
+["vanilla","continuity:default","file/Alacrity.zip","file/norcom-alacrity-candle-glass-fix.zip","file/norcom_marble.zip"]

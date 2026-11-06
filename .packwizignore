@@ -1,0 +1,14 @@
+# Keep packwiz refresh from installing repo files that are not part of the
+# friends pack. The marble zip is delivered by resourcepacks/norcom_marble.pw.toml
+# (side = client), not as a raw index file.
+.packwizignore
+src/
+tools/
+launcher/
+meta/heal-hint.json
+meta/norcom-mod-pin.json
+meta/server-compat.json
+meta/server-pin.json
+resourcepacks/_staging_norcom_marble_ctm/
+resourcepacks/norcom_marble.zip
+mods/norcom-marble-1.0.0.jar

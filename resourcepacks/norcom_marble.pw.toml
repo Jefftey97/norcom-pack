@@ -1,0 +1,9 @@
+name = "NORCOM Marble"
+filename = "norcom_marble.zip"
+side = "client"
+
+[download]
+mode = "url"
+url = "https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/norcom_marble.zip"
+hash-format = "sha512"
+hash = "076b2f3bed26b8aac1dd82da7b2cd6aeab8d081ed1c843e448cc284ed796120539f092b8b6e052a98324b9149891383dd7c945160e300acd7c0289d65ea031ef"

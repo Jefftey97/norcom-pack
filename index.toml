@@ -607,6 +607,11 @@ file = "pack-notes.txt"
 hash = "b967eff579d790eb7afb6fab7e7c0265f43bdd59de5488980d77099eb29e4885"
 
 [[files]]
+file = "resourcepacks/norcom_marble.pw.toml"
+hash = "88f73a1665c3439837569925941668a44111d550263925002bf81f879e90c612"
+metafile = true
+
+[[files]]
 file = "resourcepacks/patrix_26.3_32x_addon.pw.toml"
 hash = "a89c1d243d722ea1012a6f1e08581b4f8fa13db5ad17a3d5dc541d1f2de5407c"
 metafile = true

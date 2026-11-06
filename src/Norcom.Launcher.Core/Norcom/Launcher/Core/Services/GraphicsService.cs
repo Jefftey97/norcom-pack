@@ -22,12 +22,13 @@ public sealed class GraphicsService
 		Directory.CreateDirectory(Path.Combine(gameDir, "shaderpacks"));
 		Dictionary<string, string> updates = GraphicsPack.ReadJsonMap(folder + "/options-patches.json");
 		string packs = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
-		if (packs.Contains(GraphicsPack.NeverEnable, StringComparison.OrdinalIgnoreCase))
+		if (PacksConflict(packs))
 		{
 			packs = GraphicsPack.AlacrityPacks;
 		}
 		updates["resourcePacks"] = packs;
 		HealOverlay(gameDir);
+		QuarantineStackedPacks(gameDir);
 		string path = Path.Combine(gameDir, "options.txt");
 		string existing = (File.Exists(path) ? File.ReadAllText(path) : null);
 		File.WriteAllText(path, OptionsPatch.Apply(existing, updates));
@@ -88,6 +89,64 @@ public sealed class GraphicsService
 			}
 		}
 		return list;
+	}
+
+	public static bool PacksConflict(string packs)
+	{
+		if (packs.Contains(GraphicsPack.NeverEnable, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		foreach (string name in GraphicsPack.NeverStack)
+		{
+			if (packs.Contains(name, StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public static void QuarantineStackedPacks(string gameDir)
+	{
+		string directory = Path.Combine(gameDir, "resourcepacks");
+		if (!Directory.Exists(directory))
+		{
+			return;
+		}
+		string held = Path.Combine(directory, "norcom-held");
+		foreach (string path in Directory.EnumerateFiles(directory))
+		{
+			string name = Path.GetFileName(path);
+			if (name.Equals("Alacrity.zip", StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			if (!StacksOnAlacrity(name))
+			{
+				continue;
+			}
+			Directory.CreateDirectory(held);
+			string dest = Path.Combine(held, name);
+			if (File.Exists(dest))
+			{
+				File.Delete(dest);
+			}
+			File.Move(path, dest);
+			LauncherLog.Write("graphics held stacked pack " + name);
+		}
+	}
+
+	private static bool StacksOnAlacrity(string fileName)
+	{
+		foreach (string name in GraphicsPack.NeverStack)
+		{
+			if (fileName.Contains(name, StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static void HealOverlay(string gameDir)

@@ -16,7 +16,7 @@ public sealed class LauncherSettings
 		"CrashWebhookUrl", "crashWebhookUrl", "WindowW", "windowW", "WindowH", "windowH", "LastNewsPackVersion", "lastNewsPackVersion"
 	};
 
-	public int RamMb { get; set; } = 6144;
+	public int RamMb { get; set; } = 8192;
 
 
 	public GraphicsTier GraphicsTier { get; set; } = GraphicsTier.High;
@@ -70,7 +70,7 @@ public sealed class LauncherSettings
 			}
 			LauncherSettings launcherSettings = new LauncherSettings
 			{
-				RamMb = Math.Clamp(ReadInt(jsonObject, "RamMb", "ramMb").GetValueOrDefault(6144), 2048, 16384),
+				RamMb = Math.Clamp(ReadInt(jsonObject, "RamMb", "ramMb").GetValueOrDefault(8192), 2048, 16384),
 				GraphicsTier = ReadTier(jsonObject).GetValueOrDefault(GraphicsTier.High),
 				GraphicsAuto = ReadBool(jsonObject, "GraphicsAuto", "graphicsAuto").GetValueOrDefault(),
 				LauncherSounds = ReadBool(jsonObject, "LauncherSounds", "launcherSounds").GetValueOrDefault(),

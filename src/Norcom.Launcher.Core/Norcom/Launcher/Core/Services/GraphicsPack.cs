@@ -17,6 +17,8 @@ public static class GraphicsPack
 
 	public const string NeverEnable = "continuity:glass_pane_culling_fix";
 
+	public static readonly string[] NeverStack = new string[4] { "Patrix", "Faithful", "FreshAnimations", "FreshMoves" };
+
 	public static string Folder(GraphicsTier tier)
 	{
 		return tier switch

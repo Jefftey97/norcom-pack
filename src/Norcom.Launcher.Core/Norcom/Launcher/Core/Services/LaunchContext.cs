@@ -41,7 +41,7 @@ public sealed class LaunchContext
 	public string Xuid { get; init; } = "";
 
 
-	public int RamMb { get; init; } = 6144;
+	public int RamMb { get; init; } = 8192;
 
 
 	public string LogConfigPath { get; init; } = "";

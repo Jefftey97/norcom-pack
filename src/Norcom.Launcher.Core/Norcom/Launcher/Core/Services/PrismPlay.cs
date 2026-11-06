@@ -46,7 +46,22 @@ public static class PrismPlay
 				Message = PrismMessages.Missing
 			};
 		}
-		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, ramMb);
+		int heap = ramMb;
+		try
+		{
+			PcHardware? hardware = GraphicsPlay.Probe?.Invoke() ?? HardwareProbe.TryRead();
+			long hostRam = hardware != null && hardware.RamBytes > 0 ? hardware.RamBytes : HardwareProbe.TryHostRamBytes();
+			heap = MemoryPlan.ForPlay(ramMb, hostRam, hardware?.GpuName);
+			if (heap != ramMb)
+			{
+				LauncherLog.Write("play heap " + ramMb + " -> " + heap);
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play heap " + ex.GetType().Name);
+		}
+		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap);
 		FriendsEndpoint endpoint = FriendsServer.Resolve();
 		IReadOnlyList<string> arguments = PrismCommand.Build(endpoint.Host, endpoint.Port);
 		return new PrismPreparation

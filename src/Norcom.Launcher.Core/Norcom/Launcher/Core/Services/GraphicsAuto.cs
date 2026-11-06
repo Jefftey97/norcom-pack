@@ -9,24 +9,20 @@ public static class GraphicsAuto
 
 	public static long DedicatedVram(string gpuName, long wmiBytes, long measuredBytes)
 	{
-		if (measuredBytes > 4294967296L)
+		long reported = Math.Max(wmiBytes, measuredBytes);
+		if (reported < 0)
 		{
-			return measuredBytes;
+			reported = 0L;
 		}
-		long num = ((wmiBytes > 0) ? wmiBytes : measuredBytes);
-		if (!IsIntegratedName(gpuName) && num > 0 && num <= 4294967296L)
+		if (!IsIntegratedName(gpuName))
 		{
-			long num2 = KnownDiscreteBytes(gpuName);
-			if (num2 > num)
+			long known = KnownDiscreteBytes(gpuName);
+			if (known > reported)
 			{
-				return num2;
+				return known;
 			}
 		}
-		if (measuredBytes > num)
-		{
-			return measuredBytes;
-		}
-		return num;
+		return reported;
 	}
 
 	public static long KnownDiscreteBytes(string? name)
@@ -76,6 +72,10 @@ public static class GraphicsAuto
 
 	public static GraphicsTier Choose(PcHardware hardware)
 	{
+		if (MemoryPlan.Is3070Class(hardware.GpuName))
+		{
+			return GraphicsTier.High;
+		}
 		double num = (double)hardware.VramBytes / 1073741824.0;
 		if (hardware.Integrated || num < 4.0)
 		{

@@ -161,6 +161,57 @@ public class GraphicsWriterTests
 		Assert.Equal(8L * GraphicsAuto.Gib, vram);
 		GraphicsTier tier = GraphicsAuto.Choose(new PcHardware("NVIDIA GeForce RTX 3070", vram, 32L * GraphicsAuto.Gib, 16, Integrated: false));
 		Assert.Equal(GraphicsTier.High, tier);
+		long ambiguous = GraphicsAuto.DedicatedVram("NVIDIA GeForce RTX 3070", 5L * GraphicsAuto.Gib, 5L * GraphicsAuto.Gib);
+		Assert.Equal(8L * GraphicsAuto.Gib, ambiguous);
+		Assert.Equal(GraphicsTier.High, GraphicsAuto.Choose(new PcHardware("NVIDIA GeForce RTX 3070", 5L * GraphicsAuto.Gib, 16L * GraphicsAuto.Gib, 16, Integrated: false)));
+	}
+
+	[Fact]
+	public void Sticky3070StaysHighWhenTheNextProbeLooksLikeMedium()
+	{
+		string dir = NewGame();
+		File.WriteAllText(Path.Combine(dir, "norcom-graphics-tier.txt"), "tier=High\nsticky=3070\n");
+		GraphicsPlay.Probe = () => new PcHardware("NVIDIA GeForce RTX 3070", 5L * GraphicsAuto.Gib, 16L * GraphicsAuto.Gib, 16, Integrated: false);
+		try
+		{
+			Assert.Equal(GraphicsTier.High, GraphicsPlay.ApplyAuto(dir));
+			Assert.Contains("sticky=3070", File.ReadAllText(Path.Combine(dir, "norcom-graphics-tier.txt")));
+			GraphicsPlay.Probe = () => new PcHardware("Microsoft Basic Render Driver", 2L * GraphicsAuto.Gib, 16L * GraphicsAuto.Gib, 8, Integrated: true);
+			Assert.Equal(GraphicsTier.High, GraphicsPlay.ApplyAuto(dir));
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+		}
+	}
+
+	[Fact]
+	public void PlayRaisesTheHeapThatOomedAt5632()
+	{
+		long sixteen = 16L * GraphicsAuto.Gib;
+		Assert.Equal(8192, MemoryPlan.ForPlay(5632, sixteen, "NVIDIA GeForce RTX 3070"));
+		Assert.Equal(8192, MemoryPlan.ForPlay(6144, sixteen, "NVIDIA GeForce RTX 3070"));
+		Assert.Equal(4096, MemoryPlan.ForPlay(5632, 8L * GraphicsAuto.Gib, "NVIDIA GeForce RTX 3070"));
+		Assert.Equal(10240, MemoryPlan.ForPlay(12288, 32L * GraphicsAuto.Gib, "NVIDIA GeForce RTX 4070"));
+	}
+
+	[Fact]
+	public void FreshAnimationsCannotStackOnAlacrity()
+	{
+		string dir = NewGame();
+		string packs = Path.Combine(dir, "resourcepacks");
+		Directory.CreateDirectory(packs);
+		File.WriteAllText(Path.Combine(packs, "Alacrity.zip"), "keep-alacrity");
+		File.WriteAllText(Path.Combine(packs, "FreshAnimations.zip"), "stacked");
+		File.WriteAllText(Path.Combine(dir, "options.txt"), "resourcePacks:[\"vanilla\",\"file/Alacrity.zip\",\"file/FreshAnimations.zip\"]\n");
+		new GraphicsService().Apply(dir, GraphicsTier.High);
+		string options = File.ReadAllText(Path.Combine(dir, "options.txt"));
+		Assert.Contains(GraphicsPack.AlacrityPacks, options);
+		Assert.DoesNotContain("FreshAnimations", options);
+		Assert.DoesNotContain("Patrix", options);
+		Assert.Equal("keep-alacrity", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
+		Assert.False(File.Exists(Path.Combine(packs, "FreshAnimations.zip")));
+		Assert.Equal("stacked", File.ReadAllText(Path.Combine(packs, "norcom-held", "FreshAnimations.zip")));
 	}
 
 	[Fact]

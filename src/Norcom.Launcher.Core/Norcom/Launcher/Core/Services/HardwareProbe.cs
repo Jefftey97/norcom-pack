@@ -7,6 +7,34 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class HardwareProbe
 {
+	public static long TryHostRamBytes()
+	{
+		try
+		{
+			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");
+			if (searcherType == null)
+			{
+				return 0L;
+			}
+			using IDisposable searcher = (IDisposable)Activator.CreateInstance(searcherType, "SELECT TotalPhysicalMemory FROM Win32_ComputerSystem")!;
+			object results = searcherType.GetMethod("Get")!.Invoke(searcher, null)!;
+			foreach (object item in (System.Collections.IEnumerable)results)
+			{
+				PropertyInfo? indexer = item.GetType().GetProperty("Item");
+				object? ram = indexer?.GetValue(item, new object[] { "TotalPhysicalMemory" });
+				if (ram is IConvertible convertible)
+				{
+					return convertible.ToInt64(null);
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("ram probe " + ex.GetType().Name);
+		}
+		return 0L;
+	}
+
 	public static PcHardware? TryRead()
 	{
 		try
@@ -41,7 +69,7 @@ public static class HardwareProbe
 				return null;
 			}
 			long dedicated = GraphicsAuto.DedicatedVram(name, vram, vram);
-			return new PcHardware(name, dedicated, 0L, Environment.ProcessorCount, Integrated: false);
+			return new PcHardware(name, dedicated, TryHostRamBytes(), Environment.ProcessorCount, Integrated: false);
 		}
 		catch (Exception ex)
 		{

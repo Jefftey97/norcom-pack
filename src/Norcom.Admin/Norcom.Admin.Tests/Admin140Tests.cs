@@ -166,6 +166,37 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Trend_keeps_the_latest_samples()
+    {
+        var trend = new TrendBuffer();
+        for (var i = 0; i < 60; i++)
+        {
+            trend.Add(i);
+        }
+
+        Assert.Equal(TrendBuffer.MaxSamples, trend.Count);
+        var strip = trend.Strip();
+        Assert.Equal(TrendBuffer.MaxSamples, strip.IndexOf(' ', StringComparison.Ordinal));
+        Assert.EndsWith("59.0", strip, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Pin_changed_flag_reads_and_deletes_without_touching_the_pin()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "norcom-flag-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, ".norcom"));
+        var pin = Path.Combine(root, ".norcom", "server-pin.json");
+        File.WriteAllText(pin, "{\"schema\":1}");
+        File.WriteAllText(PinChangedFlag.PathFor(root), "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac");
+        Assert.True(PinChangedFlag.TryRead(root, out var value));
+        Assert.StartsWith("07983921", value, StringComparison.Ordinal);
+        PinChangedFlag.Delete(root);
+        Assert.False(PinChangedFlag.TryRead(root, out _));
+        Assert.Equal("{\"schema\":1}", File.ReadAllText(pin));
+        Directory.Delete(root, true);
+    }
+
+    [Fact]
     public void Crash_inbox_names_the_last_fault()
     {
         Assert.Equal("Description: Watching server", CrashReports.FaultLine("----\nDescription: Watching server\n"));

@@ -73,16 +73,59 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty]
     private AdminPage page = AdminPage.Dashboard;
 
+    [ObservableProperty]
+    private bool pinChanged;
+
+    [ObservableProperty]
+    private string pinNudge = "";
+
     [RelayCommand]
     private void SelectPage(AdminPage next) => Page = next;
 
     public void Poll()
     {
         Ops.Poll();
+        RefreshPinFlag();
         if (++_autoFixTicks % 30 == 0)
         {
             AutoFix.Tick(announce: false);
         }
+    }
+
+    [RelayCommand]
+    private async Task PublishFlag()
+    {
+        var pushed = await Publish.PublishAsync();
+        if (!pushed)
+        {
+            return;
+        }
+
+        try
+        {
+            PinChangedFlag.Delete(Ops.ServerPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Publish.Status = Publish.Status + " The pin-changed flag could not be removed.";
+        }
+
+        RefreshPinFlag();
+    }
+
+    private void RefreshPinFlag()
+    {
+        if (!PinChangedFlag.TryRead(Ops.ServerPath, out var pin))
+        {
+            PinChanged = false;
+            PinNudge = "";
+            return;
+        }
+
+        PinChanged = true;
+        PinNudge = pin.Length == 0
+            ? "Server pin regenerated. Friends meta is stale. Type PUBLISH, then publish the heal set."
+            : "Server pin regenerated (" + pin + "). Friends meta is stale. Type PUBLISH, then publish the heal set.";
     }
 
     partial void OnPageChanged(AdminPage value)

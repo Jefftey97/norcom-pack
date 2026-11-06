@@ -29,26 +29,29 @@ public partial class PublishViewModel : ObservableObject
     [ObservableProperty] private bool busy;
 
     [RelayCommand]
-    private async Task Publish()
+    private async Task Publish() => await PublishAsync();
+
+    public async Task<bool> PublishAsync()
     {
         if (Busy)
         {
-            return;
+            return false;
         }
 
         if (!Confirm.Matches(ConfirmText, "PUBLISH"))
         {
             Status = "Type PUBLISH to confirm the pack push.";
-            return;
+            return false;
         }
 
         if (MessageBox.Show(
-                "Publish the pack to Jefftey97/norcom-pack on main?\n\nThis is a normal push. It will not force-push. launcher/ stays, and installer-version.txt is removed from the packwiz index.\n\nAdmin is not part of Install-NORCOM.",
+                "Publish the pack to Jefftey97/norcom-pack on main?\n\nFast-forward only. launcher/ stays. Friends-heal meta is stamped from the live server pin, including heal-hint.json (minLauncher 2.0.1).\n\nAdmin is not part of Install-NORCOM.",
                 "NORCOM Admin",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
-            return;
+            Status = "Publish cancelled. Nothing was pushed.";
+            return false;
         }
 
         Busy = true;
@@ -57,10 +60,12 @@ public partial class PublishViewModel : ObservableObject
             var result = await _publisher.PublishAsync(PackPath, _serverPath(), CancellationToken.None);
             Status = result.Message;
             _redactor.WriteLog(result.Message);
+            return result.Pushed;
         }
         catch (Exception ex)
         {
             Status = _redactor.Clean(ex.Message);
+            return false;
         }
         finally
         {

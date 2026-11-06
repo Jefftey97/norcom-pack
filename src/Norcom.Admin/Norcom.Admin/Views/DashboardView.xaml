@@ -24,6 +24,23 @@
     </Border>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel>
+        <Border Margin="0,0,10,12" Padding="12" CornerRadius="14" Background="#10182A" BorderBrush="#00E5FF" BorderThickness="1"
+                Visibility="{Binding DataContext.PinChanged, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVis}}">
+          <StackPanel>
+            <TextBlock Text="{Binding DataContext.PinNudge, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <TextBlock Text="Type PUBLISH" Style="{StaticResource Label}" Margin="0,8,0,4"/>
+            <TextBox Text="{Binding DataContext.Publish.ConfirmText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <Button Content="Publish friends heal" Command="{Binding DataContext.PublishFlagCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding DataContext.Publish.Status, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource PanelCard}" Margin="0,0,10,12">
+          <StackPanel>
+            <TextBlock Text="TPS 1m trend" Style="{StaticResource Label}"/>
+            <TextBlock Text="{Binding TrendStrip}" FontFamily="Consolas" FontSize="16" Foreground="#00E5FF" TextWrapping="Wrap"/>
+            <TextBlock Text="Last 48 Spark polls on 127.0.0.1. Uses MSPT median when TPS is missing." Foreground="#93A4BD" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
         <ItemsControl ItemsSource="{Binding Metrics}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

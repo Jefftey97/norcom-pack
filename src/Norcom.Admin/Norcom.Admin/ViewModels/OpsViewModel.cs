@@ -27,6 +27,7 @@ public partial class OpsViewModel : ObservableObject
     private bool _sparkBusy;
     private TimeSpan _cpuLast = TimeSpan.Zero;
     private DateTime _cpuWall = DateTime.MinValue;
+    private readonly TrendBuffer _trend = new();
     private SparkReport _report = SparkReport.Empty;
     private bool _armSparkUrl;
     private string _playerLine = "—";
@@ -153,6 +154,9 @@ public partial class OpsViewModel : ObservableObject
 
     [ObservableProperty]
     private string selectedBackup = "";
+
+    [ObservableProperty]
+    private string trendStrip = "Waiting for Spark.";
 
     public string PasswordForSession() => _password;
 
@@ -542,6 +546,7 @@ public partial class OpsViewModel : ObservableObject
             }
 
             _report = SparkReportParser.Parse(_redactor.Clean(string.Join("\n", parts)));
+            RecordTrend(_report);
             RefreshOverview();
         }
         finally
@@ -685,6 +690,24 @@ public partial class OpsViewModel : ObservableObject
         FrozenNotice = FrozenText();
         Replace(_backups, BackupArchive.List(ServerPath));
         Replace(_crashes, crashes.Files.ToList());
+    }
+
+    private void RecordTrend(SparkReport report)
+    {
+        if (double.TryParse(report.Tps1m, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tps))
+        {
+            _trend.Add(tps);
+        }
+        else if (double.TryParse(report.MsptMedian, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mspt))
+        {
+            _trend.Add(mspt);
+        }
+        else
+        {
+            return;
+        }
+
+        TrendStrip = _trend.Strip();
     }
 
     private string SampleCpu()

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/button_pressed",
+  "textures": {
+    "texture": "norcom_marble:block/soft_classic_white"
+  }
+}

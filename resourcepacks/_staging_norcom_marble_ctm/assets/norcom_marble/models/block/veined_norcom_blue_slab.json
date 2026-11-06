@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab",
+  "textures": {
+    "bottom": "norcom_marble:block/veined_norcom_blue",
+    "top": "norcom_marble:block/veined_norcom_blue",
+    "side": "norcom_marble:block/veined_norcom_blue"
+  }
+}

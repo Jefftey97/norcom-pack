@@ -8,7 +8,7 @@
     "Faithful",
     "FreshAnimations"
   ],
-  "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
+  "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\",\"file/norcom_marble.zip\"]",
   "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
   "borderless": {
     "fullscreen": "true",

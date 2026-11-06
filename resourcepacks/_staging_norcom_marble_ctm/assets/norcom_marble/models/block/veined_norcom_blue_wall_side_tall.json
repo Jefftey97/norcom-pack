@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_wall_side_tall",
+  "textures": {
+    "wall": "norcom_marble:block/veined_norcom_blue"
+  }
+}

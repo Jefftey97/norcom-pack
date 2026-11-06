@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_wall_post",
+  "textures": {
+    "wall": "norcom_marble:block/soft_norcom_blue"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "powered=false": {
+      "model": "norcom_marble:block/veined_black_blue_glow_pressure_plate"
+    },
+    "powered=true": {
+      "model": "norcom_marble:block/veined_black_blue_glow_pressure_plate_down"
+    }
+  }
+}

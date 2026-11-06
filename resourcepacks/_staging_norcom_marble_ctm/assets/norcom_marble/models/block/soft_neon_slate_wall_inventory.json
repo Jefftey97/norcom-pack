@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/wall_inventory",
+  "textures": {
+    "wall": "norcom_marble:block/soft_neon_slate"
+  }
+}

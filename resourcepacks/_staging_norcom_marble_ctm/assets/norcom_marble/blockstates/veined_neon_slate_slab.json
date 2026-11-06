@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "norcom_marble:block/veined_neon_slate_slab"
+    },
+    "type=double": {
+      "model": "norcom_marble:block/veined_neon_slate"
+    },
+    "type=top": {
+      "model": "norcom_marble:block/veined_neon_slate_slab_top"
+    }
+  }
+}

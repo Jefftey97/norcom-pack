@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/pressure_plate_down",
+  "textures": {
+    "texture": "norcom_marble:block/veined_neon_slate"
+  }
+}

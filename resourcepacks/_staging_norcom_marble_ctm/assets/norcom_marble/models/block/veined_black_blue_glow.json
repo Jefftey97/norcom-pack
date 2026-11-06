@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "norcom_marble:block/veined_black_blue_glow"
+  }
+}

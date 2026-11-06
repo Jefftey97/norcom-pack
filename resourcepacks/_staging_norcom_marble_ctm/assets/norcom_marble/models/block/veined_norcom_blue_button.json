@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/button",
+  "textures": {
+    "texture": "norcom_marble:block/veined_norcom_blue"
+  }
+}

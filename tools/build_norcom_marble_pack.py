@@ -307,6 +307,8 @@ def satin_norcom_blue(seed: int, soft: bool) -> tuple[np.ndarray, np.ndarray, np
         low = np.array([132.0, 168.0, 206.0], np.float32)
         high = np.array([168.0, 198.0, 230.0], np.float32)
         body = low + (high - low) * tone[..., None]
+        # Quiet the relief so the satin face is not the old heavy speckle.
+        grain = 0.5 + (grain - 0.5) * 0.22
     return np.clip(body, 0, 255).astype(np.uint8), grain, vein
 
 

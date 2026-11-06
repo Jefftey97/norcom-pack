@@ -57,12 +57,12 @@ public static class PinHeal
 	public static async Task<HealHint> FetchHintAsync(HttpClient http, CancellationToken ct)
 	{
 		HealHint hint = new HealHint();
-		string? body = await TryGetAsync(http, HintUrl, ct).ConfigureAwait(false);
+		string? body = await PinFetch.FetchNamedAsync(http, "heal-hint.json", ct, forceTip: false).ConfigureAwait(false);
 		if (!string.IsNullOrWhiteSpace(body))
 		{
 			hint = ParseHint(body);
 		}
-		string? compat = await TryGetAsync(http, PinGate.CompatPinUrl, ct).ConfigureAwait(false);
+		string? compat = await PinFetch.FetchNamedAsync(http, "server-compat.json", ct, forceTip: false).ConfigureAwait(false);
 		if (!string.IsNullOrWhiteSpace(compat))
 		{
 			hint = MergeCompat(hint, compat);

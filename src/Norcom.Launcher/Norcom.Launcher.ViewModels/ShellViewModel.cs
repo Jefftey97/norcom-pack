@@ -49,9 +49,19 @@ public class ShellViewModel : ObservableObject
 
 	private long _progressEpoch;
 
+	private int? _launchedGamePid;
+
+	private DateTime _gameWatchUntilUtc;
+
 	private CancellationTokenSource? _authCts;
 
 	private string? _packDiscordText;
+
+	private int _pinBusy;
+
+	private string _pinStatus = "fetching";
+
+	private string _pinDetail = "Checking the live server pin";
 
 	[ObservableProperty]
 	private LauncherPage page;
@@ -215,6 +225,12 @@ public class ShellViewModel : ObservableObject
 	}
 
 	public string PlayAccountText => AccountStatus;
+
+	public string PlayLabel => LaunchedGame.PlayCaption(GameRunning);
+
+	public string PinStatus => _pinStatus;
+
+	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
 
@@ -1209,6 +1225,42 @@ public class ShellViewModel : ObservableObject
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
+	public async Task PollLivePinAsync(bool force)
+	{
+		if (Interlocked.CompareExchange(ref _pinBusy, 1, 0) != 0)
+		{
+			return;
+		}
+		try
+		{
+			SetPinStatus("fetching", force ? "Fixing the live server pin" : "Checking the live server pin");
+			PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, force).ConfigureAwait(continueOnCapturedContext: true);
+			SetPinStatus(result.State, result.Detail);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pin poll " + ex.GetType().Name);
+			SetPinStatus("mismatch", "published pin could not be fetched");
+		}
+		finally
+		{
+			Interlocked.Exchange(ref _pinBusy, 0);
+		}
+	}
+
+	public Task FixPinAsync()
+	{
+		return PollLivePinAsync(force: true);
+	}
+
+	private void SetPinStatus(string state, string detail)
+	{
+		_pinStatus = string.IsNullOrWhiteSpace(state) ? "mismatch" : state.Trim();
+		_pinDetail = detail ?? "";
+		OnPropertyChanged(nameof(PinStatus));
+		OnPropertyChanged(nameof(PinDetail));
+	}
+
 	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct)
 	{
 		_ = 1;
@@ -1303,6 +1355,7 @@ public class ShellViewModel : ObservableObject
 		IsBusy = true;
 		ProgressFraction = 0.02;
 		ProgressLabel = "Preparing NORCOM";
+		await PollLivePinAsync(force: true).ConfigureAwait(continueOnCapturedContext: true);
 		TransferMeter meter = new TransferMeter();
 		CancellationTokenSource pump = StartPump(meter);
 		try
@@ -1337,18 +1390,37 @@ public class ShellViewModel : ObservableObject
 			AccountStatus = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
 			StatusLine = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
 			PrismPlay.GameObserved = ClearPackReady;
+			PrismPlay.GameProcessObserved = delegate(int? pid)
+			{
+				if (pid is int id && id > 0)
+				{
+					OnUi(delegate
+					{
+						RememberLaunchedGame(id);
+					});
+				}
+			};
 			if (LauncherSounds)
 			{
 				UiSound.Play();
 			}
-			GameRunning = true;
+			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
 			PrismPreparation prismPreparation2 = await PrismPlay.RunAsync(prismPreparation, new PrismProcess(), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			GameRunning = false;
+			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
+			RefreshLaunchedGame();
 			ProgressFraction = 1.0;
-			ProgressLabel = (prismPreparation2.CanStart ? "Prism closed" : "Prism did not start Minecraft");
-			ProgressDetail = "";
-			AccountStatus = prismPreparation2.Message;
-			StatusLine = prismPreparation2.Message;
+			if (GameRunning)
+			{
+				ProgressLabel = "Playing";
+				ProgressDetail = "";
+			}
+			else
+			{
+				ProgressLabel = (prismPreparation2.CanStart ? "Prism closed" : "Prism did not start Minecraft");
+				ProgressDetail = "";
+				AccountStatus = prismPreparation2.Message;
+				StatusLine = prismPreparation2.Message;
+			}
 			LauncherLog.Write(prismPreparation2.CanStart ? "Prism closed" : "Prism rejected");
 		}
 		catch (Exception ex)
@@ -1362,9 +1434,142 @@ public class ShellViewModel : ObservableObject
 		finally
 		{
 			PrismPlay.GameObserved = null;
+			PrismPlay.GameProcessObserved = null;
 			pump.Cancel();
 			IsBusy = false;
+			RefreshLaunchedGame();
 		}
+	}
+
+	public void RefreshLaunchedGame()
+	{
+		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
+		if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
+		{
+			_launchedGamePid = id;
+			if (!GameRunning)
+			{
+				GameRunning = true;
+			}
+			return;
+		}
+		if (pid != null)
+		{
+			_launchedGamePid = null;
+			_gameWatchUntilUtc = DateTime.MinValue;
+			LaunchedGame.Forget(NorcomPaths.GameLockPath);
+			if (GameRunning)
+			{
+				GameRunning = false;
+				if (string.Equals(ProgressLabel, "Playing", StringComparison.Ordinal))
+				{
+					ProgressLabel = "Ready";
+				}
+				StatusLine = "Minecraft closed.";
+			}
+			return;
+		}
+		if (IsBusy || DateTime.UtcNow < _gameWatchUntilUtc)
+		{
+			TryAttachLaunchedGame();
+		}
+	}
+
+	public void StopLaunchedGame()
+	{
+		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
+		if (!(pid is int id) || id <= 0)
+		{
+			_launchedGamePid = null;
+			GameRunning = false;
+			StatusLine = "Minecraft was stopped.";
+			return;
+		}
+		StatusLine = "Stopping Minecraft.";
+		Task.Run(delegate
+		{
+			bool stopped = LaunchedGame.TryStop(id);
+			OnUi(delegate
+			{
+				FinishStop(id, stopped);
+			});
+		});
+	}
+
+	private void FinishStop(int pid, bool stopped)
+	{
+		if (!StartupHeal.IsAlive(pid))
+		{
+			if (_launchedGamePid == pid)
+			{
+				_launchedGamePid = null;
+			}
+			int? locked = StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
+			if (locked == null || locked == pid)
+			{
+				LaunchedGame.Forget(NorcomPaths.GameLockPath);
+			}
+		}
+		bool still = (_launchedGamePid is int live && StartupHeal.IsAlive(live)) || StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
+		if (!still)
+		{
+			_gameWatchUntilUtc = DateTime.MinValue;
+		}
+		GameRunning = still;
+		if (!still)
+		{
+			if (string.Equals(ProgressLabel, "Playing", StringComparison.Ordinal) || string.Equals(ProgressLabel, "Stopping Minecraft.", StringComparison.Ordinal))
+			{
+				ProgressLabel = "Ready";
+			}
+			StatusLine = "Minecraft was stopped.";
+		}
+		else
+		{
+			StatusLine = stopped ? "Minecraft is closing." : "Minecraft is still running.";
+		}
+		LauncherLog.Write("game stop " + (stopped ? "ok" : "miss") + " pid=" + pid);
+	}
+
+	private void TryAttachLaunchedGame()
+	{
+		try
+		{
+			int? pid = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir).TryGameProcessId(null);
+			if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
+			{
+				RememberLaunchedGame(id);
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("game attach " + ex.GetType().Name);
+		}
+	}
+
+	private void RememberLaunchedGame(int pid)
+	{
+		_launchedGamePid = pid;
+		LaunchedGame.Remember(NorcomPaths.GameLockPath, pid);
+		if (!GameRunning)
+		{
+			GameRunning = true;
+		}
+		if (string.Equals(ProgressLabel, "Opening Prism", StringComparison.Ordinal) || string.Equals(ProgressLabel, "Prism closed", StringComparison.Ordinal))
+		{
+			ProgressLabel = "Playing";
+		}
+	}
+
+	private void OnUi(Action action)
+	{
+		Application current = Application.Current;
+		if (current == null || ((DispatcherObject)current).Dispatcher.CheckAccess())
+		{
+			action();
+			return;
+		}
+		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)action, Array.Empty<object>());
 	}
 
 	private void ClearPackReady()
@@ -1886,6 +2091,7 @@ public class ShellViewModel : ObservableObject
 	private void OnGameRunningChanged(bool value)
 	{
 		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
+		OnPropertyChanged("PlayLabel");
 		AnimationsPaused = value && PauseWhilePlaying;
 		if (value)
 		{

@@ -40,7 +40,7 @@ public static class PinGate
 
 	public const string DefaultPackUrl = "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml";
 
-	public const string LivePin = "fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73";
+	public const string LivePin = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
 
 	public static string? PublishedPin { get; private set; }
 
@@ -51,6 +51,10 @@ public static class PinGate
 	public static readonly string[] PinUrls = new string[3] { FriendsPinUrl, ServerPinUrl, CompatPinUrl };
 
 	public static string? LastWarning { get; private set; }
+
+	private static string _comparedPin = "";
+
+	private static bool _comparedDrift;
 
 	public static string? AcceptedPinJson { get; private set; }
 
@@ -141,7 +145,7 @@ public static class PinGate
 		{
 			foreach (string pinUrl in CandidateUrls(packUrl, manifestUrl))
 			{
-				string? body = await TryFetchTextAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
+				string? body = await PinFetch.FetchCandidateAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 				if (body == null)
 				{
 					continue;
@@ -165,9 +169,9 @@ public static class PinGate
 		}
 		if (full != null && slim == null)
 		{
-			slim = await TryFetchTextAsync(http, ServerPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
+			slim = await PinFetch.FetchNamedAsync(http, "server-pin.json", ct, forceTip: false).ConfigureAwait(continueOnCapturedContext: false);
 		}
-		string? compat = await TryFetchTextAsync(http, CompatPinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
+		string? compat = await PinFetch.FetchNamedAsync(http, "server-compat.json", ct, forceTip: false).ConfigureAwait(continueOnCapturedContext: false);
 		if (full != null)
 		{
 			JudgeFull(full, slim, compat, gameDir, pack, source);
@@ -347,6 +351,75 @@ public static class PinGate
 		AcceptedPinJson = pin;
 	}
 
+	public readonly struct PinSyncResult
+	{
+		public string State { get; init; }
+
+		public string Pin { get; init; }
+
+		public string Detail { get; init; }
+	}
+
+	public static async Task<PinSyncResult> SyncPublishedAsync(HttpClient http, string gameDir, CancellationToken ct, bool forceTip)
+	{
+		string? json = await PinFetch.FetchNamedAsync(http, "norcom-mod-pin.json", ct, forceTip).ConfigureAwait(continueOnCapturedContext: false);
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			json = await PinFetch.FetchNamedAsync(http, "server-pin.json", ct, forceTip: false).ConfigureAwait(continueOnCapturedContext: false);
+		}
+		if (!TryPublished(json, out string pin, out List<(string Name, string Sha256, long Size)> jars, out bool hasJars))
+		{
+			return new PinSyncResult
+			{
+				State = "mismatch",
+				Pin = ReadAppliedPin(gameDir) ?? "",
+				Detail = "published pin could not be fetched"
+			};
+		}
+		SoftAdopt(gameDir, pin);
+		bool drift;
+		if (!forceTip && string.Equals(_comparedPin, pin, StringComparison.OrdinalIgnoreCase))
+		{
+			drift = _comparedDrift;
+		}
+		else
+		{
+			drift = hasJars && PresentJarDiffers(gameDir, jars);
+			_comparedPin = pin;
+			_comparedDrift = drift;
+		}
+		if (drift)
+		{
+			return new PinSyncResult
+			{
+				State = "mismatch",
+				Pin = pin,
+				Detail = "a pack jar does not match the published pin"
+			};
+		}
+		return new PinSyncResult
+		{
+			State = "correct",
+			Pin = pin,
+			Detail = "published pin"
+		};
+	}
+
+	public static void SoftAdopt(string gameDir, string pin)
+	{
+		if (string.IsNullOrWhiteSpace(pin))
+		{
+			return;
+		}
+		if (!string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
+		{
+			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
+		}
+		PublishedPin = pin.Trim();
+		Remember(gameDir, PublishedPin);
+		LauncherLog.Write("pin adopted " + PublishedPin);
+	}
+
 	public static void AdoptPublished(string gameDir)
 	{
 		if (string.IsNullOrWhiteSpace(PublishedPin))
@@ -355,6 +428,18 @@ public static class PinGate
 		}
 		Remember(gameDir, PublishedPin);
 		LauncherLog.Write("pin adopted " + PublishedPin);
+	}
+
+	public static bool PresentJarDiffers(string gameDir, IEnumerable<(string Name, string Sha256, long Size)> jars)
+	{
+		foreach ((string name, string sha, long _) in jars)
+		{
+			if (Drifted(gameDir, name, sha, out _))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static string JarDiffSummary(string gameDir, IEnumerable<(string Name, string Sha256, long Size)> expected)
@@ -430,21 +515,69 @@ public static class PinGate
 
 	private static void RefuseJarDrift(string gameDir, string name, string sha, string pin)
 	{
-		if (IsClientOnly(name))
+		if (!Drifted(gameDir, name, sha, out string actual))
 		{
 			return;
+		}
+		LauncherLog.Write("pin jar drift " + name + " expected=" + sha + " actual=" + actual + " pin_sha256=" + pin);
+		throw new PinMismatchException(BlockCopy + " " + Path.GetFileName(name) + " does not match the server pin. Expected pin_sha256 " + pin + ".");
+	}
+
+	private static bool Drifted(string gameDir, string name, string sha, out string actual)
+	{
+		actual = "";
+		if (IsClientOnly(name))
+		{
+			return false;
 		}
 		string path = LocateJar(gameDir, name);
 		if (!File.Exists(path))
 		{
-			return;
+			return false;
 		}
-		string actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
-		if (!string.Equals(actual, sha, StringComparison.OrdinalIgnoreCase))
+		actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+		return !string.Equals(actual, sha, StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static bool TryPublished(string json, out string pin, out List<(string Name, string Sha256, long Size)> jars, out bool hasJars)
+	{
+		pin = "";
+		jars = null;
+		hasJars = false;
+		if (string.IsNullOrWhiteSpace(json))
 		{
-			LauncherLog.Write("pin jar drift " + name + " expected=" + sha + " actual=" + actual + " pin_sha256=" + pin);
-			throw new PinMismatchException(BlockCopy + " " + Path.GetFileName(name) + " does not match the server pin. Expected pin_sha256 " + pin + ".");
+			return false;
 		}
+		try
+		{
+			using JsonDocument document = JsonDocument.Parse(json);
+			JsonElement root = document.RootElement;
+			pin = Optional(root, "pin_sha256") ?? Optional(root, "pin") ?? "";
+			if (pin.Length == 0)
+			{
+				return false;
+			}
+			if (root.TryGetProperty("jars", out JsonElement jarsElement) && jarsElement.ValueKind == JsonValueKind.Array)
+			{
+				hasJars = true;
+				jars = ReadJars(jarsElement);
+			}
+			return true;
+		}
+		catch (Exception ex) when (ex is JsonException or PinMismatchException)
+		{
+			return false;
+		}
+	}
+
+	private static string Optional(JsonElement element, string name)
+	{
+		if (!element.TryGetProperty(name, out JsonElement value) || value.ValueKind != JsonValueKind.String)
+		{
+			return null;
+		}
+		string text = (value.GetString() ?? "").Trim();
+		return text.Length == 0 ? null : text;
 	}
 
 	private static List<(string Name, string Sha256, long Size)> ReadJars(JsonElement jars)

@@ -67,6 +67,29 @@ public static class NorcomPin
     public static string PingPath(string serverDirectory) =>
         Path.Combine(serverDirectory, ".norcom", "admin-autofix.ping");
 
+    public static ServerPinFile? TryRead(string? serverDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(serverDirectory))
+        {
+            return null;
+        }
+
+        var path = PinPath(serverDirectory);
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return ReadPin(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static string? StampFriendsMeta(string packDirectory, string serverDirectory)
     {
         var sotPath = PinPath(serverDirectory);
@@ -125,14 +148,7 @@ public static class NorcomPin
         File.WriteAllText(Path.Combine(meta, "server-pin.json"), sotBytes);
         File.WriteAllText(Path.Combine(meta, "server-compat.json"), JsonSerializer.Serialize(compat, Json));
         File.WriteAllText(Path.Combine(meta, "norcom-mod-pin.json"), ledger.ToJsonString(Json));
-        File.WriteAllText(Path.Combine(meta, "heal-hint.json"), JsonSerializer.Serialize(new HealHintFile
-        {
-            pin = sot.pin,
-            mc = sot.mc,
-            loader = sot.loader,
-            minLauncher = MinLauncher,
-            repairAction = RepairAction
-        }, Json));
+        WriteHealHintIfChanged(Path.Combine(meta, "heal-hint.json"), sot);
 
         if (!string.Equals(File.ReadAllText(sotPath), sotBytes, StringComparison.Ordinal))
         {
@@ -256,6 +272,46 @@ public static class NorcomPin
         {
             return new ServerCompatFile();
         }
+    }
+
+    private static void WriteHealHintIfChanged(string path, ServerPinFile sot)
+    {
+        if (File.Exists(path))
+        {
+            try
+            {
+                var current = JsonSerializer.Deserialize<HealHintFile>(File.ReadAllText(path), Json);
+                if (current != null &&
+                    string.Equals(current.pin?.Trim(), sot.pin.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(current.minLauncher?.Trim(), MinLauncher, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        File.WriteAllText(path, JsonSerializer.Serialize(new HealHintFile
+        {
+            pin = sot.pin,
+            mc = sot.mc,
+            loader = sot.loader,
+            minLauncher = MinLauncher,
+            repairAction = RepairAction
+        }, Json));
+    }
+
+    public static string Prefix(string? value)
+    {
+        var text = (value ?? "").Trim();
+        if (text.Length == 0)
+        {
+            return "—";
+        }
+
+        return text.Length <= 8 ? text : text[..8] + "…";
     }
 
     private static ServerPinFile? ReadPin(string path) =>

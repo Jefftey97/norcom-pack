@@ -197,6 +197,16 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Secrets_and_scheduler_policy_stay_closed()
+    {
+        var clean = new SecretRedactor().Clean("token=ghp_abcdefghijklmnopqrstuvwxyz123456");
+        Assert.DoesNotContain("ghp_", clean, StringComparison.Ordinal);
+        Assert.False(SchedulerPolicy.IsAllowed("GH push"));
+        Assert.False(SchedulerPolicy.IsAllowed("silent publish"));
+        Assert.True(SchedulerPolicy.IsAllowed("watch-flag"));
+    }
+
+    [Fact]
     public void Crash_inbox_names_the_last_fault()
     {
         Assert.Equal("Description: Watching server", CrashReports.FaultLine("----\nDescription: Watching server\n"));

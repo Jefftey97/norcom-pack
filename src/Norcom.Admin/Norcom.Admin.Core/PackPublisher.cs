@@ -109,7 +109,90 @@ public sealed class PackPublisher
             return Fail("Push was rejected. The remote was not force-updated. " + Tail(push));
         }
 
-        return new PublishResult(true, true, "Published to Jefftey97/norcom-pack on main with a fast-forward push. Friends-heal meta matches the server pin. launcher/ stayed. Nothing was force-pushed.");
+        return new PublishResult(true, true, "Packwiz config Publish finished with a fast-forward push. launcher/ stayed. Nothing was force-pushed.");
+    }
+
+    public async Task<PublishResult> PublishMetaAsync(string packDirectory, string serverDirectory, IRemoteMetaCheck remote, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(packDirectory) || !Directory.Exists(packDirectory))
+        {
+            return Fail("Meta Publish refused. Pack folder was not found. Nothing was pushed.");
+        }
+
+        var pinBlock = NorcomPin.StampFriendsMeta(packDirectory, serverDirectory);
+        if (pinBlock != null)
+        {
+            return Fail(pinBlock);
+        }
+
+        var pin = ReadField(Path.Combine(packDirectory, "meta", "server-pin.json"), "pin");
+        var index = ReadField(Path.Combine(packDirectory, "meta", "server-compat.json"), "indexSha256");
+        if (HealFails.BlocksMetaPublish(serverDirectory, pin))
+        {
+            return Fail("Meta Publish stopped. Launcher PinGate or a dual-sided heal may be the issue for this pin. Nothing was pushed.");
+        }
+
+        if (await MetaRemote.SameAsOriginMain(packDirectory, _git, cancellationToken).ConfigureAwait(false))
+        {
+            return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
+        }
+
+        var add = new List<string> { "add", "--" };
+        add.AddRange(MetaRemote.Files);
+        var added = await Git(packDirectory, add, cancellationToken).ConfigureAwait(false);
+        if (added.ExitCode != 0)
+        {
+            return Fail("Meta Publish git add failed. " + Tail(added));
+        }
+
+        var staged = await Git(packDirectory, ["diff", "--cached", "--name-only"], cancellationToken).ConfigureAwait(false);
+        if (staged.ExitCode != 0)
+        {
+            return Fail("Meta Publish could not read the staged files. " + Tail(staged));
+        }
+
+        if (string.IsNullOrWhiteSpace(staged.Stdout))
+        {
+            return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
+        }
+
+        var commit = await Git(packDirectory, ["commit", "-m", "Update NORCOM friends meta"], cancellationToken).ConfigureAwait(false);
+        if (commit.ExitCode != 0)
+        {
+            return Fail("Meta Publish commit failed. " + Tail(commit));
+        }
+
+        var pull = await Git(packDirectory, ["pull", "--ff-only", "origin", "main"], cancellationToken).ConfigureAwait(false);
+        if (pull.ExitCode != 0)
+        {
+            return Fail("Fast-forward pull failed, so nothing was pushed. " + Tail(pull));
+        }
+
+        var push = await Git(packDirectory, GitSafety.PushArguments(), cancellationToken).ConfigureAwait(false);
+        if (push.ExitCode != 0)
+        {
+            return Fail("Push was rejected. The remote was not force-updated. " + Tail(push));
+        }
+
+        var head = await Git(packDirectory, ["rev-parse", "HEAD"], cancellationToken).ConfigureAwait(false);
+        var sha = head.ExitCode == 0 ? head.Stdout.Trim() : "";
+        var verify = await MetaRemote.VerifyCommitAsync(sha, pin, index, remote, cancellationToken).ConfigureAwait(false);
+        var clear = verify.Ok == verify.Total && sha.Length > 0;
+        var message = verify.Report + (clear ? " flag cleared" : " verify incomplete. Flag left in place.");
+        return new PublishResult(clear, true, message, clear);
+    }
+
+    private static string ReadField(string path, string name)
+    {
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            return document.RootElement.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private async Task<CommandResult> Git(string packDirectory, IReadOnlyList<string> args, CancellationToken cancellationToken)

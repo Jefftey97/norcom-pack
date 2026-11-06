@@ -29,43 +29,50 @@ public partial class PublishViewModel : ObservableObject
     [ObservableProperty] private bool busy;
 
     [RelayCommand]
-    private async Task Publish() => await PublishAsync();
+    private Task Publish() => RunAsync("Packwiz config Publish", meta: false);
 
-    public async Task<bool> PublishAsync()
+    [RelayCommand]
+    private Task PublishMeta() => RunAsync("Meta Publish", meta: true);
+
+    public Task<PublishResult> PublishMetaAsync() => RunAsync("Meta Publish", meta: true);
+
+    private async Task<PublishResult> RunAsync(string label, bool meta)
     {
         if (Busy)
         {
-            return false;
+            return new PublishResult(false, false, Status);
         }
 
         if (!Confirm.Matches(ConfirmText, "PUBLISH"))
         {
-            Status = "Type PUBLISH to confirm the pack push.";
-            return false;
+            Status = "Type PUBLISH to confirm " + label + ".";
+            return new PublishResult(false, false, Status);
         }
 
         if (MessageBox.Show(
-                "Publish the pack to Jefftey97/norcom-pack on main?\n\nFast-forward only. launcher/ stays. Friends-heal meta is stamped from the live server pin, including heal-hint.json (minLauncher 2.0.1).\n\nAdmin is not part of Install-NORCOM.",
+                label + " to Jefftey97/norcom-pack on main?\n\nFast-forward only. launcher/ stays. Meta Publish stamps the friends-heal files from the live server pin.\n\nAdmin is not part of Install-NORCOM.",
                 "NORCOM Admin",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
-            Status = "Publish cancelled. Nothing was pushed.";
-            return false;
+            Status = label + " cancelled. Nothing was pushed.";
+            return new PublishResult(false, false, Status);
         }
 
         Busy = true;
         try
         {
-            var result = await _publisher.PublishAsync(PackPath, _serverPath(), CancellationToken.None);
-            Status = result.Message;
-            _redactor.WriteLog(result.Message);
-            return result.Pushed;
+            var result = meta
+                ? await _publisher.PublishMetaAsync(PackPath, _serverPath(), new HttpRemoteMetaCheck(), CancellationToken.None)
+                : await _publisher.PublishAsync(PackPath, _serverPath(), CancellationToken.None);
+            Status = _redactor.Clean(result.Message);
+            _redactor.WriteLog(Status);
+            return result with { Message = Status };
         }
         catch (Exception ex)
         {
             Status = _redactor.Clean(ex.Message);
-            return false;
+            return new PublishResult(false, false, Status);
         }
         finally
         {

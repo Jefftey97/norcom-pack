@@ -5,7 +5,11 @@ namespace Norcom.Admin.Core;
 public sealed class SecretRedactor
 {
     private static readonly Regex PasswordAssign = new(
-        @"(?i)\b(rcon\.password|password|rcon-password)\s*=\s*\S+",
+        @"(?i)\b(rcon\.password|password|rcon-password|token|pat)\s*[:=]\s*\S+",
+        RegexOptions.Compiled);
+
+    private static readonly Regex TokenShape = new(
+        @"(?i)\b(?:ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+|x-access-token[:\s]+\S+|bearer\s+\S+)\b",
         RegexOptions.Compiled);
 
     private string _secret = "";
@@ -26,6 +30,7 @@ public sealed class SecretRedactor
         }
 
         cleaned = PasswordAssign.Replace(cleaned, "$1=<redacted>");
+        cleaned = TokenShape.Replace(cleaned, "<redacted>");
         if (cleaned.Length > 4000)
         {
             cleaned = cleaned[..4000] + "…";

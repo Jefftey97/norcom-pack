@@ -16,6 +16,7 @@
     </Border>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel>
+        <TextBlock Text="{Binding SchedulerLine}" TextWrapping="Wrap" Foreground="#93A4BD" Margin="0,0,0,12"/>
         <UniformGrid Columns="2">
           <StackPanel Margin="0,0,12,0">
             <TextBlock Text="MOTD" Style="{StaticResource Label}"/><TextBox Text="{Binding Motd, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>

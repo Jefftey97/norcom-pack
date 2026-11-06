@@ -30,7 +30,8 @@
             <TextBlock Text="{Binding DataContext.PinNudge, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" FontWeight="SemiBold"/>
             <TextBlock Text="Type PUBLISH" Style="{StaticResource Label}" Margin="0,8,0,4"/>
             <TextBox Text="{Binding DataContext.Publish.ConfirmText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
-            <Button Content="Publish friends heal" Command="{Binding DataContext.PublishFlagCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+            <Button Content="Meta Publish" Command="{Binding DataContext.PublishFlagCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"
+                    Visibility="{Binding DataContext.HealBlocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisInvert}}"/>
             <TextBlock Text="{Binding DataContext.Publish.Status, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>

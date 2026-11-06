@@ -79,6 +79,11 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty]
     private string pinNudge = "";
 
+    [ObservableProperty]
+    private bool healBlocked;
+
+    private DateTime _lastRawCheck = DateTime.MinValue;
+
     [RelayCommand]
     private void SelectPage(AdminPage next) => Page = next;
 
@@ -95,8 +100,8 @@ public partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private async Task PublishFlag()
     {
-        var pushed = await Publish.PublishAsync();
-        if (!pushed)
+        var result = await Publish.PublishMetaAsync();
+        if (!result.ClearFlag)
         {
             return;
         }
@@ -107,7 +112,7 @@ public partial class ShellViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Publish.Status = Publish.Status + " The pin-changed flag could not be removed.";
+            Publish.Status = _redactorSafe(Publish.Status + " The pin-changed flag could not be removed.");
         }
 
         RefreshPinFlag();
@@ -115,18 +120,79 @@ public partial class ShellViewModel : ObservableObject
 
     private void RefreshPinFlag()
     {
-        if (!PinChangedFlag.TryRead(Ops.ServerPath, out var pin))
+        var sot = NorcomPin.TryRead(Ops.ServerPath);
+        HealFails.ConsumeClientMarker(Ops.ServerPath, sot?.pin ?? "");
+        if (!PinChangedFlag.TryRead(Ops.ServerPath, out var flagged))
         {
             PinChanged = false;
-            PinNudge = "";
+            HealBlocked = false;
             return;
         }
 
+        var pin = flagged.Length > 0 ? flagged : sot?.pin ?? "";
+        var index = IndexSha(Publish.PackPath);
+        HealBlocked = HealFails.BlocksMetaPublish(Ops.ServerPath, pin);
         PinChanged = true;
-        PinNudge = pin.Length == 0
-            ? "Server pin regenerated. Friends meta is stale. Type PUBLISH, then publish the heal set."
-            : "Server pin regenerated (" + pin + "). Friends meta is stale. Type PUBLISH, then publish the heal set.";
+        PinNudge = HealBlocked
+            ? "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Launcher PinGate or a dual-sided heal may be the issue. Meta Publish is not offered."
+            : "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: checking. Friends meta is stale until Meta Publish.";
+        if (!HealBlocked && (DateTime.UtcNow - _lastRawCheck).TotalSeconds > 20)
+        {
+            _lastRawCheck = DateTime.UtcNow;
+            _ = MarkAlreadyLiveAsync(pin, index);
+        }
     }
+
+    private async Task MarkAlreadyLiveAsync(string pin, string index)
+    {
+        bool same;
+        try
+        {
+            same = await MetaRemote.SameAsOriginMain(Publish.PackPath, new ProcessCommandRunner(), CancellationToken.None);
+        }
+        catch
+        {
+            same = false;
+        }
+
+        if (!same)
+        {
+            PinNudge = "pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: no. Type PUBLISH for Meta Publish.";
+            return;
+        }
+
+        try
+        {
+            PinChangedFlag.Delete(Ops.ServerPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        PinChanged = false;
+        PinNudge = "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Flag cleared. Nothing was pushed.";
+    }
+
+    private static string IndexSha(string packDirectory)
+    {
+        try
+        {
+            var path = Path.Combine(packDirectory, "meta", "server-compat.json");
+            if (!File.Exists(path))
+            {
+                return "";
+            }
+
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            return document.RootElement.TryGetProperty("indexSha256", out var value) ? value.GetString() ?? "" : "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private static string _redactorSafe(string text) => new SecretRedactor().Clean(text);
 
     partial void OnPageChanged(AdminPage value)
     {

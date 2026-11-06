@@ -37,6 +37,7 @@ public partial class SettingsViewModel : ObservableObject
     public ObservableCollection<PropertyRow> Extra { get; } = new();
 
     [ObservableProperty] private string status = "Type TIME to save. simulation-distance is left unchanged.";
+    [ObservableProperty] private string schedulerLine = "";
     [ObservableProperty] private string confirmText = "";
     [ObservableProperty] private string motd = "NORCOM";
     [ObservableProperty] private string difficulty = "easy";
@@ -124,6 +125,7 @@ public partial class SettingsViewModel : ObservableObject
 
     public void Load()
     {
+        SchedulerLine = SchedulerPolicy.Describe();
         var directory = _serverPath();
         var propertiesPath = Path.Combine(directory, "server.properties");
         Extra.Clear();

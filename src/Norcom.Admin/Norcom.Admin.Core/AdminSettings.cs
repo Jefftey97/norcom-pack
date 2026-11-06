@@ -24,6 +24,10 @@ public sealed class AdminSettings
 
     public AutoFixOptions AutoFix { get; set; } = new();
 
+    public string[] SchedulerAllow { get; set; } = SchedulerPolicy.Allow.ToArray();
+
+    public string[] SchedulerDeny { get; set; } = SchedulerPolicy.Deny.ToArray();
+
     public static AdminSettings Load(string path)
     {
         try
@@ -39,6 +43,7 @@ public sealed class AdminSettings
                     settings.NightTicks = Math.Clamp(settings.NightTicks, 1000, 72000);
                     settings.RconPort = Math.Clamp(settings.RconPort, 1, 65535);
                     settings.AutoFix ??= new AutoFixOptions();
+                    settings.LockSchedulerPolicy();
                     return settings;
                 }
             }
@@ -60,13 +65,22 @@ public sealed class AdminSettings
 
         MemoryMb = LiveHeapMb;
         RconHost = "127.0.0.1";
+        LockSchedulerPolicy();
         var text = JsonSerializer.Serialize(this, JsonOpts);
         if (text.Contains("rcon.password", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("\"password\"", StringComparison.OrdinalIgnoreCase))
+            text.Contains("\"password\"", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("ghp_", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("github_pat_", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Refusing to write a password into admin settings.");
+            throw new InvalidOperationException("Refusing to write a password or token into admin settings.");
         }
 
         File.WriteAllText(path, text);
+    }
+
+    public void LockSchedulerPolicy()
+    {
+        SchedulerAllow = SchedulerPolicy.Allow.ToArray();
+        SchedulerDeny = SchedulerPolicy.Deny.ToArray();
     }
 }

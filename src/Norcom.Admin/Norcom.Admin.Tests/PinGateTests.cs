@@ -87,6 +87,46 @@ public class PinGateTests
     }
 
     [Fact]
+    public async Task Meta_publish_skips_push_when_origin_main_matches()
+    {
+        var (pack, server) = PackAndServer(stampMeta: true);
+        var git = new SameHashGit();
+        var result = await new PackPublisher(git, new SecretRedactor()).PublishMetaAsync(pack, server, new OkRemote(), CancellationToken.None);
+        Assert.True(result.ClearFlag);
+        Assert.False(result.Pushed);
+        Assert.Contains("ALREADY_LIVE", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("push", string.Join('\n', git.Calls), StringComparison.OrdinalIgnoreCase);
+        Cleanup(pack, server);
+    }
+
+    [Fact]
+    public async Task Meta_publish_stops_after_two_heal_fails()
+    {
+        var (pack, server) = PackAndServer(stampMeta: true);
+        HealFails.NoteClientFail(server, Pin);
+        HealFails.NoteClientFail(server, Pin);
+        var git = new RecordingGit();
+        var result = await new PackPublisher(git, new SecretRedactor()).PublishMetaAsync(pack, server, new OkRemote(), CancellationToken.None);
+        Assert.False(result.Pushed);
+        Assert.Contains("PinGate", result.Message, StringComparison.Ordinal);
+        Assert.Empty(git.Calls);
+        Cleanup(pack, server);
+    }
+
+    [Fact]
+    public void Heal_hint_is_left_alone_when_pin_and_launcher_match()
+    {
+        var (pack, server) = PackAndServer(stampMeta: true);
+        var hint = Path.Combine(pack, "meta", "heal-hint.json");
+        File.WriteAllText(hint, "{\"pin\":\"" + Pin + "\",\"mc\":\"26.3\",\"loader\":\"0.20.1\",\"minLauncher\":\"2.0.1\",\"repairAction\":\"leave-me\"}");
+        var before = File.ReadAllText(hint);
+        var block = NorcomPin.StampFriendsMeta(pack, server);
+        Assert.Null(block);
+        Assert.Equal(before, File.ReadAllText(hint));
+        Cleanup(pack, server);
+    }
+
+    [Fact]
     public void AutoFix_jar_move_does_not_rewrite_the_server_pin()
     {
         var root = Temp();
@@ -156,6 +196,28 @@ public class PinGateTests
     }
 
     private static string Temp() => Path.Combine(Path.GetTempPath(), "norcom-pin-" + Guid.NewGuid().ToString("N"));
+
+    private sealed class OkRemote : IRemoteMetaCheck
+    {
+        public Task<int> StatusCodeAsync(string url, CancellationToken cancellationToken) => Task.FromResult(200);
+    }
+
+    private sealed class SameHashGit : ICommandRunner
+    {
+        public List<string> Calls { get; } = new();
+
+        public Task<CommandResult> RunAsync(string fileName, IReadOnlyList<string> args, string workingDirectory, CancellationToken cancellationToken)
+        {
+            var text = string.Join(' ', args);
+            Calls.Add(text);
+            if (text.StartsWith("hash-object", StringComparison.Ordinal) || text.StartsWith("rev-parse origin/main:", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new CommandResult(0, "abc123\n", ""));
+            }
+
+            return Task.FromResult(new CommandResult(1, "", "unexpected"));
+        }
+    }
 
     private sealed class RecordingGit : ICommandRunner
     {

@@ -13,6 +13,14 @@ public static class PrismPlay
 
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
 	{
+		try
+		{
+			LauncherCleanup.BeforePlay();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
 		string text = PrismInstall.Find(prismEnvironment, prismCandidates);
 		if (text == null)
 		{

@@ -286,6 +286,7 @@ public sealed class SelfUpdateService
 
 	public static void ScheduleReplace(string newExe, string currentExe, int pid, string version, string sha256)
 	{
+		currentExe = LauncherInstall.Resolve(currentExe, FriendInstaller.InstalledExePath);
 		string text = BackupPathFor(NorcomPaths.RecoveryRoot, version);
 		Directory.CreateDirectory(Path.GetDirectoryName(text));
 		Directory.CreateDirectory(NorcomPaths.LauncherDir);

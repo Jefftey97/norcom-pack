@@ -127,9 +127,63 @@ public static class LauncherCleanup
 		}
 	}
 
+	public static IReadOnlyList<string> BeforePlay()
+	{
+		string live = LauncherInstall.CurrentExe();
+		return RemoveObsolete(live, NorcomPaths.NorcomHome, NorcomPaths.GameDir, Path.GetTempPath());
+	}
+
+	public static bool IsObsoleteCopy(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			return false;
+		}
+		string full = Path.GetFullPath(path);
+		if (Path.GetFileName(full).Equals("NorcomLauncher.previous.exe", StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		string name = "";
+		string? dir = Path.GetDirectoryName(full);
+		for (int i = 0; dir != null && i < 6; i++)
+		{
+			name = Path.GetFileName(dir);
+			if (name.StartsWith("self-update-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("install-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("norcom-launcher-upd-", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+			dir = Path.GetDirectoryName(dir);
+		}
+		return false;
+	}
+
+	public static bool IsBlocked(string path)
+	{
+		string full = Path.GetFullPath(path);
+		string file = Path.GetFileName(full);
+		if (file.Equals("java.exe", StringComparison.OrdinalIgnoreCase) || file.Equals("javaw.exe", StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		string[] blocked = new string[8] { ".norcom", ".minecraft", "NorcomAdmin", "Admin", "CrashReceiver", "NORCOM-WPF-Test", "saves", "mods" };
+		foreach (string segment in blocked)
+		{
+			if (ContainsSegment(full, segment))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static bool IsOffLimits(string path, string liveExe, string? liveDir, string? gameDir)
 	{
 		string full = Path.GetFullPath(path);
+		if (IsBlocked(full))
+		{
+			return true;
+		}
 		if (full.Equals(liveExe, StringComparison.OrdinalIgnoreCase))
 		{
 			return true;

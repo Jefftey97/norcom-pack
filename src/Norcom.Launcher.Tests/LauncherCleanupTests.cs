@@ -59,6 +59,28 @@ public class LauncherCleanupTests
 		Assert.Equal("save", File.ReadAllText(Path.Combine(game, "saves", "world", "level.dat")));
 		Assert.Equal("keep", File.ReadAllText(Path.Combine(temp, "notes.txt")));
 		Assert.Equal("desktop-test", File.ReadAllText(Path.Combine(run42, "NorcomLauncher.exe")));
+		Directory.CreateDirectory(Path.Combine(home, "NorcomAdmin"));
+		File.WriteAllText(Path.Combine(home, "NorcomAdmin", "NorcomAdmin.exe"), "admin");
+		Directory.CreateDirectory(Path.Combine(home, "CrashReceiver"));
+		File.WriteAllText(Path.Combine(home, "CrashReceiver", "CrashReceiver.exe"), "crash");
+		Directory.CreateDirectory(Path.Combine(home, "java"));
+		File.WriteAllText(Path.Combine(home, "java", "java.exe"), "server-java");
+		Directory.CreateDirectory(Path.Combine(game, "mods"));
+		File.WriteAllText(Path.Combine(game, "mods", "example.jar"), "mod");
+		string hiddenOld = Path.Combine(game, "recovery", "self-update-hidden");
+		Directory.CreateDirectory(hiddenOld);
+		File.WriteAllText(Path.Combine(hiddenOld, "NorcomLauncher.previous.exe"), "nope");
+		LauncherCleanup.RemoveObsolete(live, home, game, temp);
+		Assert.Equal("admin", File.ReadAllText(Path.Combine(home, "NorcomAdmin", "NorcomAdmin.exe")));
+		Assert.Equal("crash", File.ReadAllText(Path.Combine(home, "CrashReceiver", "CrashReceiver.exe")));
+		Assert.Equal("server-java", File.ReadAllText(Path.Combine(home, "java", "java.exe")));
+		Assert.Equal("mod", File.ReadAllText(Path.Combine(game, "mods", "example.jar")));
+		Assert.Equal("nope", File.ReadAllText(Path.Combine(hiddenOld, "NorcomLauncher.previous.exe")));
+		string canonical = Path.GetFullPath(live);
+		string stale = Path.Combine(previous, "NorcomLauncher.previous.exe");
+		Assert.Equal(canonical, LauncherInstall.Resolve(stale, live));
+		Assert.Equal(canonical, LauncherInstall.Resolve(live, live));
+		Assert.Equal(Path.GetFullPath(Path.Combine(run42, "NorcomLauncher.exe")), LauncherInstall.Resolve(Path.Combine(run42, "NorcomLauncher.exe"), live));
 	}
 
 	[Fact]

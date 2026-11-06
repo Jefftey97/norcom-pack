@@ -21,6 +21,14 @@ public sealed class PackSyncService
 
 	public async Task SyncAsync(string gameDir, string managedPath, string cacheDir, string packUrl, TransferMeter meter, CancellationToken ct)
 	{
+		try
+		{
+			LauncherCleanup.BeforePlay();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
 		meter.SetPhase("Reading pack", 0.02, 0.05);
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
 		await PinHeal.RunAsync(_http, gameDir, doc, packUrl, async _ =>

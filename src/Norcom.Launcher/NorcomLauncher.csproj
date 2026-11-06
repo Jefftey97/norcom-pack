@@ -15,9 +15,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>2.0.37</Version>
-    <FileVersion>2.0.37.0</FileVersion>
-    <InformationalVersion>2.0.37</InformationalVersion>
+    <Version>2.0.39</Version>
+    <FileVersion>2.0.39.0</FileVersion>
+    <InformationalVersion>2.0.39</InformationalVersion>
     <AssemblyVersion>2.0.1.0</AssemblyVersion>
     <Product>NORCOM Launcher</Product>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -38,16 +38,7 @@
     <PackageReference Include="System.Drawing.Common" Version="8.0.11" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="controls\neonmark.baml" LogicalName="controls/neonmark.baml" />
-    <EmbeddedResource Include="views\shellwindow.baml" LogicalName="views/shellwindow.baml" />
-    <EmbeddedResource Include="views\homeview.baml" LogicalName="views/homeview.baml" />
-    <EmbeddedResource Include="assets\norcom.ico" LogicalName="assets/norcom.ico" />
-    <EmbeddedResource Include="views\splashwindow.baml" LogicalName="views/splashwindow.baml" />
-    <EmbeddedResource Include="views\settingsview.baml" LogicalName="views/settingsview.baml" />
-    <EmbeddedResource Include="theme\colors.baml" LogicalName="theme/colors.baml" />
-    <EmbeddedResource Include="assets\fonts\orbitron.ttf" LogicalName="assets/fonts/orbitron.ttf" />
-    <EmbeddedResource Include="assets\fonts\exo2.ttf" LogicalName="assets/fonts/exo2.ttf" />
-    <EmbeddedResource Include="app.baml" LogicalName="app.baml" />
+    <EmbeddedResource Include="NorcomLauncher.g.resources" LogicalName="NorcomLauncher.g.resources" />
   </ItemGroup>
   <Target Name="StripMvvmGenerators" BeforeTargets="CoreCompile">
     <ItemGroup>

@@ -2,6 +2,8 @@
 # Keeps LocalAppData\NORCOM\Launcher\NorcomLauncher.exe.bak-pre-<stamp>
 # and restores that backup if the new process exits with a failure.
 # Do not use this on a binary-patched bundle. The candidate must be a clean dotnet publish.
+# A GUI that dies on startup (2.0.37: Cannot locate resource 'app.xaml', exit -532462766)
+# returns a non-zero exit here and must not replace the installed exe. Inflate is not enough.
 param(
     [Parameter(Mandatory = $true)]
     [string]$Candidate

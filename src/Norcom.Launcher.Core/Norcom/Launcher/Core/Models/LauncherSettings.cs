@@ -26,7 +26,7 @@ public sealed class LauncherSettings
 
 	public bool LauncherSounds { get; set; }
 
-	public bool CloseToTray { get; set; } = true;
+	public bool CloseToTray { get; set; }
 
 
 	public bool ReduceMotion { get; set; }
@@ -74,7 +74,7 @@ public sealed class LauncherSettings
 				GraphicsTier = ReadTier(jsonObject).GetValueOrDefault(GraphicsTier.High),
 				GraphicsAuto = ReadBool(jsonObject, "GraphicsAuto", "graphicsAuto").GetValueOrDefault(),
 				LauncherSounds = ReadBool(jsonObject, "LauncherSounds", "launcherSounds").GetValueOrDefault(),
-				CloseToTray = ReadBool(jsonObject, "CloseToTray", "closeToTray").GetValueOrDefault(true),
+				CloseToTray = false,
 				ReduceMotion = ReadBool(jsonObject, "ReduceMotion", "reduceMotion").GetValueOrDefault(),
 				AnimationsPausedWhilePlaying = ReadBool(jsonObject, "AnimationsPausedWhilePlaying", "animationsPausedWhilePlaying").GetValueOrDefault(true),
 				PlayerName = (ReadString(jsonObject, "PlayerName", "playerName") ?? ""),
@@ -123,7 +123,7 @@ public sealed class LauncherSettings
 		jsonObject["GraphicsTier"] = GraphicsTier.ToString();
 		jsonObject["GraphicsAuto"] = GraphicsAuto;
 		jsonObject["LauncherSounds"] = LauncherSounds;
-		jsonObject["CloseToTray"] = CloseToTray;
+		jsonObject["CloseToTray"] = false;
 		jsonObject["ReduceMotion"] = ReduceMotion;
 		jsonObject["AnimationsPausedWhilePlaying"] = AnimationsPausedWhilePlaying;
 		jsonObject["PlayerName"] = PlayerName;

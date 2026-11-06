@@ -18,6 +18,14 @@ public static class JavaRuntime
 {
 	public static async Task<string> EnsureAsync(HttpClient http, TransferMeter meter, CancellationToken ct)
 	{
+		try
+		{
+			LauncherCleanup.BeforePlay();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
 		meter.SetPhase("Checking for Java 25", 0.02, 0.02);
 		if (QaGates.DownloadJavaRequested())
 		{

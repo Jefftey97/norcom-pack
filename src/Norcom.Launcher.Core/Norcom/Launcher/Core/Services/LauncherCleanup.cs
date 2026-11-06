@@ -166,7 +166,7 @@ public static class LauncherCleanup
 		{
 			return true;
 		}
-		string[] blocked = new string[8] { ".norcom", ".minecraft", "NorcomAdmin", "Admin", "CrashReceiver", "NORCOM-WPF-Test", "saves", "mods" };
+		string[] blocked = new string[9] { ".norcom", ".minecraft", "NorcomAdmin", "Admin", "CrashReceiver", "NORCOM-WPF-Test", "run32-admin-snappy", "saves", "mods" };
 		foreach (string segment in blocked)
 		{
 			if (ContainsSegment(full, segment))

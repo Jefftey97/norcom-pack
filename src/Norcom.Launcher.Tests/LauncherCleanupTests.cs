@@ -59,6 +59,17 @@ public class LauncherCleanupTests
 		Assert.Equal("save", File.ReadAllText(Path.Combine(game, "saves", "world", "level.dat")));
 		Assert.Equal("keep", File.ReadAllText(Path.Combine(temp, "notes.txt")));
 		Assert.Equal("desktop-test", File.ReadAllText(Path.Combine(run42, "NorcomLauncher.exe")));
+		string adminRun = Path.Combine(desktop, "run32-admin-snappy");
+		Directory.CreateDirectory(adminRun);
+		File.WriteAllText(Path.Combine(adminRun, "NorcomLauncher.exe"), "admin-build");
+		File.WriteAllText(Path.Combine(adminRun, "NORCOM-Launcher.ps1"), "keep-admin");
+		string adminRecovery = Path.Combine(adminRun, "recovery", "self-update-old");
+		Directory.CreateDirectory(adminRecovery);
+		File.WriteAllText(Path.Combine(adminRecovery, "NorcomLauncher.previous.exe"), "admin-old");
+		LauncherCleanup.RemoveObsolete(Path.Combine(adminRun, "NorcomLauncher.exe"), adminRun, game, temp);
+		Assert.Equal("admin-build", File.ReadAllText(Path.Combine(adminRun, "NorcomLauncher.exe")));
+		Assert.Equal("keep-admin", File.ReadAllText(Path.Combine(adminRun, "NORCOM-Launcher.ps1")));
+		Assert.Equal("admin-old", File.ReadAllText(Path.Combine(adminRecovery, "NorcomLauncher.previous.exe")));
 		Directory.CreateDirectory(Path.Combine(home, "NorcomAdmin"));
 		File.WriteAllText(Path.Combine(home, "NorcomAdmin", "NorcomAdmin.exe"), "admin");
 		Directory.CreateDirectory(Path.Combine(home, "CrashReceiver"));

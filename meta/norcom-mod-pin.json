@@ -1,0 +1,447 @@
+{
+  "schema": 1,
+  "generated_at": "2026-11-05T19:03:33-07:00",
+  "minecraft": "26.3",
+  "fabric_loader": "0.20.1",
+  "source": "G:\\MinecraftServer\\mods",
+  "jar_count": 86,
+  "jars": [
+    {
+      "name": "alexsmobs-2.2.4-fabric+26.3.jar",
+      "sha256": "85441ea23343bb6f6c317bd6868b9b46acfed09e84b762f17470261cb4576352",
+      "size": 27815679
+    },
+    {
+      "name": "almanac-fabric-26.3-1.26.11.1.jar",
+      "sha256": "209a7df44be06518dcc1a79f85504b864c7a676ed88e469638b57d7d2aa2fff2",
+      "size": 438706
+    },
+    {
+      "name": "alternate-current-mc26.3-1.9.0.jar",
+      "sha256": "5cef09f286936bbac1cbf173d11ce4b9dbe6278cee8bd8a347a87a2782c45d41",
+      "size": 52230
+    },
+    {
+      "name": "architectury-fabric-22.0.5.jar",
+      "sha256": "c6a60979f75fdf07a97971711b42529bc84cd7e4c873625d2ce0faf34278ecda",
+      "size": 622542
+    },
+    {
+      "name": "audioplayer-fabric-2.5.1+26.3.jar",
+      "sha256": "85d9da2354919fad25cd9fd2532cb7cfe62bd4bbe44ee0051ce6e80dc4430367",
+      "size": 1203512
+    },
+    {
+      "name": "balm-fabric-26.3-26.3.0.3.jar",
+      "sha256": "58dfb365cf00580abac9be69fbdac0271c7a8ce9d57d2f785933f49b37b18efd",
+      "size": 1213047
+    },
+    {
+      "name": "bettercombat-fabric-3.2.2+26.3.jar",
+      "sha256": "e56eb58bfef120e11a2028b4a59b15b1f43a14a1a08862166f10ad351bc5e2d8",
+      "size": 931245
+    },
+    {
+      "name": "c2me-fabric-mc26.3-0.4.2-alpha.0.115.jar",
+      "sha256": "0f5b2b3015132f38cb78d7d616c692aea7be2e147b27a3fe6c59412508faf2c7",
+      "size": 4199785
+    },
+    {
+      "name": "Chunky-Fabric-1.5.3.jar",
+      "sha256": "ecdfc55a0f67f3ec6f40850687615c941ae226bd88f4e06188a7b268fd3da942",
+      "size": 354095
+    },
+    {
+      "name": "cloth-config-fabric-26.3.159.jar",
+      "sha256": "1716b9964f90d2b885f9bd3887f8824b71b55c32a4123a5853486e722f7c2e4b",
+      "size": 1135009
+    },
+    {
+      "name": "Clumps-fabric-26.3-26.3.2.jar",
+      "sha256": "8c72b1505a11ad93ed19b5a914eb6a036da92eb323d58da288bef36c19ed7624",
+      "size": 20154
+    },
+    {
+      "name": "codxlib-1.6.1-fabric+26.3.jar",
+      "sha256": "7872547ba8a9ff4f86aae82fb00b8f7ef527423ca08348f23ed2636a11d14c48",
+      "size": 196848
+    },
+    {
+      "name": "combat_roll-fabric-3.0.1+26.3.jar",
+      "sha256": "2adad30770e949ed1da5daa7382672684553e25cd86610f61debed6205354a28",
+      "size": 203497
+    },
+    {
+      "name": "cookingforblockheads-fabric-26.3-26.3.0.2.jar",
+      "sha256": "7f1ce03e554cbfccaa31f17ea9bf6539cca2937eb8ef5309d1d4deeb102e31c3",
+      "size": 1735170
+    },
+    {
+      "name": "crawl-mc26.3-fabric-0.15.0.jar",
+      "sha256": "d60dcf81bd5161e732078f9b0ab5d19f39346d949cdc9a3427657685e356bccf",
+      "size": 41659
+    },
+    {
+      "name": "cristellib-fabric-26.3-3.1.13.jar",
+      "sha256": "69e03ac9c1bf853f22d594d853baa3c10c0219aff8a90c21aed05596b57f2960",
+      "size": 588323
+    },
+    {
+      "name": "customtimecycle-fabric-0.2.1-26.3.jar",
+      "sha256": "aa916d9c4b41499a78ec0350919044764fb5197ed62efd2eb538b9dd868fc681",
+      "size": 85340
+    },
+    {
+      "name": "dataanchor-fabric-26.3-6.0.0.2.jar",
+      "sha256": "b7e26a0bd694a401bae7375c6a9945b307a0af696cd11466be3a0111fc7c12aa",
+      "size": 132431
+    },
+    {
+      "name": "DistantHorizons-3.3.4-26.3-fabric-neoforge.jar",
+      "sha256": "ba3e5c85a765a109219831df99b99ef5cfcdee05b2dfa6796116993bd48d3947",
+      "size": 28476894
+    },
+    {
+      "name": "dungeons-and-taverns-6.1.0.jar",
+      "sha256": "64cac608534b9973da8bbb4dae4cb8391b065fbe675e4060d0b467f3c390fa7b",
+      "size": 42595560
+    },
+    {
+      "name": "easy_model_entities-fabric-26.3-2.6.0.jar",
+      "sha256": "9655c5618db95a799792f7b70b8fe16a945575aedb8fb25966aea64fcd070736",
+      "size": 782206
+    },
+    {
+      "name": "easy_npc-fabric-26.3-7.18.0.jar",
+      "sha256": "091b9d79fba9ea00d85083bff5b3470feefdd736db7ce5fafb42e95833915ed6",
+      "size": 3245521
+    },
+    {
+      "name": "easy_npc_config_ui-fabric-26.3-7.18.0.jar",
+      "sha256": "50476cb488bc2dcd1e539915d5648f54717da55b335b4f85303c5fc1e980bfad",
+      "size": 1184186
+    },
+    {
+      "name": "enderscape-fabric-3.0.5+mc26.3.jar",
+      "sha256": "3791dba1a424ba6f04cb75af80c1a81941854c3c94c0b729e9871beb892dc5d8",
+      "size": 104161493
+    },
+    {
+      "name": "endrem-fabric-26.3-6.2.2.jar",
+      "sha256": "2f2bb57a150b418ad125d5ec694fa2455fc74b93ea512393d732f3b6c2939fbf",
+      "size": 198400
+    },
+    {
+      "name": "Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.0.jar",
+      "sha256": "b08abe19f0ede7f8bff08a45b23d8e40e26b053e7075dc5601546e400af58366",
+      "size": 1089346
+    },
+    {
+      "name": "Enhanced-Celestials-2-Default-Lunar-Events-Fabric-26.3-5.0.0.0.jar",
+      "sha256": "7d5d03f00e9525c6aeee484eb5b0b727a6961d5085563a14171f19acf2779dc6",
+      "size": 1478376
+    },
+    {
+      "name": "fabric-api-0.165.2+26.3.jar",
+      "sha256": "2612a078a5daa06d9a14cabad40fe66de36b8cb22ee8cdf346d5d9894478c392",
+      "size": 1779306
+    },
+    {
+      "name": "fabric-language-kotlin-1.14.2+kotlin.2.4.21.jar",
+      "sha256": "fbdbf5286ab9d65fedb49e6e01c15e338ae303eb7b9d8c7423d0a9bcfe526ef9",
+      "size": 8142878
+    },
+    {
+      "name": "FarmersDelight-26.3-3.6.30+refabricated.jar",
+      "sha256": "930dcbc51aa2435d4345955aee7b2bbb5bc43c94c8d0859da703c645e9587269",
+      "size": 3482244
+    },
+    {
+      "name": "fastback-fabric-0.35.0+26.3.0.jar",
+      "sha256": "c2c376bd601e0745c522a9af40e8811271f7be52975a9f65ebdb160becc8eead",
+      "size": 5598532
+    },
+    {
+      "name": "ferritecore-9.0.0-fabric.jar",
+      "sha256": "213966c72ed967acc7392beb28a866fba301ff56b9976c2e7801c2db7de6bf22",
+      "size": 72677
+    },
+    {
+      "name": "ffexhaustion-0.10.1+26.3-fabric.jar",
+      "sha256": "06ffd94c3ef3ac430380e3ecca7ada85636d86eaedad66fdf128f32ccdaf2753",
+      "size": 791098
+    },
+    {
+      "name": "ForgeConfigAPIPort-v26.3.1-mc26.3.x-Fabric.jar",
+      "sha256": "95cc2bd7a943f910a54baf2f65acde301dcfb3d8aeff2c989c04c416d5a4a1cd",
+      "size": 609574
+    },
+    {
+      "name": "friendsandfoes-fabric-5.0.4+mc26.3.jar",
+      "sha256": "a122974418a7cdb6f377f5de5f359924bc3d75450fcc21fee929c27b6e0c8253",
+      "size": 4419964
+    },
+    {
+      "name": "geckolib-fabric-26.3-5.5.7.jar",
+      "sha256": "0e397991dae6e1aee9a342f80b740fe4fef6d161dc8abe694c6a555317163f82",
+      "size": 1191230
+    },
+    {
+      "name": "GlitchCore-fabric-26.3-26.3.0.0.5.jar",
+      "sha256": "960fe29b20e2ac54333fa91712eb7be25638765febf38dd36c9234845e45f1b9",
+      "size": 339788
+    },
+    {
+      "name": "graves-3.13.0+26.3.jar",
+      "sha256": "8df3f188e1511ebf69ffc720059b3508bedff1bd2e87f13057989c096b3ed33b",
+      "size": 770590
+    },
+    {
+      "name": "graveyard-FABRIC-4.0.0+mc26.3.jar",
+      "sha256": "9da9acf4745db3c7ff326190b35cc31a3d947a856a442962c2f376d963f3ee3f",
+      "size": 11132850
+    },
+    {
+      "name": "hardcorerevival-fabric-26.3-26.3.0.1.jar",
+      "sha256": "c599e9538283af9e5a64e5443fbb8cbb89452060f733106dfd942ee2f07c63f3",
+      "size": 370684
+    },
+    {
+      "name": "Incendium_26.3_v5.5.4+26.3.jar",
+      "sha256": "eab237c9f5a7e6896a584a6776a54e960f4d8d5714f052fe5d0dc3ece1d37b10",
+      "size": 4087185
+    },
+    {
+      "name": "krypton-0.3.2.jar",
+      "sha256": "0b4a648b9c2f048247f849712aff58b2bac5b27b60c0072bb6bf493ad8b79fef",
+      "size": 268849
+    },
+    {
+      "name": "ledger-1.3.25.jar",
+      "sha256": "d2433b5c314bfd2a04bc41d77007a0382e219c9173a6de541184c8da6851f260",
+      "size": 20043547
+    },
+    {
+      "name": "letmedespawn-fabric-26.3-1.26.11.1.jar",
+      "sha256": "c8229fa00f7ecce42457b4cc8234743fc87bc2186903e7ae6ebc9741907468ec",
+      "size": 30356
+    },
+    {
+      "name": "lithium-fabric-0.26.3+mc26.3.jar",
+      "sha256": "103b6aab3932f119155565254a3f33b1be0da26b9bf7a5eec24851542144fc78",
+      "size": 919892
+    },
+    {
+      "name": "lithostitched-2.0.6-fabric-26.3.jar",
+      "sha256": "31c5fff53420a2af5aa231a7620af089054456d9a0cfc763e571332e0253872b",
+      "size": 997092
+    },
+    {
+      "name": "mc2discord-fabric-26.3-4.3.1.jar",
+      "sha256": "07923e1d85f003ae4e8c3ce83fabaee023f789f6c9fe6051ef45e14c7911c1c9",
+      "size": 26199705
+    },
+    {
+      "name": "mcw-furniture-3.4.2-mc26.3fabric.jar",
+      "sha256": "cf5cd30cb19976260803427b6ff47a8dfbf770bab2fd15863bdf29a3fc1a36af",
+      "size": 2351343
+    },
+    {
+      "name": "midnightlib-fabric-1.10.0+26.3.jar",
+      "sha256": "026883c754e53e13726c3dbe31bd661533ece702c0c20bbc9415a5deb1b74b29",
+      "size": 65973
+    },
+    {
+      "name": "minimotd-fabric-mc26.3-2.2.5.jar",
+      "sha256": "16f05a6d76e79548e668374d811110142b66410633b6f4e854444298667d6e38",
+      "size": 1751585
+    },
+    {
+      "name": "mixintrace-2.0.0+26.1.jar",
+      "sha256": "2fefc4983b9ead2e7c3617ec8b56f495ad03e5fd71656a8377548e0e13022d07",
+      "size": 34392
+    },
+    {
+      "name": "modernfix-5.27.20-build.2.jar",
+      "sha256": "f340fff04132ae9b60eae494d2de4cd177d436da8c0e525d6bd8f5b15ed141b5",
+      "size": 1168784
+    },
+    {
+      "name": "mutantmonsters-v26.3.1-mc26.3.x+fabric.jar",
+      "sha256": "ae7d2e93376c24bc5f57a1ad7e0ea882179e9e203129134b46a451c8bdc18185",
+      "size": 1369167
+    },
+    {
+      "name": "naturalist-2.0.7-fabric-26.3.jar",
+      "sha256": "f496cdaf1d82e6855ddca5c0c1bd670d99f78da6b76d6ab3f51959efbb3d0430",
+      "size": 11406776
+    },
+    {
+      "name": "pantryforblockheads-fabric-26.3-26.3.0.1.jar",
+      "sha256": "3358c6314d06506433f0d3a30098c675635d004b83fe0a37be7e529ce7cae55f",
+      "size": 600306
+    },
+    {
+      "name": "placeholder-api-3.2.0+26.3.jar",
+      "sha256": "d9a5351b42a8d79cfc2e7f2a471472f9e4dff3b13874c8d420dbb93600b91a85",
+      "size": 254959
+    },
+    {
+      "name": "PlayerAnimationLibMerged-1.2.8+mc.26.3.jar",
+      "sha256": "7d0454a358cd86a1ec1a0054e335be6adb6da5b2844893c74226282b489d5409",
+      "size": 406793
+    },
+    {
+      "name": "polymer-bundled-0.18.7+26.3.jar",
+      "sha256": "b18b0bb66fc8455fbf43f8a54e226952c630ab0cfee433e6585520c0e591538b",
+      "size": 1440300
+    },
+    {
+      "name": "puzzleslib-v26.3.17-mc26.3.x+fabric.jar",
+      "sha256": "f5ce767fb44b9f791ea8dde092248b9e5479942421ff9165b4c8561b3a04519b",
+      "size": 1094042
+    },
+    {
+      "name": "repurposed_structures-7.8.4+26.3-fabric.jar",
+      "sha256": "a8242ae6a8df07833fb2c4bea6fc0cd60064918db6890b243fc2e4992ad38abf",
+      "size": 8911387
+    },
+    {
+      "name": "ResourcefulConfig-6.0.2.jar",
+      "sha256": "88ee9fe629e0dfe77306907634e6e8ada164a1a20ff1e2f03968421ea68777d1",
+      "size": 444092
+    },
+    {
+      "name": "ResourcefulLib-6.0.1.jar",
+      "sha256": "c4b4169d01966780e3e058d42ca31b9c9ba172e26f5c0c2ac59751639324ac48",
+      "size": 458351
+    },
+    {
+      "name": "ScalableLux-fabric-mc26.3-0.3.0-alpha.0.6-all.jar",
+      "sha256": "e9137a04fdefca4fd1f4740ab3dc6194b5ea7c15456c6691376b910053853a29",
+      "size": 193021
+    },
+    {
+      "name": "SereneSeasons-fabric-26.3-26.1.2.0.7.jar",
+      "sha256": "b4068f8d8b7bdb3db4ed43400d3720e3c82ac25c8b15371cde4fdf97b71b71b5",
+      "size": 410505
+    },
+    {
+      "name": "servercore-fabric-1.5.20+26.3.jar",
+      "sha256": "62fba7c2c7915b73f68af9cfa3a616473dd58865dc5c213b46ddd678b1aa9065",
+      "size": 901416
+    },
+    {
+      "name": "shogi-fabric-26.3-26.3.0.3.jar",
+      "sha256": "83647820a2a12de7098ec44b0382d8fb847c43f20c500c66b88aab230d2099c7",
+      "size": 466899
+    },
+    {
+      "name": "SimpleEco-Fabric-2.8+26.3.jar",
+      "sha256": "61a8ef2830baa2ebb5014b23ff1ed7a94fa0a5a0031ec753e652374e21ac955a",
+      "size": 3331424
+    },
+    {
+      "name": "spark-1.10.187-fabric.jar",
+      "sha256": "3fc00663caa542b1e78333730609b4eb2568326628e3666a3938ad58cbc9acc6",
+      "size": 3838499
+    },
+    {
+      "name": "sparsestructures-fabric-26.3-3.1.5.jar",
+      "sha256": "db25470b0a72de7d9510423cdf64a0440c9170258caf7d3fa1a5dbc15762571f",
+      "size": 121078
+    },
+    {
+      "name": "Structory_26.3_v1.3.18+26.3.jar",
+      "sha256": "27f8a13e26c241448e4a5a821db2c2b017942d0103e01d099347c040144200a3",
+      "size": 1261901
+    },
+    {
+      "name": "structure_layout_optimizer-1.1.4+26.3-fabric.jar",
+      "sha256": "8c0386e9cdff2b049666ac8e076af87d56b4c6ce08b027783ef438a599876aee",
+      "size": 69717
+    },
+    {
+      "name": "styled-chat-2.14.0+26.3.jar",
+      "sha256": "34721ffb8c54c9bb44d5e62139065f58cc0b81825d7b833b594b7790ee281c8c",
+      "size": 493972
+    },
+    {
+      "name": "styledplayerlist-3.13.0+26.3.jar",
+      "sha256": "7e6a87e73f335e35d42808df05c316c12da1eb1c76680d27877aef8d84d523c5",
+      "size": 375976
+    },
+    {
+      "name": "SVC-Radio-2.2.2+26.3.fabric.jar",
+      "sha256": "cdb253a4534bc16e648d957d22547c0340b1c4f9c3b0c95155adfac6b09eecaa",
+      "size": 231575
+    },
+    {
+      "name": "t_and_t-fabric-neoforge-1.13.13.jar",
+      "sha256": "2336815d788efc2dfcd545986cfb507c4a9dc026da1c1aaf646305f58a74155c",
+      "size": 3194933
+    },
+    {
+      "name": "tectonic-3.0.32-fabric-26.3.jar",
+      "sha256": "c8347238ea204f2815ed401af8290c03b39d5975da8ae2c10f3fdf5461a59f74",
+      "size": 390056
+    },
+    {
+      "name": "Terralith_26.3_v2.6.5+26.3.jar",
+      "sha256": "ad953bdd258d23b85c6e5955d14fed89a525e50c68a80ac5cd652573068d0ca4",
+      "size": 2954218
+    },
+    {
+      "name": "theseus-fabric-26.3-1.1.0.jar",
+      "sha256": "d399daa01f9b7a82cb8add3beb0164bf62a3bf4a9912d46e638fed00367590e4",
+      "size": 1628124
+    },
+    {
+      "name": "ToughAsNails-fabric-26.3-21.11.0.11.jar",
+      "sha256": "62bb6784f1a2675d86082bed9e1fd4c703c3bca15e1c61592684dc880a5775e6",
+      "size": 735126
+    },
+    {
+      "name": "travelersbackpack-fabric-26.3-11.4.3.jar",
+      "sha256": "0c1297de410317b6a07e541a2f34e7ab1bec5cdc47e4e92a32a84b01db16f781",
+      "size": 1522739
+    },
+    {
+      "name": "vcinteraction-fabric-1.0.8+26.3.jar",
+      "sha256": "291595897a9a1445aa3500daeb51ccbaff296ebcc408773294622a0bea393ad7",
+      "size": 486570
+    },
+    {
+      "name": "villagertradingplus-fabric-mc26.3-1.1.0.jar",
+      "sha256": "db8a6659fbf47aae34d5142b7342eb79fa98559db66126315fdbc0e52920647d",
+      "size": 266767
+    },
+    {
+      "name": "vmp-fabric-mc26.3-0.2.0+beta.7.238-all.jar",
+      "sha256": "cd36d2943458042e7be1d1ac04e50c2275a01a713ca891bd45294e9225689a0a",
+      "size": 409480
+    },
+    {
+      "name": "voicechat-fabric-2.6.27+26.3.jar",
+      "sha256": "9e1c93144a3f7498e546102f6786aea6e4992866c4c5d21bd2e0edb702399153",
+      "size": 5611159
+    },
+    {
+      "name": "waystones-fabric-26.3-26.3.0.2.jar",
+      "sha256": "88fb07c60c0ed79d93a81ac0ecb4fee942734520e0ae3d37845bf25476eab9d2",
+      "size": 1211879
+    },
+    {
+      "name": "yet_another_config_lib_v3-3.9.7+26.3-fabric.jar",
+      "sha256": "c52d41d444522d9abba994cd4c4ee2e71a065d7c31010f92a9959b80ccb4b0f5",
+      "size": 1125377
+    }
+  ],
+  "pin_sha256": "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
+  "rules": {
+    "owner": "NORCOM Server",
+    "admin_publish": "refuse if dual-sided / required set mismatches pin",
+    "launcher_feed": "refuse join/update if pin_sha256 mismatch for dual-sided mods",
+    "autofix": "any quarantine/restore under G:\\\\MinecraftServer\\\\mods MUST regenerate this pin and notify @server"
+  }
+}

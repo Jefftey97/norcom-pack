@@ -12,6 +12,6 @@
         </TextBox.InputBindings>
       </TextBox>
     </DockPanel>
-    <TextBox Text="{Binding ConsoleText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+    <TextBox Name="ConsoleLive" AutomationProperties.Name="Server console" AutomationProperties.LiveSetting="Polite" Text="{Binding ConsoleText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
   </DockPanel>
 </UserControl>

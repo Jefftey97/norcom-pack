@@ -62,17 +62,17 @@ public static class BackupPolicy
                nowLocal.TimeOfDay < new TimeSpan(4, 3, 0);
     }
 
-    public static string RefuseMessage(string why) =>
-        "Java is writing (" + why + "). Stop the server first. No zip was made.";
+    public const string LiveWorldMessage =
+        "Backup unavailable while the world is live; use the nightly auto zip.";
 
-    public static string FlushStillLiveMessage(string why) =>
-        "save-all flush finished. Java is still writing (" + why + "). Stop the server first. No zip was made.";
+    public static string RefuseMessage(string why) => LiveWorldMessage + " (" + why + ")";
+
+    public static string FlushStillLiveMessage(string why) => LiveWorldMessage + " (" + why + ")";
 
     public const string SkipMessage =
         "A second zip was skipped. The 04:00–04:01 Denver backup, a fresh auto zip, or maintenance.flag already covers this window.";
 
-    public const string NoFlushPathMessage =
-        "Java is writing and there is no RCON path for save-all flush. Stop the server first. No zip was made.";
+    public const string NoFlushPathMessage = LiveWorldMessage;
 }
 
 public static class BackupSignals

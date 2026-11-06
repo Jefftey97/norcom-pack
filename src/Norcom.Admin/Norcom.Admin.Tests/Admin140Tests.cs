@@ -71,8 +71,9 @@ public class Admin140Tests
         Assert.True(BackupPolicy.IsDuplicate(quiet, false, maintenanceFlag: true));
         Assert.False(BackupPolicy.IsDuplicate(after, false, false));
         Assert.False(BackupPolicy.IsDuplicate(quiet, false, false));
-        Assert.Contains("No zip", BackupPolicy.FlushStillLiveMessage("session.lock"), StringComparison.Ordinal);
-        Assert.Contains("Stop", BackupPolicy.NoFlushPathMessage, StringComparison.Ordinal);
+        Assert.Contains("nightly auto zip", BackupPolicy.FlushStillLiveMessage("session.lock"), StringComparison.Ordinal);
+        Assert.Contains("nightly auto zip", BackupPolicy.NoFlushPathMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stop", BackupPolicy.NoFlushPathMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,7 +108,7 @@ public class Admin140Tests
         File.WriteAllText(Path.Combine(root, "world", "level.dat"), "world");
         File.WriteAllText(Path.Combine(root, "world", "session.lock"), "lock");
         var ex = Assert.Throws<InvalidOperationException>(() => BackupArchive.CreateZip(root));
-        Assert.Contains("not zipped", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("nightly auto zip", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(Directory.Exists(Path.Combine(root, "backups")));
         Directory.Delete(root, recursive: true);
     }

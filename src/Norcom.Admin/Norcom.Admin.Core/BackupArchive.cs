@@ -10,7 +10,7 @@ public static class BackupArchive
     {
         if (ServerCommands.JavaAppearsUp(serverDirectory))
         {
-            throw new InvalidOperationException("Java is still up. Stop the server, then back up. A live world is not zipped.");
+            throw new InvalidOperationException(BackupPolicy.LiveWorldMessage);
         }
 
         var world = ServerPresence.WorldDirectory(serverDirectory);

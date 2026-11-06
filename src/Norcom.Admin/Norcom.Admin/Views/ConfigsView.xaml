@@ -5,7 +5,7 @@
     <TextBlock DockPanel.Dock="Top" Text="Configs" Style="{StaticResource PageTitle}"/>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
       <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource GhostButton}"/>
-      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}"/>
+      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}" AutomationProperties.AutomationId="ConfigSave" AutomationProperties.Name="Save config"/>
     </StackPanel>
     <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
     <Grid>

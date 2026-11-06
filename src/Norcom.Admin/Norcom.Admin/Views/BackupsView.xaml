@@ -9,7 +9,7 @@
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
-        <TextBlock Text="Backup zips only when Java is quiet. A live process or session.lock is a hard refuse. save-all flush is RCON-only, and a world that is still live after flush needs Stop first. 04:00–04:01 Denver, backups\auto newer than 2 minutes, or maintenance.flag skips a second zip. Restore moves the live world aside first. Both ask before they run." Foreground="#93A4BD" TextWrapping="Wrap"/>
+        <TextBlock Text="Backup unavailable while the world is live; use the nightly auto zip. A quiet world can still be zipped after a Yes. 04:00–04:01 Denver, backups\auto newer than 2 minutes, or maintenance.flag skips a second zip. Restore moves the world aside first and asks before it runs." Foreground="#93A4BD" TextWrapping="Wrap"/>
         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
       </StackPanel>
     </Border>

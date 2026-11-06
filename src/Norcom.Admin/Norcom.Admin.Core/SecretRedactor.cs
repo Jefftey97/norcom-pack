@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Norcom.Admin.Core;
@@ -51,7 +52,7 @@ public sealed class SecretRedactor
             }
 
             var safe = Clean(line).Replace('\r', ' ').Replace('\n', ' ');
-            File.AppendAllText(logPath, $"{DateTimeOffset.Now:o} {safe}{Environment.NewLine}");
+            File.AppendAllText(logPath, $"{DateTimeOffset.Now:o} {safe}{Environment.NewLine}", new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
         catch
         {

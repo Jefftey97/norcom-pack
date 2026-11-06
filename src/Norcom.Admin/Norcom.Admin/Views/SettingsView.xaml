@@ -5,7 +5,7 @@
     <TextBlock DockPanel.Dock="Top" Text="Settings" Style="{StaticResource PageTitle}"/>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
       <Button Content="Reload" Command="{Binding ReloadCommand}" Style="{StaticResource GhostButton}"/>
-      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}"/>
+      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}" AutomationProperties.AutomationId="SettingsSave" AutomationProperties.Name="Save settings"/>
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
@@ -28,16 +28,16 @@
             <TextBlock Text="Level name" Style="{StaticResource Label}"/><TextBox Text="{Binding LevelName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
           </StackPanel>
           <StackPanel>
-            <CheckBox Content="PvP" IsChecked="{Binding Pvp}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Whitelist" IsChecked="{Binding WhiteList}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Enforce whitelist" IsChecked="{Binding EnforceWhitelist}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Online mode" IsChecked="{Binding OnlineMode}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Allow flight" IsChecked="{Binding AllowFlight}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Keep inventory" IsChecked="{Binding KeepInventory}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Mob griefing" IsChecked="{Binding MobGriefing}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Fire tick" IsChecked="{Binding DoFireTick}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Weather cycle" IsChecked="{Binding DoWeatherCycle}" Style="{StaticResource Pill}"/>
-            <CheckBox Content="Daylight cycle" IsChecked="{Binding DoDaylightCycle}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="PvP" IsChecked="{Binding Pvp}" Style="{StaticResource Pill}" AutomationProperties.Name="PvP"/>
+            <CheckBox Content="Whitelist" IsChecked="{Binding WhiteList}" Style="{StaticResource Pill}" AutomationProperties.Name="Whitelist"/>
+            <CheckBox Content="Enforce whitelist" IsChecked="{Binding EnforceWhitelist}" Style="{StaticResource Pill}" AutomationProperties.Name="Enforce whitelist"/>
+            <CheckBox Content="Online mode" IsChecked="{Binding OnlineMode}" Style="{StaticResource Pill}" AutomationProperties.Name="Online mode"/>
+            <CheckBox Content="Allow flight" IsChecked="{Binding AllowFlight}" Style="{StaticResource Pill}" AutomationProperties.Name="Allow flight"/>
+            <CheckBox Content="Keep inventory" IsChecked="{Binding KeepInventory}" Style="{StaticResource Pill}" AutomationProperties.Name="Keep inventory"/>
+            <CheckBox Content="Mob griefing" IsChecked="{Binding MobGriefing}" Style="{StaticResource Pill}" AutomationProperties.Name="Mob griefing"/>
+            <CheckBox Content="Fire tick" IsChecked="{Binding DoFireTick}" Style="{StaticResource Pill}" AutomationProperties.Name="Fire tick"/>
+            <CheckBox Content="Weather cycle" IsChecked="{Binding DoWeatherCycle}" Style="{StaticResource Pill}" AutomationProperties.Name="Weather cycle"/>
+            <CheckBox Content="Daylight cycle" IsChecked="{Binding DoDaylightCycle}" Style="{StaticResource Pill}" AutomationProperties.Name="Daylight cycle"/>
             <TextBlock Text="Spawn radius" Style="{StaticResource Label}" Margin="0,8,0,4"/><TextBox Text="{Binding SpawnRadius, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
             <TextBlock Text="Day ticks" Style="{StaticResource Label}"/><TextBox Text="{Binding DayTicks, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
             <TextBlock Text="Night ticks" Style="{StaticResource Label}"/><TextBox Text="{Binding NightTicks, UpdateSourceTrigger=PropertyChanged}"/>

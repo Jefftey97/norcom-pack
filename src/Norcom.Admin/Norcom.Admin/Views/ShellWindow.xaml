@@ -28,9 +28,9 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <Button Content="Full" Style="{StaticResource GhostButton}" Margin="0,0,6,0" Click="FullClick"/>
-          <Button Content="—" Style="{StaticResource GhostButton}" Margin="0,0,6,0" Click="MinClick"/>
-          <Button Content="▢" Style="{StaticResource GhostButton}" Margin="0,0,6,0" Click="MaxClick"/>
-          <Button Content="✕" Style="{StaticResource PinkButton}" Margin="0" Click="CloseClick"/>
+          <Button Content="Minimize" Style="{StaticResource GhostButton}" Margin="0,0,6,0" Click="MinClick" AutomationProperties.AutomationId="Minimize" AutomationProperties.Name="Minimize"/>
+          <Button Content="Maximize" Style="{StaticResource GhostButton}" Margin="0,0,6,0" Click="MaxClick" AutomationProperties.AutomationId="Maximize" AutomationProperties.Name="Maximize"/>
+          <Button Content="Close" Style="{StaticResource PinkButton}" Margin="0" Click="CloseClick" AutomationProperties.AutomationId="Close" AutomationProperties.Name="Close"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <Border Width="28" Height="28" CornerRadius="8" Margin="0,0,10,0">

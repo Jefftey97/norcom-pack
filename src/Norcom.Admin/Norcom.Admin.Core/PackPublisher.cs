@@ -70,6 +70,12 @@ public sealed class PackPublisher
             return Fail("Publish only runs from the main branch. Nothing was pushed.");
         }
 
+        var repoBlock = await RequireGitRepo(packDirectory, cancellationToken).ConfigureAwait(false);
+        if (repoBlock != null)
+        {
+            return Fail(repoBlock);
+        }
+
         var add = await Git(packDirectory, ["add", "-A"], cancellationToken).ConfigureAwait(false);
         if (add.ExitCode != 0)
         {
@@ -90,7 +96,7 @@ public sealed class PackPublisher
 
         if (!string.IsNullOrWhiteSpace(staged.Stdout))
         {
-            var commit = await Git(packDirectory, ["commit", "-m", "Update NORCOM pack"], cancellationToken).ConfigureAwait(false);
+            var commit = await Git(packDirectory, CommitArgs("Update NORCOM pack"), cancellationToken).ConfigureAwait(false);
             if (commit.ExitCode != 0)
             {
                 return Fail("git commit failed. " + Tail(commit));
@@ -100,7 +106,7 @@ public sealed class PackPublisher
         var pull = await Git(packDirectory, ["pull", "--ff-only", "origin", "main"], cancellationToken).ConfigureAwait(false);
         if (pull.ExitCode != 0)
         {
-            return Fail("Fast-forward pull failed, so nothing was pushed. " + Tail(pull));
+            return Fail("This checkout has diverged from origin/main. The fast-forward was refused, so nothing was pushed. " + Tail(pull));
         }
 
         var push = await Git(packDirectory, GitSafety.PushArguments(), cancellationToken).ConfigureAwait(false);
@@ -137,6 +143,12 @@ public sealed class PackPublisher
             return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
         }
 
+        var repoBlock = await RequireGitRepo(packDirectory, cancellationToken).ConfigureAwait(false);
+        if (repoBlock != null)
+        {
+            return Fail(repoBlock);
+        }
+
         var add = new List<string> { "add", "--" };
         add.AddRange(MetaRemote.Files);
         var added = await Git(packDirectory, add, cancellationToken).ConfigureAwait(false);
@@ -156,7 +168,7 @@ public sealed class PackPublisher
             return new PublishResult(true, false, "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Nothing was pushed.", true);
         }
 
-        var commit = await Git(packDirectory, ["commit", "-m", "Update NORCOM friends meta"], cancellationToken).ConfigureAwait(false);
+        var commit = await Git(packDirectory, CommitArgs("Update NORCOM friends meta"), cancellationToken).ConfigureAwait(false);
         if (commit.ExitCode != 0)
         {
             return Fail("Meta Publish commit failed. " + Tail(commit));
@@ -165,7 +177,7 @@ public sealed class PackPublisher
         var pull = await Git(packDirectory, ["pull", "--ff-only", "origin", "main"], cancellationToken).ConfigureAwait(false);
         if (pull.ExitCode != 0)
         {
-            return Fail("Fast-forward pull failed, so nothing was pushed. " + Tail(pull));
+            return Fail("This checkout has diverged from origin/main. The fast-forward was refused, so nothing was pushed. " + Tail(pull));
         }
 
         var push = await Git(packDirectory, GitSafety.PushArguments(), cancellationToken).ConfigureAwait(false);
@@ -193,6 +205,21 @@ public sealed class PackPublisher
         {
             return "";
         }
+    }
+
+    private static string[] CommitArgs(string message) =>
+    [
+        "-c", "user.name=NORCOM",
+        "-c", "user.email=norcom@local",
+        "commit", "-m", message
+    ];
+
+    private async Task<string?> RequireGitRepo(string packDirectory, CancellationToken cancellationToken)
+    {
+        var inside = await Git(packDirectory, ["rev-parse", "--is-inside-work-tree"], cancellationToken).ConfigureAwait(false);
+        return inside.ExitCode == 0 && inside.Stdout.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : "Pack folder is not a git repo. Nothing was added or pushed.";
     }
 
     private async Task<CommandResult> Git(string packDirectory, IReadOnlyList<string> args, CancellationToken cancellationToken)

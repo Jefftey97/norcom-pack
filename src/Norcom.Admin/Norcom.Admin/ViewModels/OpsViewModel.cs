@@ -31,6 +31,7 @@ public partial class OpsViewModel : ObservableObject
     private SparkReport _report = SparkReport.Empty;
     private bool _armSparkUrl;
     private string _playerLine = "—";
+    private int _playersOnline = -1;
     private bool _localProbe;
     private int _probeBusy;
 
@@ -199,6 +200,11 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private async Task Stop()
     {
+        if (await PlayersBlockAsync("Stop"))
+        {
+            return;
+        }
+
         if (!Ask.Yes("Stop the server?"))
         {
             Status = "Stop cancelled.";
@@ -212,6 +218,11 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private async Task Restart()
     {
+        if (await PlayersBlockAsync("Soft restart"))
+        {
+            return;
+        }
+
         if (!Ask.Yes("Soft restart the server? It stops, waits until quiet, then starts. Java is not killed."))
         {
             Status = "Soft restart cancelled.";
@@ -847,6 +858,51 @@ public partial class OpsViewModel : ObservableObject
         Status = _session.Inspect(ServerPath, AdminSettings.LiveHeapMb).Message;
     }
 
+    private async Task<bool> PlayersBlockAsync(string action)
+    {
+        var online = await PlayersOnlineNowAsync();
+        if (online <= 0)
+        {
+            return false;
+        }
+
+        var message = online + " players are online. " + action + " is refused.";
+        Ask.Warn(message);
+        Status = message;
+        return true;
+    }
+
+    private async Task<int> PlayersOnlineNowAsync()
+    {
+        if (_password.Length == 0)
+        {
+            return _playersOnline;
+        }
+
+        try
+        {
+            var text = await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "list", CancellationToken.None);
+            if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
+            {
+                RememberPlayers(online, max, names);
+                return online;
+            }
+        }
+        catch
+        {
+        }
+
+        return _playersOnline;
+    }
+
+    private void RememberPlayers(int online, int max, IReadOnlyList<string> names)
+    {
+        _playersOnline = online;
+        _playerLine = online + " / " + max;
+        PlayerMetric.Value = _playerLine;
+        Replace(_players, names.ToList());
+    }
+
     private async Task RefreshLocalProbe()
     {
         if (Interlocked.Exchange(ref _probeBusy, 1) == 1)
@@ -866,9 +922,7 @@ public partial class OpsViewModel : ObservableObject
                     if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
                     {
                         rcon = true;
-                        _playerLine = online + " / " + max;
-                        PlayerMetric.Value = _playerLine;
-                        Replace(_players, names.ToList());
+                        RememberPlayers(online, max, names);
                     }
                     else if (!string.IsNullOrWhiteSpace(text))
                     {

@@ -4,15 +4,15 @@
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
       <Button Content="Start" Command="{Binding StartCommand}" Style="{StaticResource CyanButton}"/>
-      <Button Content="Stop" Command="{Binding StopCommand}" Style="{StaticResource PinkButton}"/>
-      <Button Content="Soft restart" Command="{Binding RestartCommand}" Style="{StaticResource GhostButton}"/>
+      <Button Content="Stop" Command="{Binding StopCommand}" Style="{StaticResource PinkButton}" AutomationProperties.AutomationId="Stop" AutomationProperties.Name="Stop"/>
+      <Button Content="Soft restart" Command="{Binding RestartCommand}" Style="{StaticResource GhostButton}" AutomationProperties.AutomationId="SoftRestart" AutomationProperties.Name="Soft restart"/>
       <Button Content="Spark 60s" Command="{Binding SparkCommand}" Style="{StaticResource CyanButton}"/>
       <Button Content="Backup" Command="{Binding BackupCommand}" Style="{StaticResource GhostButton}"/>
       <Button Content="Folder" Command="{Binding OpenFolderCommand}" Style="{StaticResource GhostButton}"/>
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
-        <TextBlock Text="Stop, soft restart, and backup ask before they run. Backup refuses a live world. save-all flush runs only when RCON is up; if Java is still writing, Stop first. A second zip is skipped at 04:00–04:01 Denver, after a fresh auto zip, or while maintenance.flag covers that window." Foreground="#93A4BD" TextWrapping="Wrap"/>
+        <TextBlock Text="Stop and soft restart ask before they run, and they are refused while players are online. Backup unavailable while the world is live; use the nightly auto zip. A second zip is skipped at 04:00–04:01 Denver, after a fresh auto zip, or while maintenance.flag covers that window." Foreground="#93A4BD" TextWrapping="Wrap"/>
         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
         <Border Background="#2A1220" BorderBrush="#FF3DB8" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,8,0,0"
                 Visibility="{Binding FrozenNotice, Converter={StaticResource TextVis}}">
@@ -78,7 +78,7 @@
               <StackPanel>
                 <TextBlock Text="RCON password (session only, never shown again)" Style="{StaticResource Label}"/>
                 <DockPanel>
-                  <Button DockPanel.Dock="Right" Content="Save" Command="{Binding SavePasswordCommand}" Style="{StaticResource GhostButton}" Margin="8,0,0,0"/>
+                  <Button DockPanel.Dock="Right" Content="Save" Command="{Binding SavePasswordCommand}" Style="{StaticResource GhostButton}" Margin="8,0,0,0" AutomationProperties.AutomationId="SaveRconPassword" AutomationProperties.Name="Save RCON password"/>
                   <PasswordBox x:Name="Secret" PasswordChanged="SecretChanged"/>
                 </DockPanel>
               </StackPanel>

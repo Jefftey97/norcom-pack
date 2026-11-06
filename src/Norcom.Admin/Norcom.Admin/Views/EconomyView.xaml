@@ -68,13 +68,13 @@
                             <ColumnDefinition Width="*"/>
                           </Grid.ColumnDefinitions>
                           <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
-                          <CheckBox Grid.Column="1" Content="" IsChecked="{Binding Flag}" Style="{StaticResource Pill}" Visibility="{Binding IsBool, Converter={StaticResource BoolVis}}"/>
+                          <CheckBox Grid.Column="1" Content="" IsChecked="{Binding Flag}" Style="{StaticResource Pill}" Visibility="{Binding IsBool, Converter={StaticResource BoolVis}}" AutomationProperties.Name="{Binding Label}"/>
                           <TextBox Grid.Column="1" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsText, Converter={StaticResource BoolVis}}"/>
                         </Grid>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
-                  <Button Content="Save" Command="{Binding DataContext.Mods.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+                  <Button Content="Save" Command="{Binding DataContext.Mods.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" AutomationProperties.AutomationId="EconomySave" AutomationProperties.Name="Save mod config"/>
                 </StackPanel>
               </Border>
             </DataTemplate>

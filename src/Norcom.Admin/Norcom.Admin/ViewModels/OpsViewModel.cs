@@ -282,77 +282,37 @@ public partial class OpsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Backup()
+    private void Backup()
     {
+        if (ServerPresence.IsOnline(ServerPath, _localProbe))
+        {
+            Ask.Warn(BackupPolicy.LiveWorldMessage);
+            Status = BackupPolicy.LiveWorldMessage;
+            _redactor.WriteLog(Status);
+            return;
+        }
+
         var utc = DateTime.UtcNow;
-        var duplicate = BackupPolicy.IsDuplicate(
+        if (BackupPolicy.IsDuplicate(
             DenverClock.Now(),
             BackupSignals.FreshAutoZip(ServerPath, utc),
-            BackupSignals.MaintenanceFlag(ServerPath, utc));
-        var writing = ServerCommands.JavaAppearsUp(ServerPath);
-        var step = BackupPolicy.Decide(writing, HasPassword, duplicate);
-        if (step == BackupStep.Skip)
+            BackupSignals.MaintenanceFlag(ServerPath, utc)))
         {
             Status = BackupPolicy.SkipMessage;
             _redactor.WriteLog(Status);
             return;
         }
 
-        if (step == BackupStep.Refuse)
-        {
-            Status = HasPassword
-                ? BackupPolicy.RefuseMessage(ServerCommands.WritingReason(ServerPath))
-                : BackupPolicy.NoFlushPathMessage;
-            _redactor.WriteLog(Status);
-            return;
-        }
-
-        if (!Ask.Yes(step == BackupStep.Zip
-            ? "Zip the quiet world now?"
-            : "The world is live. Try save-all flush, then zip only if Java has stopped?"))
+        if (!Ask.Yes("Zip the quiet world now?"))
         {
             Status = "Backup cancelled. Nothing was zipped.";
             return;
         }
 
-        if (step == BackupStep.FlushThenRecheck)
+        if (ServerPresence.IsOnline(ServerPath, _localProbe))
         {
-            try
-            {
-                await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "save-all flush", CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                Status = _redactor.Clean(ex.Message) + " No zip was made.";
-                return;
-            }
-
-            utc = DateTime.UtcNow;
-            duplicate = BackupPolicy.IsDuplicate(
-                DenverClock.Now(),
-                BackupSignals.FreshAutoZip(ServerPath, utc),
-                BackupSignals.MaintenanceFlag(ServerPath, utc));
-            writing = ServerCommands.JavaAppearsUp(ServerPath);
-            step = BackupPolicy.AfterFlush(writing, duplicate);
-            if (step == BackupStep.Skip)
-            {
-                Status = BackupPolicy.SkipMessage;
-                _redactor.WriteLog(Status);
-                return;
-            }
-
-            if (step == BackupStep.Refuse)
-            {
-                Status = BackupPolicy.FlushStillLiveMessage(ServerCommands.WritingReason(ServerPath));
-                _redactor.WriteLog(Status);
-                return;
-            }
-        }
-        else if (step == BackupStep.Refuse)
-        {
-            Status = HasPassword
-                ? BackupPolicy.RefuseMessage(ServerCommands.WritingReason(ServerPath))
-                : BackupPolicy.NoFlushPathMessage;
+            Ask.Warn(BackupPolicy.LiveWorldMessage);
+            Status = BackupPolicy.LiveWorldMessage;
             _redactor.WriteLog(Status);
             return;
         }

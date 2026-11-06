@@ -153,6 +153,19 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Overview_reads_latest_log_while_the_file_is_open()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "norcom-log-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "logs"));
+        var log = Path.Combine(root, "logs", "latest.log");
+        File.WriteAllText(log, "start\nMSPT 12.5 tick\n");
+        using var hold = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var overview = ServerOverviewReader.Read(root);
+        Assert.Contains("MSPT 12.5", overview.TickLine, StringComparison.Ordinal);
+        Directory.Delete(root, true);
+    }
+
+    [Fact]
     public void Settings_upsert_rejects_simulation_distance_and_passwords()
     {
         Assert.Throws<InvalidOperationException>(() =>

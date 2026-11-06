@@ -23,7 +23,7 @@ public static class PlayitAddress
                 continue;
             }
 
-            foreach (var line in File.ReadLines(file).Take(80))
+            foreach (var line in SharedFile.ReadLines(file).Take(80))
             {
                 if (line.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
                     line.Contains("token", StringComparison.OrdinalIgnoreCase))

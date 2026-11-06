@@ -31,9 +31,16 @@ public partial class ShellViewModel : ObservableObject
 
     public void Warmup()
     {
-        Ops.Activate();
-        Settings.Load();
-        Mods.Refresh();
+        try
+        {
+            Ops.Activate();
+            Settings.Load();
+            Mods.Refresh();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Ops.Status = "Server files are in use. The window stays open.";
+        }
     }
 
     public string VersionText => "1.4.0";

@@ -48,8 +48,15 @@ public partial class OpsViewModel : ObservableObject
         }
 
         _live = true;
-        LoadSecretFromServerFile();
-        RefreshPresence();
+        try
+        {
+            LoadSecretFromServerFile();
+            RefreshPresence();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Status = "Server files are in use. The window stays open.";
+        }
     }
 
     public ObservableCollection<string> Players => _players;
@@ -621,6 +628,18 @@ public partial class OpsViewModel : ObservableObject
 
     private void RefreshOverview()
     {
+        try
+        {
+            RefreshOverviewCore();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Status = "Server files are in use. The window stays open.";
+        }
+    }
+
+    private void RefreshOverviewCore()
+    {
         var overview = ServerOverviewReader.Read(ServerPath);
         var drive = HostSnapshot.ReadDrive(ServerPath);
         var ram = HostSnapshot.ReadRam();
@@ -726,7 +745,18 @@ public partial class OpsViewModel : ObservableObject
             ? Directory.GetFiles(crashes).OrderByDescending(File.GetLastWriteTimeUtc).Take(3).Select(Path.GetFileName)
             : Array.Empty<string?>();
         var log = Path.Combine(path, "logs", "latest.log");
-        var tail = File.Exists(log) ? string.Join("\n", File.ReadLines(log).TakeLast(8)) : "No latest.log yet.";
+        var tail = "No latest.log yet.";
+        try
+        {
+            if (File.Exists(log))
+            {
+                tail = string.Join("\n", SharedFile.ReadLines(log).TakeLast(8));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            tail = "latest.log is in use.";
+        }
         var head = names.Any() ? string.Join(", ", names) : "No crash reports.";
         return head + "\n" + tail;
     }

@@ -14,6 +14,21 @@ public static class ServerOverviewReader
                 "No Playit file", "No latest.log yet.", "No config folder.");
         }
 
+        try
+        {
+            return ReadUnlocked(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new ServerOverview(
+                true, "—", "—", "—", "—", "—", "—", "—",
+                Array.Empty<string>(), Array.Empty<string>(), 0, 0,
+                "No Playit file", "latest.log is in use.", "Server files are busy.");
+        }
+    }
+
+    private static ServerOverview ReadUnlocked(string directory)
+    {
         var props = ReadProperties(Path.Combine(directory, "server.properties"));
         return new ServerOverview(
             true,
@@ -43,7 +58,7 @@ public static class ServerOverviewReader
             return map;
         }
 
-        foreach (var raw in File.ReadAllLines(path))
+        foreach (var raw in SharedFile.ReadLines(path))
         {
             var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
@@ -78,7 +93,7 @@ public static class ServerOverviewReader
 
         try
         {
-            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            using var document = JsonDocument.Parse(SharedFile.ReadText(path));
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 return Array.Empty<string>();
@@ -153,20 +168,27 @@ public static class ServerOverviewReader
 
     private static string ReadTick(string logPath)
     {
-        if (!File.Exists(logPath))
+        try
         {
-            return "No latest.log yet.";
-        }
-
-        string? last = null;
-        foreach (var line in File.ReadLines(logPath).TakeLast(400))
-        {
-            if (line.Contains("TPS", StringComparison.OrdinalIgnoreCase) || line.Contains("MSPT", StringComparison.OrdinalIgnoreCase))
+            if (!File.Exists(logPath))
             {
-                last = line.Trim();
+                return "No latest.log yet.";
             }
-        }
 
-        return last ?? "latest.log has no TPS or MSPT line yet.";
+            string? last = null;
+            foreach (var line in SharedFile.ReadLines(logPath).TakeLast(400))
+            {
+                if (line.Contains("TPS", StringComparison.OrdinalIgnoreCase) || line.Contains("MSPT", StringComparison.OrdinalIgnoreCase))
+                {
+                    last = line.Trim();
+                }
+            }
+
+            return last ?? "latest.log has no TPS or MSPT line yet.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "latest.log is in use.";
+        }
     }
 }

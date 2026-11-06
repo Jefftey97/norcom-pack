@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -224,21 +223,6 @@ public partial class ShellViewModel : ObservableObject
 
     private void Save() => _settings.Save(AdminPaths.SettingsPath);
 
-    private bool ServerHasProcess()
-    {
-        var path = Path.Combine(Ops.ServerPath, "norcom-admin.pid");
-        if (!File.Exists(path) || !int.TryParse(File.ReadAllText(path).Trim(), out var pid))
-        {
-            return ServerCommands.JavaAppearsUp(Ops.ServerPath);
-        }
-
-        try
-        {
-            return !Process.GetProcessById(pid).HasExited;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private bool ServerHasProcess() =>
+        ServerPresence.IsOnline(Ops.ServerPath, localProbeOk: false);
 }

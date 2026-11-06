@@ -193,7 +193,7 @@ public static class ServerModSettings
 		string[] array = new string[3]
 		{
 			"config",
-			Path.Combine("world", "serverconfig"),
+			Path.Combine(ServerPresence.LevelName(serverDirectory), "serverconfig"),
 			"defaultconfigs"
 		};
 		foreach (string path in array)

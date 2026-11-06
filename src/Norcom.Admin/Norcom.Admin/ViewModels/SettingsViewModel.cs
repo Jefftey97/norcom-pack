@@ -46,7 +46,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string viewDistance = "16";
     [ObservableProperty] private string simulationDistance = "unchanged";
     [ObservableProperty] private string spawnProtection = "16";
-    [ObservableProperty] private string levelName = "world";
+    [ObservableProperty] private string levelName = ServerPresence.DefaultLevel;
     [ObservableProperty] private bool pvp = true;
     [ObservableProperty] private bool whiteList;
     [ObservableProperty] private bool enforceWhitelist;
@@ -131,7 +131,7 @@ public partial class SettingsViewModel : ObservableObject
         Extra.Clear();
         if (File.Exists(propertiesPath))
         {
-            var map = ServerProperties.PublicView(ServerProperties.Read(File.ReadAllText(propertiesPath)));
+            var map = ServerProperties.PublicView(ServerProperties.Read(SharedFile.ReadText(propertiesPath)));
             Motd = Get(map, "motd", Motd);
             Difficulty = Get(map, "difficulty", Difficulty);
             Gamemode = Get(map, "gamemode", Gamemode);
@@ -159,13 +159,13 @@ public partial class SettingsViewModel : ObservableObject
         var timePath = Path.Combine(directory, "config", "norcom-time.properties");
         if (File.Exists(timePath))
         {
-            (DayTicks, NightTicks) = TimeCycle.Parse(File.ReadAllText(timePath));
+            (DayTicks, NightTicks) = TimeCycle.Parse(SharedFile.ReadText(timePath));
         }
 
         var rulesPath = Path.Combine(directory, "config", "norcom-gamerules.properties");
         if (File.Exists(rulesPath))
         {
-            var rules = ServerProperties.Read(File.ReadAllText(rulesPath));
+            var rules = ServerProperties.Read(SharedFile.ReadText(rulesPath));
             KeepInventory = Bool(rules, "keepInventory", KeepInventory);
             MobGriefing = Bool(rules, "mobGriefing", MobGriefing);
             DoFireTick = Bool(rules, "doFireTick", DoFireTick);

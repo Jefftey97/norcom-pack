@@ -55,14 +55,14 @@ public static class ServerCommands
     }
 
     public static bool SessionLockPresent(string serverDirectory) =>
-        File.Exists(Path.Combine(serverDirectory, "world", "session.lock"));
+        ServerPresence.SessionLockExists(serverDirectory);
 
     public static bool JavaAppearsUp(string serverDirectory) =>
-        ProcessAlive(serverDirectory) || SessionLockPresent(serverDirectory);
+        ServerPresence.JavaServes(serverDirectory) || SessionLockPresent(serverDirectory);
 
     public static string WritingReason(string serverDirectory)
     {
-        var process = ProcessAlive(serverDirectory);
+        var process = ServerPresence.JavaServes(serverDirectory);
         var session = SessionLockPresent(serverDirectory);
         if (process && session)
         {
@@ -76,7 +76,7 @@ public static class ServerCommands
 
         if (session)
         {
-            return "session.lock";
+            return "session.lock in " + ServerPresence.LevelName(serverDirectory);
         }
 
         return "quiet";
@@ -84,22 +84,35 @@ public static class ServerCommands
 
     public static IReadOnlyList<string> ListConfigs(string serverDirectory)
     {
-        var config = Path.Combine(serverDirectory, "config");
-        if (!Directory.Exists(config))
+        var roots = new[]
         {
-            return Array.Empty<string>();
+            "config",
+            "defaultconfigs",
+            Path.Combine(ServerPresence.LevelName(serverDirectory), "serverconfig")
+        };
+        var files = new List<string>();
+        foreach (var relativeRoot in roots)
+        {
+            var root = Path.Combine(serverDirectory, relativeRoot);
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+
+            foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                if (Path.GetExtension(path) is ".toml" or ".json" or ".json5" or ".properties" or ".txt" or ".cfg" or ".conf")
+                {
+                    files.Add(Path.GetRelativePath(serverDirectory, path));
+                }
+            }
         }
 
-        return Directory.EnumerateFiles(config, "*", SearchOption.AllDirectories)
-            .Where(path => Path.GetExtension(path) is ".toml" or ".json" or ".json5" or ".properties" or ".txt" or ".cfg")
-            .Select(path => Path.GetRelativePath(config, path))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .Take(400)
-            .ToList();
+        return files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).Take(400).ToList();
     }
 
     public static string ReadConfig(string serverDirectory, string relative) =>
-        File.ReadAllText(ResolveConfig(serverDirectory, relative));
+        SharedFile.ReadText(ResolveConfig(serverDirectory, relative));
 
     public static void SaveConfig(string serverDirectory, string relative, string content)
     {
@@ -116,12 +129,20 @@ public static class ServerCommands
 
     public static string ResolveConfig(string serverDirectory, string relative)
     {
-        var root = Path.GetFullPath(Path.Combine(serverDirectory, "config"));
-        var full = Path.GetFullPath(Path.Combine(root, relative));
-        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-            !full.Equals(root, StringComparison.OrdinalIgnoreCase))
+        var server = Path.GetFullPath(serverDirectory);
+        var full = Path.GetFullPath(Path.Combine(server, relative));
+        var allowed = new[]
         {
-            throw new InvalidOperationException("That config path is outside the server config folder.");
+            Path.GetFullPath(Path.Combine(server, "config")),
+            Path.GetFullPath(Path.Combine(server, "defaultconfigs")),
+            Path.GetFullPath(Path.Combine(ServerPresence.WorldDirectory(serverDirectory), "serverconfig"))
+        };
+        var inside = allowed.Any(root =>
+            full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            full.Equals(root, StringComparison.OrdinalIgnoreCase));
+        if (!inside)
+        {
+            throw new InvalidOperationException("That config path is outside the server config folders.");
         }
 
         return full;

@@ -224,6 +224,7 @@ public partial class OpsViewModel : ObservableObject
             return;
         }
 
+        _localProbe = false;
         RunStart(StartReason.You);
     }
 
@@ -238,6 +239,13 @@ public partial class OpsViewModel : ObservableObject
 
         Status = await _session.StopAsync("127.0.0.1", RconPort, _password, _rcon, CancellationToken.None, StartReason.Crash, allowKill: true);
         await Task.Delay(1200);
+        if (ServerPresence.IsOnline(ServerPath, localProbeOk: false))
+        {
+            Status = ServerSession.Tag(StartReason.Crash, "Start was not run again. The world lock or Fabric Java is still up.");
+            return;
+        }
+
+        _localProbe = false;
         RunStart(StartReason.Crash);
     }
 
@@ -514,6 +522,12 @@ public partial class OpsViewModel : ObservableObject
 
     private void RunStart(StartReason reason)
     {
+        if (ServerPresence.IsOnline(ServerPath, _localProbe))
+        {
+            Status = "The server is already online. Start was not run again.";
+            return;
+        }
+
         try
         {
             Status = _session.Start(ServerPath, AdminSettings.LiveHeapMb, reason);

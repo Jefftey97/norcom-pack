@@ -103,6 +103,7 @@ public class Admin140Tests
     {
         var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "world"));
+        File.WriteAllText(Path.Combine(root, "server.properties"), "level-name=world\n");
         File.WriteAllText(Path.Combine(root, "world", "level.dat"), "world");
         File.WriteAllText(Path.Combine(root, "world", "session.lock"), "lock");
         var ex = Assert.Throws<InvalidOperationException>(() => BackupArchive.CreateZip(root));
@@ -116,6 +117,7 @@ public class Admin140Tests
     {
         var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "world"));
+        File.WriteAllText(Path.Combine(root, "server.properties"), "level-name=world\n");
         File.WriteAllText(Path.Combine(root, "world", "level.dat"), "world");
         File.WriteAllText(Path.Combine(root, "world", "session.lock"), "stale");
         File.Delete(Path.Combine(root, "world", "session.lock"));
@@ -210,6 +212,25 @@ public class Admin140Tests
     public void Crash_inbox_names_the_last_fault()
     {
         Assert.Equal("Description: Watching server", CrashReports.FaultLine("----\nDescription: Watching server\n"));
+    }
+
+    [Fact]
+    public void Config_list_follows_level_name_not_world()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "config"));
+        Directory.CreateDirectory(Path.Combine(root, "world", "serverconfig"));
+        Directory.CreateDirectory(Path.Combine(root, "world_norcom", "serverconfig"));
+        File.WriteAllText(Path.Combine(root, "server.properties"), "level-name=world_norcom\nmotd=Live NORCOM\n");
+        File.WriteAllText(Path.Combine(root, "config", "pack.properties"), "ok=1");
+        File.WriteAllText(Path.Combine(root, "world", "serverconfig", "stale.toml"), "x=1");
+        File.WriteAllText(Path.Combine(root, "world_norcom", "serverconfig", "live.toml"), "x=2");
+        var files = ServerCommands.ListConfigs(root);
+        Assert.Contains(files, file => file.Replace('\\', '/').EndsWith("config/pack.properties", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(files, file => file.Replace('\\', '/').EndsWith("world_norcom/serverconfig/live.toml", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(files, file => file.Replace('\\', '/').Contains("world/serverconfig", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("world_norcom", ServerPresence.LevelName(root));
+        Directory.Delete(root, recursive: true);
     }
 
     [Fact]

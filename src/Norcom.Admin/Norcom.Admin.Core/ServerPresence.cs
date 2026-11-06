@@ -33,6 +33,12 @@ public static class ServerPresence
         }
     }
 
+    public static string WorldDirectory(string serverDirectory) =>
+        Path.Combine(serverDirectory, LevelName(serverDirectory));
+
+    public static bool JavaServes(string serverDirectory) =>
+        JavaServes(serverDirectory, ReadJava());
+
     public static bool JavaServes(string serverDirectory, IEnumerable<JavaSeen> processes)
     {
         foreach (var process in processes)

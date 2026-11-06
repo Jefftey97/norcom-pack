@@ -13,7 +13,7 @@ public static class BackupArchive
             throw new InvalidOperationException("Java is still up. Stop the server, then back up. A live world is not zipped.");
         }
 
-        var world = Path.Combine(serverDirectory, "world");
+        var world = ServerPresence.WorldDirectory(serverDirectory);
         if (!Directory.Exists(world))
         {
             throw new DirectoryNotFoundException("No world folder to back up.");
@@ -81,7 +81,7 @@ public static class BackupArchive
             throw new InvalidOperationException("Restore only reads files inside the backups folder.");
         }
 
-        var world = Path.Combine(serverDirectory, "world");
+        var world = ServerPresence.WorldDirectory(serverDirectory);
         var hold = Path.Combine(serverDirectory, "world-before-restore-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
         var moved = false;
         if (Directory.Exists(world))

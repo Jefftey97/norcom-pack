@@ -1,7 +1,7 @@
 {
   "version": "2.0.36",
   "minVersion": "2.0.0",
-  "sha256": "ec372fa8d4ff6f200d643583e0e9e7c80920680c428a87a9ad393184357ceb03",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/ac15524648c8e676136ab29f312a0f062aff6bd3/launcher/NorcomWpf-2.0.36.zip",
-  "notes": "Launcher 2.0.36. ProductVersion and FileVersion are 2.0.36, the same as payload-version, so a 2.0.33 host can apply this update. After Minecraft starts, Play leaves Pack ready and the Play button works again. Play downloads norcom_marble.zip e3ed6e0685ee92b1914f8822894529fb2d45aeeb4e7a0615b89d4df13281ee86 and enables it after Alacrity and the candle overlay. Continuity stays on. Patrix stays off. Iris still loads Complementary with numeric colortex scales. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 edadc8a23ece6a56caa23db533216f1b0353ac0b48bdbcdd983534d6a7cc9584."
+  "sha256": "2805dcc351ecb7a0506b0754c5077459e84f87c1e05e2be5ccd2f79efe4c645d",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8b26e6e8ee3d608d13daf060a157faba4a77487d/launcher/NorcomWpf-2.0.36.zip",
+  "notes": "Launcher 2.0.36. ProductVersion and FileVersion are 2.0.36, the same as payload-version, so a 2.0.33 host can apply this update. Live pin is fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73. After Minecraft starts, Play leaves Pack ready and the Play button works again. Play downloads norcom_marble.zip e3ed6e0685ee92b1914f8822894529fb2d45aeeb4e7a0615b89d4df13281ee86 and enables it after Alacrity and the candle overlay. Continuity stays on. Patrix stays off. Iris still loads Complementary with numeric colortex scales. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 0e2f8e80e93371328a6cd37bd7e1eede816578bc894c1ef012a4c94a594e84a0."
 }

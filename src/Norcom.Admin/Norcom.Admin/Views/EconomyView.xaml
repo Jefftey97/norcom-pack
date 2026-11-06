@@ -1,0 +1,154 @@
+<UserControl x:Class="Norcom.Admin.Views.EconomyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="NORCOM Bank" Style="{StaticResource PageTitle}"/>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+      <Button Content="Refresh" Command="{Binding Bank.RefreshCommand}" Style="{StaticResource GhostButton}"/>
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Bank.Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <Border Style="{StaticResource PanelCard}" Margin="0,0,0,12" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5">
+          <StackPanel>
+            <DockPanel>
+              <Border DockPanel.Dock="Right" Width="54" Height="54" CornerRadius="27" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" Background="{StaticResource ButtonFill}">
+                <TextBlock Text="{Binding Bank.CurrencySymbol}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <StackPanel>
+                <TextBlock Text="{Binding Bank.HeroName}" FontSize="22" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Bank.CurrencyName}" Foreground="#93A4BD"/>
+                <TextBlock Margin="0,8,0,0"><Run Text="Wallet "/><Run Text="{Binding Bank.HeroWallet, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Bank.CurrencySymbol, Mode=OneWay}"/></TextBlock>
+                <TextBlock><Run Text="Banked (read-only) "/><Run Text="{Binding Bank.HeroBank, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Bank.CurrencySymbol, Mode=OneWay}"/></TextBlock>
+                <TextBlock Text="Savings are in-game /eco bank (Server). Admin does not deposit or withdraw." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              </StackPanel>
+            </DockPanel>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="Players" Style="{StaticResource Label}"/>
+        <ListBox ItemsSource="{Binding Bank.Accounts}" SelectedItem="{Binding Bank.Selected}" MaxHeight="180" Margin="0,0,0,8">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock>
+                <Run Text="{Binding Name, Mode=OneWay}"/>
+                <Run Text="  wallet "/>
+                <Run Text="{Binding Wallet, Mode=OneWay}"/>
+                <Run Text="  banked read-only "/>
+                <Run Text="{Binding Banked, Mode=OneWay}"/>
+              </TextBlock>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Text="Amount" Style="{StaticResource Label}"/>
+        <TextBox Text="{Binding Bank.AmountText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+        <TextBlock Text="Transfer to" Style="{StaticResource Label}"/>
+        <TextBox Text="{Binding Bank.TransferTo, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+        <StackPanel Orientation="Horizontal">
+          <Button Content="Deposit" Command="{Binding Bank.DepositCommand}" Style="{StaticResource CyanButton}"/>
+          <Button Content="Withdraw" Command="{Binding Bank.WithdrawCommand}" Style="{StaticResource CyanButton}"/>
+          <Button Content="Transfer" Command="{Binding Bank.TransferCommand}" Style="{StaticResource CyanButton}"/>
+          <Button Content="Set" Command="{Binding Bank.SetBalanceCommand}" Style="{StaticResource CyanButton}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+          <Button Content="All" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="All" Style="{StaticResource GhostButton}"/>
+          <Button Content="Bank" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="Bank" Style="{StaticResource GhostButton}"/>
+          <Button Content="Shop" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="Shop" Style="{StaticResource GhostButton}"/>
+        </StackPanel>
+        <TextBlock Text="{Binding Bank.ShopSync}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="{Binding Bank.LedgerNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,6"/>
+        <ListBox ItemsSource="{Binding Bank.Ledger}" MaxHeight="140" Margin="0,0,0,16"/>
+        <TextBlock Text="Shop prices" Style="{StaticResource PageTitle}"/>
+        <TextBlock Text="{Binding Bank.ShopShaShort}" ToolTip="{Binding Bank.ShopShaFull}" Foreground="#00E5FF" Margin="0,0,0,4"/>
+        <TextBlock Text="{Binding Bank.ShopNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <Button Content="Save stall prices" Command="{Binding Bank.SavePricesCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" AutomationProperties.Name="Save stall prices"/>
+        <TextBlock Text="Stall buy" Style="{StaticResource Label}"/>
+        <ItemsControl ItemsSource="{Binding Bank.BuyOffers}" Margin="0,0,0,8">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="120"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="50"/>
+                  <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Pos}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Tag}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding Sku}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding Item}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding Qty}" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="5" Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="Buyback sell" Style="{StaticResource Label}"/>
+        <ItemsControl ItemsSource="{Binding Bank.SellOffers}" Margin="0,0,0,12">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="90"/>
+                  <ColumnDefinition Width="120"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="50"/>
+                  <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Pos}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Tag}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding Sku}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding Item}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{Binding Qty}" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="5" Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Style="{StaticResource PanelCard}" Margin="0,0,0,16" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" Background="{StaticResource ButtonFill}">
+          <StackPanel>
+            <TextBlock Text="Wandering trader" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Bank.TraderSchedule}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,8"/>
+            <ItemsControl ItemsSource="{Binding Bank.TraderBooks}"/>
+            <TextBlock Text="Wanderer shelves (read-only)" Style="{StaticResource Label}" Margin="0,10,0,4"/>
+            <ItemsControl ItemsSource="{Binding Bank.TraderShelves}"/>
+            <TextBlock Text="{Binding Bank.TraderNote}" Foreground="#93A4BD" Margin="0,8,0,0"/>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="Mod configs" Style="{StaticResource PageTitle}"/>
+        <Button Content="Refresh configs" Command="{Binding Mods.RefreshCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"/>
+        <ItemsControl ItemsSource="{Binding Mods.Mods}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Style="{StaticResource PanelCard}" Margin="0,0,0,10">
+                <StackPanel>
+                  <TextBlock FontWeight="SemiBold"><Run Text="{Binding Group, Mode=OneWay}"/> <Run Text="·"/> <Run Text="{Binding Title, Mode=OneWay}"/></TextBlock>
+                  <TextBlock Text="{Binding Note}" Foreground="#93A4BD" Margin="0,4,0,8"/>
+                  <ItemsControl ItemsSource="{Binding Fields}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,0,0,6">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="*"/>
+                          </Grid.ColumnDefinitions>
+                          <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                          <CheckBox Grid.Column="1" Content="" IsChecked="{Binding Flag}" Style="{StaticResource Pill}" Visibility="{Binding IsBool, Converter={StaticResource BoolVis}}" AutomationProperties.Name="{Binding Label}"/>
+                          <TextBox Grid.Column="1" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsText, Converter={StaticResource BoolVis}}"/>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Button Content="Save" Command="{Binding DataContext.Mods.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" AutomationProperties.AutomationId="EconomySave" AutomationProperties.Name="Save mod config"/>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding Mods.Status}" TextWrapping="Wrap" Foreground="#93A4BD"/>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

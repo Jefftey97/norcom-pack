@@ -1,0 +1,16 @@
+<UserControl x:Class="Norcom.Admin.Views.AutoFixView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel>
+    <TextBlock Text="Auto-fix" Style="{StaticResource PageTitle}"/>
+    <CheckBox Content="Frozen server notice" IsChecked="{Binding FrozenServerRestart}" Style="{StaticResource Pill}" AutomationProperties.Name="Frozen server notice"/>
+    <CheckBox Content="Tunnel check" IsChecked="{Binding TunnelReconnect}" Style="{StaticResource Pill}" AutomationProperties.Name="Tunnel check"/>
+    <CheckBox Content="Bad-mod rollback" IsChecked="{Binding BadModRollback}" Style="{StaticResource Pill}" AutomationProperties.Name="Bad-mod rollback"/>
+    <CheckBox Content="Log cleanup" IsChecked="{Binding DiskLogCleanup}" Style="{StaticResource Pill}" AutomationProperties.Name="Log cleanup"/>
+    <CheckBox Content="Broken JSON restore" IsChecked="{Binding BrokenConfigRestore}" Style="{StaticResource Pill}" AutomationProperties.Name="Broken JSON restore"/>
+    <CheckBox Content="Crash alerts" IsChecked="{Binding CrashAlerts}" Style="{StaticResource Pill}" AutomationProperties.Name="Crash alerts"/>
+    <Button Content="Run now" Command="{Binding RunNowCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+    <TextBlock Text="Run now asks before it cleans logs, restores JSON, or quarantines a mod. The timer only posts notices. Jar moves do not rewrite the server pin. Soft restart does not kill Java." Foreground="#93A4BD" TextWrapping="Wrap"/>
+    <TextBlock Name="AutoFixLive" AutomationProperties.Name="Auto-fix status" AutomationProperties.LiveSetting="Polite" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+  </StackPanel>
+</UserControl>

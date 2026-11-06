@@ -1,0 +1,14 @@
+<UserControl x:Class="Norcom.Admin.Views.PublishView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel>
+    <TextBlock Text="Publish" Style="{StaticResource PageTitle}"/>
+    <TextBlock Text="Pack folder" Style="{StaticResource Label}"/>
+    <TextBox Text="{Binding PackPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+    <Button Content="Meta Publish" Command="{Binding PublishMetaCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+    <TextBlock Text="Friends pin meta only: server-pin, server-compat, norcom-mod-pin, heal-hint. This is not a packwiz config publish." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <Button Content="Packwiz config Publish" Command="{Binding PublishCommand}" Style="{StaticResource PinkButton}" HorizontalAlignment="Left"/>
+    <TextBlock Text="Pack config such as mods and packwiz files. A jade or IPN edit is not a pin regen. Fast-forward only. launcher/ stays." Foreground="#93A4BD" TextWrapping="Wrap"/>
+    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+  </StackPanel>
+</UserControl>

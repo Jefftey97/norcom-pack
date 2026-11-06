@@ -1,0 +1,15 @@
+<UserControl x:Class="Norcom.Admin.Views.CrashesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Crash inbox" Style="{StaticResource PageTitle}"/>
+    <Border DockPanel.Dock="Top" Background="#2A1220" BorderBrush="#FF3DB8" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,0,10"
+            Visibility="{Binding FrozenNotice, Converter={StaticResource TextVis}}">
+      <TextBlock Text="{Binding FrozenNotice}" TextWrapping="Wrap"/>
+    </Border>
+    <TextBlock DockPanel.Dock="Top" Text="Latest files in crash-reports. Last fault is read-only." Foreground="#93A4BD" Margin="0,0,0,8"/>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding LastFault}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <ListBox DockPanel.Dock="Left" Width="280" ItemsSource="{Binding Crashes}" Margin="0,0,12,0"/>
+    <TextBox Name="CrashInboxLive" AutomationProperties.Name="Crash inbox" AutomationProperties.LiveSetting="Polite" Text="{Binding CrashInbox}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+  </DockPanel>
+</UserControl>

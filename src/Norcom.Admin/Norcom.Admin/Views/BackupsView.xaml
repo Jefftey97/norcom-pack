@@ -1,0 +1,18 @@
+<UserControl x:Class="Norcom.Admin.Views.BackupsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Backups" Style="{StaticResource PageTitle}"/>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+      <Button Content="Backup now" Command="{Binding BackupCommand}" Style="{StaticResource CyanButton}"/>
+      <Button Content="Restore" Command="{Binding RestoreCommand}" Style="{StaticResource PinkButton}"/>
+    </StackPanel>
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
+      <StackPanel>
+        <TextBlock Text="Backup unavailable while the world is live; use the nightly auto zip. A quiet world can still be zipped after a Yes. 04:00–04:01 Denver, backups\auto newer than 2 minutes, or maintenance.flag skips a second zip. Restore moves the world aside first and asks before it runs." Foreground="#93A4BD" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+      </StackPanel>
+    </Border>
+    <ListBox ItemsSource="{Binding Backups}" SelectedValue="{Binding SelectedBackup}" SelectedValuePath="Name" DisplayMemberPath="Name"/>
+  </DockPanel>
+</UserControl>

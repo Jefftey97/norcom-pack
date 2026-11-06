@@ -1,0 +1,17 @@
+<UserControl x:Class="Norcom.Admin.Views.ConsoleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Console" Style="{StaticResource PageTitle}"/>
+    <TextBlock DockPanel.Dock="Top" Text="Live latest.log, read-only. Any command is sent only to RCON 127.0.0.1." Foreground="#93A4BD" Margin="0,0,0,8" TextWrapping="Wrap"/>
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+      <Button DockPanel.Dock="Right" Content="Send" Command="{Binding SendCommand}" Style="{StaticResource CyanButton}" Margin="8,0,0,0"/>
+      <TextBox Text="{Binding CommandText, UpdateSourceTrigger=PropertyChanged}">
+        <TextBox.InputBindings>
+          <KeyBinding Key="Enter" Command="{Binding SendCommand}"/>
+        </TextBox.InputBindings>
+      </TextBox>
+    </DockPanel>
+    <TextBox Name="ConsoleLive" AutomationProperties.Name="Server console" AutomationProperties.LiveSetting="Polite" Text="{Binding ConsoleText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,35 @@
+<UserControl x:Class="Norcom.Admin.Views.PlayersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Players" Style="{StaticResource PageTitle}"/>
+    <TextBlock DockPanel.Dock="Top" Text="Live list from RCON 127.0.0.1 only." Foreground="#93A4BD" Margin="0,0,0,8"/>
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
+      <StackPanel>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="280"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <ListBox ItemsSource="{Binding Players}" Margin="0,0,12,0"/>
+      <StackPanel Grid.Column="1">
+        <TextBlock Text="{Binding AccessLine}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <TextBlock Text="Player name" Style="{StaticResource Label}"/>
+        <TextBox Text="{Binding PlayerName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+        <WrapPanel>
+          <Button Content="Whitelist add" Command="{Binding WhitelistAddCommand}" Style="{StaticResource GhostButton}"/>
+          <Button Content="Whitelist remove" Command="{Binding WhitelistRemoveCommand}" Style="{StaticResource GhostButton}"/>
+          <Button Content="Op" Command="{Binding OpAddCommand}" Style="{StaticResource CyanButton}"/>
+          <Button Content="Deop" Command="{Binding DeopCommand}" Style="{StaticResource GhostButton}"/>
+          <Button Content="Kick" Command="{Binding KickCommand}" Style="{StaticResource PinkButton}"/>
+          <Button Content="Ban" Command="{Binding BanCommand}" Style="{StaticResource PinkButton}"/>
+        </WrapPanel>
+        <CheckBox Content="Whitelist on" IsChecked="{Binding WhitelistOn, Mode=OneWay}" Style="{StaticResource Pill}" Command="{Binding WhitelistToggleCommand}" Margin="0,12,0,0"/>
+        <TextBlock Text="OP, DEOP, KICK, and BAN need the matching word. Whitelist on/off does not." Foreground="#93A4BD" Margin="0,8,0,0" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>

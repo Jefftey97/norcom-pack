@@ -249,6 +249,11 @@ public sealed class SelfUpdateService
 		stringBuilder.Append("echo ").Append(sha256).Append(">\"")
 			.Append(appliedShaPath)
 			.AppendLine("\"");
+		string payloadDir = LauncherCleanup.UpdatePayloadDirectory(newExe);
+		if (!string.IsNullOrWhiteSpace(payloadDir))
+		{
+			stringBuilder.Append("rmdir /s /q \"").Append(payloadDir).AppendLine("\" >nul 2>&1");
+		}
 		stringBuilder.Append("start \"\" \"").Append(currentExe).AppendLine("\"");
 		stringBuilder.AppendLine("exit /b 0");
 		stringBuilder.AppendLine(":rollback");

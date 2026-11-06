@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -42,5 +43,14 @@ public static class FriendInstaller
 			File.Copy(fullPath, text, overwrite: true);
 		}
 		File.WriteAllText(Path.Combine(installDirectory, "installer-version.txt"), NorcomVersion.Current + Environment.NewLine);
+		try
+		{
+			string home = Path.GetDirectoryName(Path.GetFullPath(installDirectory)) ?? installDirectory;
+			LauncherCleanup.RemoveObsolete(text, home, null, Path.GetTempPath());
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
 	}
 }

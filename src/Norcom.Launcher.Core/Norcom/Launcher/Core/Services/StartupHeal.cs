@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -26,6 +27,20 @@ public static class StartupHeal
 	public static void ClearStale(string launcherDir, string gameDir)
 	{
 		Directory.CreateDirectory(launcherDir);
+		try
+		{
+			string live = Environment.ProcessPath;
+			if (string.IsNullOrWhiteSpace(live) || !Path.GetFileName(live).Equals("NorcomLauncher.exe", StringComparison.OrdinalIgnoreCase))
+			{
+				live = Path.Combine(launcherDir, "NorcomLauncher.exe");
+			}
+			string home = Path.GetDirectoryName(Path.GetFullPath(launcherDir)) ?? launcherDir;
+			LauncherCleanup.RemoveObsolete(live, home, gameDir, Path.GetTempPath());
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
+		}
 		ClearLockIfDead(Path.Combine(launcherDir, "game.lock"));
 		try
 		{

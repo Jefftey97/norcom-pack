@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Text;
 
@@ -12,43 +14,25 @@ public sealed class GraphicsService
 
 	public GraphicsPreset Apply(string gameDir, GraphicsTier tier)
 	{
+		string folder = GraphicsPack.Folder(tier);
 		GraphicsPreset graphicsPreset = GraphicsPresets.For(tier);
 		Directory.CreateDirectory(gameDir);
 		Directory.CreateDirectory(Path.Combine(gameDir, "config"));
 		Directory.CreateDirectory(Path.Combine(gameDir, "shaderpacks"));
+		Dictionary<string, string> updates = GraphicsPack.ReadJsonMap(folder + "/options-patches.json");
+		updates["resourcePacks"] = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
 		string path = Path.Combine(gameDir, "options.txt");
 		string existing = (File.Exists(path) ? File.ReadAllText(path) : null);
-		bool fabulous = graphicsPreset.Tier is GraphicsTier.MediumHigh or GraphicsTier.High or GraphicsTier.Ultra;
-		Dictionary<string, string> updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-		{
-			["renderDistance"] = graphicsPreset.RenderDistance.ToString(),
-			["simulationDistance"] = graphicsPreset.SimulationDistance.ToString(),
-			["maxFps"] = graphicsPreset.MaxFps.ToString(),
-			["entityDistanceScaling"] = graphicsPreset.EntityDistance,
-			["graphicsMode"] = fabulous ? "2" : "1",
-			["biomeBlendRadius"] = fabulous ? "7" : "2",
-			["particles"] = graphicsPreset.Particles.ToString(),
-			["renderClouds"] = ((graphicsPreset.Tier == GraphicsTier.Low) ? "false" : "true"),
-			["enableVsync"] = "false",
-			["resourcePacks"] = "[\"vanilla\",\"continuity:default\",\"continuity:glass_pane_culling_fix\",\"file/Patrix_26.3_32x_basic.zip\",\"file/Patrix_26.3_32x_addon.zip\",\"file/Patrix_26.3_models.zip\"]"
-		};
 		File.WriteAllText(path, OptionsPatch.Apply(existing, updates));
 		string path2 = Path.Combine(gameDir, "config", "iris.properties");
 		string existing2 = (File.Exists(path2) ? File.ReadAllText(path2) : null);
-		Dictionary<string, string> updates2 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-		{
-			["enableShaders"] = "true",
-			["shaderPack"] = "ComplementaryUnbound_r5.9.3.zip",
-			["maxShadowRenderDistance"] = graphicsPreset.IrisShadowChunks.ToString(),
-			["colorSpace"] = "SRGB",
-			["allowUnknownShaders"] = "false"
-		};
-		File.WriteAllText(path2, OptionsPatch.ApplyProperties(existing2, updates2));
-		string contents = GraphicsPresets.ShaderOptions(graphicsPreset);
-		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), contents);
-		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.zip.txt"), contents);
-		WriteDistantHorizons(Path.Combine(gameDir, "config", "DistantHorizons.toml"), graphicsPreset);
-		SeedSodiumIfMissing(Path.Combine(gameDir, "config", "sodium-options.json"));
+		File.WriteAllText(path2, OptionsPatch.ApplyProperties(existing2, GraphicsPack.ReadProperties(folder + "/iris.properties")));
+		string shader = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.txt");
+		string shaderZip = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.zip.txt");
+		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
+		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.zip.txt"), shaderZip);
+		WriteDistantHorizons(Path.Combine(gameDir, "config", "DistantHorizons.toml"), GraphicsPack.ReadJsonMap(folder + "/dh-patches.json"));
+		MergeSodium(Path.Combine(gameDir, "config", "sodium-options.json"), GraphicsPack.ReadJsonElements(folder + "/sodium-patches.json"));
 		string tierNote = "tier=" + tier.ToString() + "\nappliedUtc=" + DateTimeOffset.UtcNow.ToString("o") + "\n";
 		File.WriteAllText(Path.Combine(gameDir, "config", "norcom-tier.txt"), tierNote);
 		File.WriteAllText(Path.Combine(gameDir, "norcom-graphics-tier.txt"), tierNote);
@@ -99,24 +83,63 @@ public sealed class GraphicsService
 		return list;
 	}
 
-	private static void WriteDistantHorizons(string path, GraphicsPreset preset)
+	private static void WriteDistantHorizons(string path, IReadOnlyDictionary<string, string> patches)
 	{
 		Directory.CreateDirectory(Path.GetDirectoryName(path));
-		if (!File.Exists(path))
+		string text = File.Exists(path) ? File.ReadAllText(path) : "[client]\n[client.advanced]\n[client.advanced.graphics]\n[client.advanced.graphics.quality]\n";
+		foreach (KeyValuePair<string, string> patch in patches)
 		{
-			string contents = "[client]\n [client.advanced]\n [client.advanced.graphics]\n [client.advanced.graphics.quality]\n lodChunkRenderDistanceRadius = RADIUS\n horizontalQuality = \"QUALITY\"\n verticalQuality = \"QUALITY\"\n maxHorizontalResolution = \"BLOCK\"\n".Replace("RADIUS", preset.DhRadius, StringComparison.Ordinal).Replace("QUALITY", preset.DhQuality, StringComparison.Ordinal);
-			File.WriteAllText(path, contents);
-			return;
-		}
-		string text = File.ReadAllText(path);
-		text = ReplaceToml(text, "lodChunkRenderDistanceRadius", preset.DhRadius);
-		text = ReplaceToml(text, "horizontalQuality", "\"" + preset.DhQuality + "\"");
-		text = ReplaceToml(text, "verticalQuality", "\"" + preset.DhQuality + "\"");
-		if (!text.Contains("maxHorizontalResolution", StringComparison.Ordinal))
-		{
-			text = text.TrimEnd() + "\nmaxHorizontalResolution = \"BLOCK\"\n";
+			text = ReplaceToml(text, patch.Key, TomlValue(patch.Value));
 		}
 		File.WriteAllText(path, text);
+	}
+
+	private static string TomlValue(string value)
+	{
+		if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+		{
+			return value.ToLowerInvariant();
+		}
+		if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+		{
+			return value;
+		}
+		return "\"" + value + "\"";
+	}
+
+	private static void MergeSodium(string path, IReadOnlyDictionary<string, JsonElement> patches)
+	{
+		Directory.CreateDirectory(Path.GetDirectoryName(path));
+		JsonObject root = new JsonObject();
+		if (File.Exists(path))
+		{
+			try
+			{
+				if (JsonNode.Parse(File.ReadAllText(path)) is JsonObject existing)
+				{
+					root = existing;
+				}
+			}
+			catch (JsonException)
+			{
+			}
+		}
+		foreach (KeyValuePair<string, JsonElement> patch in patches)
+		{
+			string[] parts = patch.Key.Split('.');
+			JsonObject cursor = root;
+			for (int i = 0; i < parts.Length - 1; i++)
+			{
+				if (cursor[parts[i]] is not JsonObject child)
+				{
+					child = new JsonObject();
+					cursor[parts[i]] = child;
+				}
+				cursor = child;
+			}
+			cursor[parts[parts.Length - 1]] = JsonNode.Parse(patch.Value.GetRawText());
+		}
+		File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 	}
 
 	private static string ReplaceToml(string text, string key, string value)
@@ -148,12 +171,4 @@ public sealed class GraphicsService
 		return text5;
 	}
 
-	private static void SeedSodiumIfMissing(string path)
-	{
-		if (!File.Exists(path))
-		{
-			Directory.CreateDirectory(Path.GetDirectoryName(path));
-			File.WriteAllText(path, "{\n  \"quality\": {\n    \"hidden_fluid_culling\": true,\n    \"improved_fluid_shaping\": false,\n    \"use_closest_point_entity_sort\": false,\n    \"pixel_filtering_mode\": \"NEAREST\"\n  },\n  \"performance\": {\n    \"chunk_builder_threads\": 0,\n    \"chunk_build_defer_mode\": \"ALWAYS\",\n    \"animate_only_visible_textures\": true,\n    \"use_entity_culling\": true,\n    \"use_fog_occlusion\": true,\n    \"use_block_face_culling\": true,\n    \"use_no_error_g_l_context\": true,\n    \"quad_splitting_mode\": \"SAFE\"\n  }\n}");
-		}
-	}
 }

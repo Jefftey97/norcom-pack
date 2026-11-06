@@ -77,8 +77,7 @@ public static class GraphicsAuto
 	public static GraphicsTier Choose(PcHardware hardware)
 	{
 		double num = (double)hardware.VramBytes / 1073741824.0;
-		double num2 = (double)hardware.RamBytes / 1073741824.0;
-		if (hardware.Integrated || num < 3.5 || num2 < 8.0)
+		if (hardware.Integrated || num < 4.0)
 		{
 			return GraphicsTier.Low;
 		}
@@ -90,7 +89,7 @@ public static class GraphicsAuto
 		{
 			return GraphicsTier.MediumHigh;
 		}
-		if (num < 12.0 || num2 < 16.0)
+		if (num < 12.0)
 		{
 			return GraphicsTier.High;
 		}

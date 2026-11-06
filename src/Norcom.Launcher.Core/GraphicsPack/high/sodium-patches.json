@@ -1,0 +1,13 @@
+{
+  "quality.pixel_filtering_mode": "NEAREST",
+  "quality.improved_fluid_shaping": true,
+  "quality.hidden_fluid_culling": true,
+  "performance.animate_only_visible_textures": true,
+  "performance.use_entity_culling": true,
+  "performance.use_fog_occlusion": true,
+  "performance.use_block_face_culling": true,
+  "performance.chunk_build_defer_mode": "ALWAYS",
+  "performance.chunk_builder_threads": 0,
+  "performance.use_no_error_g_l_context": true,
+  "performance.quad_splitting_mode": "SAFE"
+}

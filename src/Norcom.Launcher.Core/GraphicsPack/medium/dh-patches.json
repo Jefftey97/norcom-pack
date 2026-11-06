@@ -1,0 +1,10 @@
+{
+  "lodChunkRenderDistanceRadius": "128",
+  "horizontalQuality": "MEDIUM",
+  "verticalQuality": "LOW",
+  "maxHorizontalResolution": "BLOCK",
+  "enableSsao": "false",
+  "enableDhFog": "true",
+  "vanillaFadeMode": "DOUBLE_PASS",
+  "ditherDhFade": "true"
+}

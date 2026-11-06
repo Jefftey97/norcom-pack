@@ -10,17 +10,17 @@ public static class GraphicsPresets
 {
 	public const int UncappedFps = 260;
 
-	public const string ResourcePacks = "[\"vanilla\",\"continuity:default\",\"continuity:glass_pane_culling_fix\",\"file/Patrix_26.3_32x_basic.zip\",\"file/Patrix_26.3_32x_addon.zip\",\"file/Patrix_26.3_models.zip\"]";
+	public const string ResourcePacks = GraphicsPack.AlacrityPacks;
 
 	public static GraphicsPreset For(GraphicsTier tier)
 	{
 		return tier switch
 		{
-			GraphicsTier.Low => new GraphicsPreset(tier, 6, 6, 260, "0.5", 6, "64.0", 0, 0, 0, 1, 0, 0, 0, 0, Pom: false, 16, "0.50", 16, 0, "64", "LOW", 1), 
-			GraphicsTier.Medium => new GraphicsPreset(tier, 10, 8, 260, "0.75", 8, "96.0", 1, 2, 1, 2, 1, 1, 1, 64, Pom: true, 16, "0.50", 24, 1, "96", "LOW", 2), 
-			GraphicsTier.MediumHigh => new GraphicsPreset(tier, 12, 10, 260, "1.0", 12, "128.0", 2, 2, 2, 2, 2, 2, 2, 128, Pom: true, 32, "0.75", 32, 1, "112", "MEDIUM", 2), 
-			GraphicsTier.Ultra => new GraphicsPreset(tier, 20, 12, 260, "1.25", 16, "256.0", 3, 3, 3, 3, 3, 3, 3, 256, Pom: true, 128, "1.00", 48, 1, "192", "HIGH", 2), 
-			_ => new GraphicsPreset(GraphicsTier.High, 14, 10, 260, "1.0", 14, "160.0", 2, 2, 2, 3, 2, 3, 2, 192, Pom: true, 64, "1.00", 32, 1, "128", "MEDIUM", 2), 
+			GraphicsTier.Low => new GraphicsPreset(tier, 8, 6, 260, "0.75", 8, "64.0", 0, 0, 0, 1, 0, 0, 0, 0, Pom: false, 16, "0.50", 16, 0, "96", "LOW", 1), 
+			GraphicsTier.Medium => new GraphicsPreset(tier, 10, 8, 260, "0.75", 10, "96.0", 1, 2, 1, 2, 1, 1, 1, 0, Pom: false, 16, "0.50", 24, 1, "128", "MEDIUM", 2), 
+			GraphicsTier.MediumHigh => new GraphicsPreset(tier, 12, 8, 260, "1.0", 12, "112.0", 2, 2, 2, 2, 2, 2, 2, 0, Pom: false, 32, "0.75", 32, 1, "160", "MEDIUM", 2), 
+			GraphicsTier.Ultra => new GraphicsPreset(tier, 14, 10, 260, "1.25", 14, "160.0", 2, 2, 2, 3, 2, 3, 2, 192, Pom: false, 32, "0.80", 16, 1, "256", "HIGH", 0), 
+			_ => new GraphicsPreset(GraphicsTier.High, 12, 10, 260, "1.0", 12, "128.0", 2, 2, 2, 2, 2, 3, 2, 128, Pom: false, 32, "0.80", 16, 1, "192", "MEDIUM", 1), 
 		};
 	}
 

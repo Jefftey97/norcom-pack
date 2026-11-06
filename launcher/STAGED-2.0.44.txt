@@ -1,0 +1,20 @@
+TIPPED. Live friends feed is 2.0.44. Windows GUI smoke PASS 28.9s and Jeffrey OK.
+ProductVersion 2.0.44
+AssemblyVersion 2.0.1.0
+FileVersion 2.0.44.0
+payload-version.txt 2.0.44
+
+exe SHA256 a4aa8fa401a891d6fb560b35b0c3fbf726f0b9c2c333c4ca170825e20efcb4d3
+exe bytes 72540714
+zip SHA256 82698b451b632c9b2298c27dbab6877be842e221377731cf376077152340abd0
+zip bytes 66949965
+zip path launcher/NorcomWpf-2.0.44.zip
+zip URL https://raw.githubusercontent.com/Jefftey97/norcom-pack/ff312c9e6be0f44bad5360466f0bdd0ae57f9f09/launcher/NorcomWpf-2.0.44.zip
+
+Merge commit ff312c9e6be0f44bad5360466f0bdd0ae57f9f09
+Install-NORCOM-2.0.44.exe SHA256 aedafaec72f6e872146ea12242fbd01f74287c182f7eee0a46006cb9eff7fd32
+Install-NORCOM-2.0.44.exe bytes 107846284
+Install URL https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/Install-NORCOM-2.0.44.exe
+
+Pin meta was not changed by this tip.
+No Discord post.

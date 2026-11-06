@@ -1,11 +1,16 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
 
 public static class PrismPlay
 {
+	public static readonly TimeSpan ProbeBudget = TimeSpan.FromSeconds(15);
+
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
 	{
 		string text = PrismInstall.Find(prismEnvironment, prismCandidates);
@@ -14,7 +19,7 @@ public static class PrismPlay
 			return new PrismPreparation
 			{
 				CanStart = false,
-				Message = "Prism Launcher is not installed. Install it from the official Prism site, then press Play. Sign in with Microsoft in Prism's window if it asks. NORCOM does not start Minecraft without that."
+				Message = PrismMessages.Missing
 			};
 		}
 		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, ramMb);
@@ -23,13 +28,19 @@ public static class PrismPlay
 		return new PrismPreparation
 		{
 			CanStart = true,
-			Message = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.",
+			Message = PrismMessages.Opening,
 			Executable = text,
 			Arguments = arguments
 		};
 	}
 
-	public static async Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken)
+	public static Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken)
+	{
+		IPrismGameSignals signals = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir);
+		return RunAsync(prepared, process, cancellationToken, signals, ProbeBudget);
+	}
+
+	public static async Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken, IPrismGameSignals signals, TimeSpan probeBudget)
 	{
 		if (!prepared.CanStart || prepared.Executable == null)
 		{
@@ -40,17 +51,56 @@ public static class PrismPlay
 			return new PrismPreparation
 			{
 				CanStart = false,
-				Message = "Prism did not start Minecraft. Finish Microsoft sign-in in Prism's window if it asked, then press Play again. NORCOM did not use a local name.",
+				Message = PrismMessages.Rejected,
 				Executable = prepared.Executable,
 				Arguments = prepared.Arguments
 			};
 		}
+		if (!await GameStartedAsync(signals, probeBudget, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
+		{
+			LauncherLog.Write("prism closed without minecraft");
+			return new PrismPreparation
+			{
+				CanStart = false,
+				Message = PrismMessages.ClosedWithoutGame,
+				Executable = prepared.Executable,
+				Arguments = prepared.Arguments
+			};
+		}
+		LauncherLog.Write("prism closed minecraft started");
 		return new PrismPreparation
 		{
 			CanStart = true,
-			Message = "Prism closed. If you finished its Microsoft sign-in, it started the NORCOM instance. Later Play uses the same Prism. NORCOM does not keep that login.",
+			Message = PrismMessages.Closed,
 			Executable = prepared.Executable,
 			Arguments = prepared.Arguments
 		};
+	}
+
+	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken)
+	{
+		Stopwatch watch = Stopwatch.StartNew();
+		while (true)
+		{
+			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
+			{
+				return true;
+			}
+			if (watch.Elapsed >= budget)
+			{
+				return false;
+			}
+			TimeSpan remaining = budget - watch.Elapsed;
+			TimeSpan slice = TimeSpan.FromMilliseconds(500);
+			if (remaining < slice)
+			{
+				slice = remaining;
+			}
+			if (slice <= TimeSpan.Zero)
+			{
+				return false;
+			}
+			await Task.Delay(slice, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+		}
 	}
 }

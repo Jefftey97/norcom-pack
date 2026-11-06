@@ -4,9 +4,9 @@
   "loader": "0.20.1",
   "pin": "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
   "source": "server",
-  "updatedUtc": "2026-11-06T02:19:30Z",
+  "updatedUtc": "2026-11-06T03:56:10Z",
   "packVersion": "1.0.35",
-  "indexSha256": "3c420bf2a225a06abe9b86b38e452f65fb031e4b2d0e98f3c4f6d8ccfd5d8995",
+  "indexSha256": "530586b4434540c7064919fc7434b6c9af994aa380afd9775457ecf2cbb57481",
   "both": {
     "Clumps-fabric-26.3-26.3.2.jar": "8c72b1505a11ad93ed19b5a914eb6a036da92eb323d58da288bef36c19ed7624",
     "DistantHorizons-3.3.4-26.3-fabric-neoforge.jar": "ba3e5c85a765a109219831df99b99ef5cfcdee05b2dfa6796116993bd48d3947",

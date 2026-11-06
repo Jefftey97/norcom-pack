@@ -77,6 +77,9 @@
     <GradientStop Color="#5B8CFF" Offset="0.5"/>
     <GradientStop Color="#FF3DB8" Offset="1"/>
   </LinearGradientBrush>
+  <DropShadowEffect x:Key="GlowCyan" Color="#00E5FF" BlurRadius="14" ShadowDepth="0" Opacity="0.55"/>
+  <DropShadowEffect x:Key="GlowPink" Color="#FF3DB8" BlurRadius="18" ShadowDepth="0" Opacity="0.8"/>
+  <DropShadowEffect x:Key="GlowSelected" Color="#00E5FF" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
 
   <Style x:Key="CyanButton" TargetType="Button">
     <Setter Property="Foreground" Value="#F4FBFF"/>
@@ -90,22 +93,17 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Box" Background="{StaticResource ButtonFill}" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" CornerRadius="8" Padding="{TemplateBinding Padding}">
-            <Border.Effect>
-              <DropShadowEffect x:Name="Glow" Color="#00E5FF" BlurRadius="14" ShadowDepth="0" Opacity="0.55"/>
-            </Border.Effect>
+          <Border x:Name="Box" Background="{StaticResource ButtonFill}" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" CornerRadius="8" Padding="{TemplateBinding Padding}" Effect="{StaticResource GlowCyan}">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Box" Property="Background" Value="{StaticResource ButtonFillHover}"/>
-              <Setter TargetName="Glow" Property="Color" Value="#FF3DB8"/>
-              <Setter TargetName="Glow" Property="BlurRadius" Value="18"/>
-              <Setter TargetName="Glow" Property="Opacity" Value="0.8"/>
+              <Setter TargetName="Box" Property="Effect" Value="{StaticResource GlowPink}"/>
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
               <Setter TargetName="Box" Property="Background" Value="{StaticResource ButtonFillPressed}"/>
-              <Setter TargetName="Glow" Property="Opacity" Value="0.35"/>
+              <Setter TargetName="Box" Property="Effect" Value="{StaticResource GlowCyan}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Box" Property="Opacity" Value="0.55"/>
@@ -131,25 +129,18 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Edge" Background="{StaticResource ButtonFill}" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" CornerRadius="8" Padding="{TemplateBinding Padding}">
-            <Border.Effect>
-              <DropShadowEffect x:Name="Glow" Color="#00E5FF" BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
-            </Border.Effect>
+          <Border x:Name="Edge" Background="{StaticResource ButtonFill}" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" CornerRadius="8" Padding="{TemplateBinding Padding}" Effect="{StaticResource GlowCyan}">
             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Edge" Property="Background" Value="{StaticResource ButtonFillHover}"/>
-              <Setter TargetName="Glow" Property="Color" Value="#FF3DB8"/>
-              <Setter TargetName="Glow" Property="BlurRadius" Value="16"/>
-              <Setter TargetName="Glow" Property="Opacity" Value="0.75"/>
+              <Setter TargetName="Edge" Property="Effect" Value="{StaticResource GlowPink}"/>
             </Trigger>
             <Trigger Property="Tag" Value="True">
               <Setter TargetName="Edge" Property="Background" Value="#123048"/>
               <Setter TargetName="Edge" Property="BorderBrush" Value="#00E5FF"/>
-              <Setter TargetName="Glow" Property="Color" Value="#00E5FF"/>
-              <Setter TargetName="Glow" Property="BlurRadius" Value="18"/>
-              <Setter TargetName="Glow" Property="Opacity" Value="0.9"/>
+              <Setter TargetName="Edge" Property="Effect" Value="{StaticResource GlowSelected}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

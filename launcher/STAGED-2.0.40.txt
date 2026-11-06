@@ -1,0 +1,21 @@
+HOLD. Do not tip launcher/manifest.json until a Windows GUI smoke PASS.
+ProductVersion 2.0.40
+AssemblyVersion 2.0.1.0 (BAML load stays V2.0.1.0)
+payload-version.txt 2.0.40
+
+exe SHA256 1e5b53664bbb522234a4240814ee97a53a0fcee2c050981386ec6610564c3383
+exe bytes 72521281
+zip SHA256 8f6c8628bb9b3dd6701b4f581e3483415b29387a94c1aff7ba574c0fc6417e5a
+zip bytes 66930324
+zip path launcher/NorcomWpf-2.0.40.zip
+Install-NORCOM-2.0.40.exe SHA256 29698f399c380f2604eabeec144bdbe60ca2683d82abf9c22104e985eb8a51a3
+Install-NORCOM-2.0.40.exe bytes 107812691
+Install URL https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/Install-NORCOM-2.0.40.exe
+
+Live feed stays 2.0.39 (af6b33f3 / cea44ca8). Discord Install-NORCOM.exe stays the 2.0.39 cut (38cd283c).
+Smoke on a Windows desktop: tools/hot-swap-launcher.ps1 -Candidate <NorcomLauncher.exe>
+PASS means the process is still alive at 12 seconds. Do not tip a build that exits early.
+LivePin stays soft/warn-only. RAIN_STYLE stays 1 or 2. The marble jar was not replaced.
+
+Feed notes to publish with the tip, after GO:
+Launcher 2.0.40. Carrara marble turns on with the pack. Play keeps your graphics and only repairs Alacrity and the candle overlay if they drifted. Home shows whether the server is up and how many friends are online.

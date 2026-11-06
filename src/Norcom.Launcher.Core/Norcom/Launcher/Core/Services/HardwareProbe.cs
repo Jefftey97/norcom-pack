@@ -7,6 +7,8 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class HardwareProbe
 {
+	public static Func<PcHardware?>? Reader { get; set; }
+
 	public static long TryHostRamBytes()
 	{
 		try
@@ -37,6 +39,18 @@ public static class HardwareProbe
 
 	public static PcHardware? TryRead()
 	{
+		if (Reader != null)
+		{
+			try
+			{
+				return Reader();
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("graphics probe " + ex.GetType().Name);
+				return null;
+			}
+		}
 		try
 		{
 			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");

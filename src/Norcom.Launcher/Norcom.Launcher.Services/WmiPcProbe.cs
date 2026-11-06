@@ -41,7 +41,7 @@ public sealed class WmiPcProbe
 			(string, long, bool) tuple = (from tuple2 in list3
 				orderby (!tuple2.Item3) ? 1 : 0 descending, tuple2.Item2 descending
 				select tuple2).First();
-			return new PcHardware(tuple.Item1, tuple.Item2, ReadRam(), ReadThreads(), tuple.Item3);
+			return new PcHardware(tuple.Item1, tuple.Item2, ReadRam(), ReadThreads(), tuple.Item3, ReadFreeRam(), ReadRefreshHz(tuple.Item1));
 		}
 		catch
 		{
@@ -109,6 +109,89 @@ public sealed class WmiPcProbe
 		finally
 		{
 			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private static long ReadFreeRam()
+	{
+		try
+		{
+			ManagementObjectSearcher val = new ManagementObjectSearcher("SELECT FreePhysicalMemory FROM Win32_OperatingSystem");
+			try
+			{
+				var enumerator = val.Get().GetEnumerator();
+				try
+				{
+					if (enumerator.MoveNext())
+					{
+						long kb = ToLong(((ManagementBaseObject)(ManagementObject)enumerator.Current)["FreePhysicalMemory"]);
+						if (kb > 0)
+						{
+							return kb * 1024L;
+						}
+					}
+				}
+				finally
+				{
+					((IDisposable)enumerator)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val)?.Dispose();
+			}
+		}
+		catch
+		{
+		}
+		return 0L;
+	}
+
+	private static int ReadRefreshHz(string gpuName)
+	{
+		try
+		{
+			ManagementObjectSearcher val = new ManagementObjectSearcher("SELECT Name, CurrentRefreshRate FROM Win32_VideoController");
+			try
+			{
+				int best = 0;
+				int named = 0;
+				var enumerator = val.Get().GetEnumerator();
+				try
+				{
+					while (enumerator.MoveNext())
+					{
+						ManagementObject item = (ManagementObject)enumerator.Current;
+						int hz = (int)ToLong(((ManagementBaseObject)item)["CurrentRefreshRate"]);
+						if (hz <= 1)
+						{
+							continue;
+						}
+						string name = ((ManagementBaseObject)item)["Name"]?.ToString() ?? "";
+						if (hz > best)
+						{
+							best = hz;
+						}
+						if (name.Length > 0 && (name.Contains(gpuName, StringComparison.OrdinalIgnoreCase) || gpuName.Contains(name, StringComparison.OrdinalIgnoreCase)) && hz > named)
+						{
+							named = hz;
+						}
+					}
+				}
+				finally
+				{
+					((IDisposable)enumerator)?.Dispose();
+				}
+				return named > 0 ? named : best;
+			}
+			finally
+			{
+				((IDisposable)val)?.Dispose();
+			}
+		}
+		catch
+		{
+			return 0;
 		}
 	}
 

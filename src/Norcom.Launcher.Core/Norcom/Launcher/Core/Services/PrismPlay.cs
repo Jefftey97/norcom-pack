@@ -11,6 +11,8 @@ public static class PrismPlay
 {
 	public static readonly TimeSpan ProbeBudget = TimeSpan.FromSeconds(15);
 
+	public static Action? GameObserved { get; set; }
+
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
 	{
 		try
@@ -91,6 +93,7 @@ public static class PrismPlay
 			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
 			{
 				LauncherLog.Write("prism open minecraft started");
+				NoteGame();
 				Observe(run);
 				return Started(prepared);
 			}
@@ -119,6 +122,18 @@ public static class PrismPlay
 		}
 		LauncherLog.Write("prism closed minecraft started");
 		return Started(prepared);
+	}
+
+	private static void NoteGame()
+	{
+		try
+		{
+			GameObserved?.Invoke();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("game observed " + ex.GetType().Name);
+		}
 	}
 
 	private static PrismPreparation Started(PrismPreparation prepared)
@@ -150,6 +165,7 @@ public static class PrismPlay
 		{
 			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
 			{
+				NoteGame();
 				return true;
 			}
 			if (watch.Elapsed >= budget)

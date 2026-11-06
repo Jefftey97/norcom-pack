@@ -98,6 +98,41 @@ public class FriendsUxTests
 	}
 
 	[Fact]
+	public async Task RepairNamesJavaThenThePack()
+	{
+		TransferMeter meter = new TransferMeter();
+		string? stage = null;
+		string line = await RepairRun.ExecuteAsync(meter, _ =>
+		{
+			stage = RepairTrace.Stage;
+			return Task.CompletedTask;
+		}, _ => throw new InvalidOperationException("the java path is missing"), CancellationToken.None);
+		Assert.Equal("pack resync", stage);
+		Assert.Contains("Java check failed", line);
+		Assert.Contains("the java path is missing", line);
+		Assert.Contains("Worlds were not wiped", line);
+		Assert.Equal("Repair finished", meter.Snapshot().Label);
+	}
+
+	[Fact]
+	public void PayloadStampMustMatchTheProductVersion()
+	{
+		Assert.Equal("2.0.40", PayloadStamp.ForProduct("2.0.40.0"));
+		Assert.True(PayloadStamp.Identical("2.0.40", "2.0.40+build"));
+		Assert.False(PayloadStamp.Identical("2.0.39", "2.0.40"));
+		string sha = new string('b', 64);
+		Assert.Equal(UpdateReport.PayloadVersion, UpdateReport.Rejection("2.0.39", "2.0.40", "2.0.39", "2.0.40", null, sha));
+		Assert.Equal(UpdateReport.PayloadVersion, UpdateReport.Rejection("2.0.39", "2.0.40", "2.0.40", "2.0.39", null, sha));
+		Assert.Null(UpdateReport.Rejection("2.0.39", "2.0.40", "2.0.40", "2.0.40", null, sha));
+		string dir = Path.Combine(Path.GetTempPath(), "norcom-stamp-" + Guid.NewGuid().ToString("n"));
+		Directory.CreateDirectory(dir);
+		string exe = Path.Combine(dir, "NorcomLauncher.exe");
+		File.WriteAllText(exe, "exe");
+		PayloadStamp.WriteBeside(exe, "2.0.40");
+		Assert.Equal("2.0.40", File.ReadAllText(Path.Combine(dir, PayloadStamp.FileName)).Trim());
+	}
+
+	[Fact]
 	public void UpdateNotesStayReadableAfterTheyAreSaved()
 	{
 		string dir = Path.Combine(Path.GetTempPath(), "norcom-notes-" + Guid.NewGuid().ToString("n"));

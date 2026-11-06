@@ -27,6 +27,67 @@ public static class ShaderScale
 		return "0.5";
 	}
 
+	public static string CoerceRainStyle(string shader)
+	{
+		if (string.IsNullOrEmpty(shader))
+		{
+			return shader ?? "";
+		}
+		string[] lines = shader.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+		StringBuilder builder = new StringBuilder(shader.Length + 8);
+		for (int i = 0; i < lines.Length; i++)
+		{
+			if (i > 0)
+			{
+				builder.Append('\n');
+			}
+			builder.Append(CoerceRainLine(lines[i]));
+		}
+		if ((shader.EndsWith("\n", StringComparison.Ordinal) || shader.EndsWith("\r", StringComparison.Ordinal)) && (builder.Length == 0 || builder[builder.Length - 1] != '\n'))
+		{
+			builder.Append('\n');
+		}
+		return builder.ToString();
+	}
+
+	public static bool RainStyleDrifted(string shader)
+	{
+		if (string.IsNullOrEmpty(shader))
+		{
+			return false;
+		}
+		string[] lines = shader.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+		for (int i = 0; i < lines.Length; i++)
+		{
+			string trimmed = lines[i].Trim();
+			if (!trimmed.StartsWith("RAIN_STYLE=", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			string value = trimmed.Substring("RAIN_STYLE=".Length).Trim();
+			if (value != "1" && value != "2")
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static string CoerceRainLine(string line)
+	{
+		string trimmed = line.Trim();
+		if (!trimmed.StartsWith("RAIN_STYLE=", StringComparison.Ordinal))
+		{
+			return line;
+		}
+		string value = trimmed.Substring("RAIN_STYLE=".Length).Trim();
+		if (value != "1" && value != "2")
+		{
+			return "RAIN_STYLE=1";
+		}
+		return line;
+	}
+
 	public static string Coerce(string shader, GraphicsTier tier)
 	{
 		if (string.IsNullOrEmpty(shader))

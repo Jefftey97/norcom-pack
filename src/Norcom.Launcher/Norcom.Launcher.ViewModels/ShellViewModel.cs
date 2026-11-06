@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,8 @@ public class ShellViewModel : ObservableObject
 	private readonly NorcomSignIn _signIn;
 
 	private CancellationTokenSource? _pump;
+
+	private long _progressEpoch;
 
 	private CancellationTokenSource? _authCts;
 
@@ -1333,6 +1336,7 @@ public class ShellViewModel : ObservableObject
 			ProgressLabel = "Opening Prism";
 			AccountStatus = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
 			StatusLine = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
+			PrismPlay.GameObserved = ClearPackReady;
 			if (LauncherSounds)
 			{
 				UiSound.Play();
@@ -1357,9 +1361,29 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
+			PrismPlay.GameObserved = null;
 			pump.Cancel();
 			IsBusy = false;
 		}
+	}
+
+	private void ClearPackReady()
+	{
+		void Clear()
+		{
+			if (string.Equals(ProgressLabel, "Pack ready", StringComparison.Ordinal))
+			{
+				ProgressLabel = "";
+				ProgressDetail = "";
+			}
+		}
+		Application current = Application.Current;
+		if (current == null || ((DispatcherObject)current).Dispatcher.CheckAccess())
+		{
+			Clear();
+			return;
+		}
+		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)Clear, Array.Empty<object>());
 	}
 
 	[RelayCommand]
@@ -1443,10 +1467,11 @@ public class ShellViewModel : ObservableObject
 		{
 			StartupHeal.ClearStale(NorcomPaths.LauncherDir, NorcomPaths.GameDir);
 			GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
-			await new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+			string line = await RepairRun.ExecuteAsync(meter, (CancellationToken token) => new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, token), (CancellationToken token) => JavaRuntime.EnsureAsync(_http, meter, token), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			ProgressFraction = 1.0;
 			ProgressLabel = "Repair finished";
-			StatusLine = RepairTrace.SuccessLine();
+			ProgressDetail = line;
+			StatusLine = line;
 		}
 		catch (Exception ex)
 		{
@@ -1525,6 +1550,22 @@ public class ShellViewModel : ObservableObject
 		string notes = await TryGet("https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/pack-notes.md").ConfigureAwait(continueOnCapturedContext: true);
 		string text = await TryGet("https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml").ConfigureAwait(continueOnCapturedContext: true);
 		string version = ((text == null) ? null : TomlLite.Parse(text).Keys.GetValueOrDefault("version"));
+		string manifestJson = await TryGet("https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/launcher/manifest.json").ConfigureAwait(continueOnCapturedContext: true);
+		if (!string.IsNullOrWhiteSpace(manifestJson))
+		{
+			try
+			{
+				LauncherManifest? manifest = JsonSerializer.Deserialize<LauncherManifest>(manifestJson);
+				if (manifest != null && !string.IsNullOrWhiteSpace(manifest.Notes))
+				{
+					UpdateNotes.Remember(NorcomPaths.LauncherDir, manifest, NorcomVersion.Current);
+				}
+			}
+			catch (JsonException ex)
+			{
+				LauncherLog.Write("update notes " + ex.GetType().Name);
+			}
+		}
 		if (news == null && File.Exists(Path.Combine(NorcomPaths.GameDir, "news.md")))
 		{
 			news = await File.ReadAllTextAsync(Path.Combine(NorcomPaths.GameDir, "news.md")).ConfigureAwait(continueOnCapturedContext: true);
@@ -1757,6 +1798,43 @@ public class ShellViewModel : ObservableObject
 		_settings.Save(NorcomPaths.SettingsPath);
 	}
 
+	private void QueueProgress(TransferSnapshot shot)
+	{
+		Application current = Application.Current;
+		if (current == null)
+		{
+			return;
+		}
+		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)delegate
+		{
+			ApplyProgress(shot);
+		}, Array.Empty<object>());
+	}
+
+	private void ApplyProgress(TransferSnapshot snap)
+	{
+		if (snap.Epoch < _progressEpoch)
+		{
+			return;
+		}
+		_progressEpoch = snap.Epoch;
+		if (snap.Fraction > 0.0)
+		{
+			ProgressFraction = snap.Fraction;
+		}
+		if (string.IsNullOrWhiteSpace(snap.Label))
+		{
+			if (string.Equals(ProgressLabel, "Pack ready", StringComparison.Ordinal))
+			{
+				ProgressLabel = "";
+				ProgressDetail = "";
+			}
+			return;
+		}
+		ProgressLabel = snap.Label;
+		ProgressDetail = TransferMeter.Format(snap);
+	}
+
 	private CancellationTokenSource StartPump(TransferMeter meter)
 	{
 		_pump?.Cancel();
@@ -1768,23 +1846,7 @@ public class ShellViewModel : ObservableObject
 			{
 				while (!cts.IsCancellationRequested)
 				{
-					TransferSnapshot snap = meter.Snapshot();
-					Application current = Application.Current;
-					if (current != null)
-					{
-						((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)delegate
-						{
-							if (snap.Fraction > 0.0)
-							{
-								ProgressFraction = snap.Fraction;
-							}
-							if (!string.IsNullOrWhiteSpace(snap.Label))
-							{
-								ProgressLabel = snap.Label;
-							}
-							ProgressDetail = TransferMeter.Format(snap);
-						}, Array.Empty<object>());
-					}
+					QueueProgress(meter.Snapshot());
 					await Task.Delay(100, cts.Token).ConfigureAwait(continueOnCapturedContext: false);
 				}
 			}

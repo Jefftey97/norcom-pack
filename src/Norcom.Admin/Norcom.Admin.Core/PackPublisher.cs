@@ -28,7 +28,7 @@ public sealed class PackPublisher
             return Fail("Refusing to publish because launcher/ is missing.");
         }
 
-        var pinBlock = NorcomPin.PublishBlock(packDirectory, serverDirectory);
+        var pinBlock = NorcomPin.StampFriendsMeta(packDirectory, serverDirectory);
         if (pinBlock != null)
         {
             return Fail(pinBlock);
@@ -109,7 +109,7 @@ public sealed class PackPublisher
             return Fail("Push was rejected. The remote was not force-updated. " + Tail(push));
         }
 
-        return new PublishResult(true, true, "Published to Jefftey97/norcom-pack on main with a fast-forward push. launcher/ and the server pin meta stayed. Nothing was force-pushed.");
+        return new PublishResult(true, true, "Published to Jefftey97/norcom-pack on main with a fast-forward push. Friends-heal meta matches the server pin. launcher/ stayed. Nothing was force-pushed.");
     }
 
     private async Task<CommandResult> Git(string packDirectory, IReadOnlyList<string> args, CancellationToken cancellationToken)

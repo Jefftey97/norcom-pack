@@ -23,17 +23,24 @@ public class PinGateTests
     }
 
     [Fact]
-    public async Task Publish_refuses_when_mc_loader_or_pin_disagree()
+    public async Task Publish_stamps_friends_meta_from_the_server_pin()
     {
         var (pack, server) = PackAndServer(stampMeta: true);
-        WriteSlim(NorcomPin.PinPath(server), Pin, "26.3", "0.20.1");
-        WriteSlim(Path.Combine(pack, "meta", "server-pin.json"), "not-the-pin", "26.3", "0.20.1");
+        var sot = File.ReadAllText(NorcomPin.PinPath(server));
+        WriteSlim(Path.Combine(pack, "meta", "server-pin.json"), "not-the-pin", "9.9", "0.0.1");
         var git = new RecordingGit();
         var result = await new PackPublisher(git, new SecretRedactor()).PublishAsync(pack, server, CancellationToken.None);
-        Assert.False(result.Pushed);
-        Assert.Contains("pin disagrees", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Nothing was pushed", result.Message, StringComparison.Ordinal);
-        Assert.Empty(git.Calls);
+        Assert.Contains("git status failed", result.Message, StringComparison.Ordinal);
+        Assert.Equal(sot, File.ReadAllText(NorcomPin.PinPath(server)));
+        Assert.Equal(sot, File.ReadAllText(Path.Combine(pack, "meta", "server-pin.json")));
+        var hint = JsonSerializer.Deserialize<HealHintFile>(File.ReadAllText(Path.Combine(pack, "meta", "heal-hint.json")));
+        Assert.Equal(Pin, hint!.pin);
+        Assert.Equal("26.3", hint.mc);
+        Assert.Equal("0.20.1", hint.loader);
+        Assert.Equal(NorcomPin.MinLauncher, hint.minLauncher);
+        Assert.Equal(NorcomPin.RepairAction, hint.repairAction);
+        Assert.Contains(Pin, File.ReadAllText(Path.Combine(pack, "meta", "server-compat.json")), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("push", string.Join('\n', git.Calls), StringComparison.OrdinalIgnoreCase);
         Cleanup(pack, server);
     }
 
@@ -57,10 +64,10 @@ public class PinGateTests
         File.WriteAllText(Path.Combine(pack, "meta", "server-compat.json"), "{\"packVersion\":\"1.0.35\",\"indexSha256\":\"abc\",\"both\":\"both\",\"pin\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"mc\":\"26.3\",\"loader\":\"0.20.1\"}");
         var git = new RecordingGit();
         var result = await new PackPublisher(git, new SecretRedactor()).PublishAsync(pack, server, CancellationToken.None);
-        Assert.False(result.Pushed);
-        Assert.Contains("server-compat.json", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Nothing was pushed", result.Message, StringComparison.Ordinal);
-        Assert.Empty(git.Calls);
+        Assert.Contains("git status failed", result.Message, StringComparison.Ordinal);
+        Assert.Contains(Pin, File.ReadAllText(Path.Combine(pack, "meta", "server-compat.json")), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1.0.35", File.ReadAllText(Path.Combine(pack, "meta", "server-compat.json")), StringComparison.Ordinal);
+        Assert.NotEmpty(git.Calls);
         Cleanup(pack, server);
     }
 
@@ -68,10 +75,12 @@ public class PinGateTests
     public async Task Publish_ignores_the_mod_ledger_when_slim_pins_match()
     {
         var (pack, server) = PackAndServer(stampMeta: true);
-        File.WriteAllText(Path.Combine(pack, "meta", "norcom-mod-pin.json"), "{\"pin\":\"ledger-is-not-the-gate\"}");
+        File.WriteAllText(Path.Combine(pack, "meta", "norcom-mod-pin.json"), "{\"pin\":\"ledger-is-not-the-gate\",\"jars\":[\"kept.jar\"]}");
         var git = new RecordingGit();
         var result = await new PackPublisher(git, new SecretRedactor()).PublishAsync(pack, server, CancellationToken.None);
         Assert.Contains("git status failed", result.Message, StringComparison.Ordinal);
+        Assert.Contains(Pin, File.ReadAllText(Path.Combine(pack, "meta", "norcom-mod-pin.json")), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("jars", File.ReadAllText(Path.Combine(pack, "meta", "norcom-mod-pin.json")), StringComparison.Ordinal);
         Assert.NotEmpty(git.Calls);
         Assert.DoesNotContain("push", string.Join('\n', git.Calls), StringComparison.OrdinalIgnoreCase);
         Cleanup(pack, server);

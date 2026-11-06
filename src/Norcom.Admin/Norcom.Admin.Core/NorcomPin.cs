@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Norcom.Admin.Core;
 
@@ -32,10 +33,27 @@ public sealed class ServerCompatFile
     public string? loader { get; set; }
 }
 
+public sealed class HealHintFile
+{
+    public string pin { get; set; } = "";
+
+    public string mc { get; set; } = "";
+
+    public string loader { get; set; } = "";
+
+    public string minLauncher { get; set; } = "2.0.0";
+
+    public string repairAction { get; set; } = "resync-pack";
+}
+
 public static class NorcomPin
 {
     public const string AskServer =
         "Ask NORCOM Server to regenerate the pin before friends sync. Admin did not rewrite server-pin.json.";
+
+    public const string MinLauncher = "2.0.0";
+
+    public const string RepairAction = "resync-pack";
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -48,6 +66,81 @@ public static class NorcomPin
 
     public static string PingPath(string serverDirectory) =>
         Path.Combine(serverDirectory, ".norcom", "admin-autofix.ping");
+
+    public static string? StampFriendsMeta(string packDirectory, string serverDirectory)
+    {
+        var sotPath = PinPath(serverDirectory);
+        if (!File.Exists(sotPath))
+        {
+            return "Publish refused. Missing server pin: " + sotPath + ". Nothing was pushed.";
+        }
+
+        var sotBytes = File.ReadAllText(sotPath);
+        ServerPinFile? sot;
+        try
+        {
+            sot = JsonSerializer.Deserialize<ServerPinFile>(sotBytes, Json);
+        }
+        catch (JsonException)
+        {
+            return "Publish refused. Server pin file could not be read. Nothing was pushed.";
+        }
+
+        if (!SlimOk(sot))
+        {
+            return "Publish refused. Server pin is incomplete. Need schema 1 plus mc, loader, and pin. Nothing was pushed.";
+        }
+
+        var ledgerSource = FindLedger(packDirectory, serverDirectory);
+        if (ledgerSource == null)
+        {
+            return "Publish refused. Missing meta file: meta/norcom-mod-pin.json. Nothing was pushed.";
+        }
+
+        JsonObject ledger;
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(ledgerSource)) is not JsonObject obj)
+            {
+                return "Publish refused. meta/norcom-mod-pin.json is incomplete. Nothing was pushed.";
+            }
+
+            ledger = obj;
+        }
+        catch (JsonException)
+        {
+            return "Publish refused. meta/norcom-mod-pin.json could not be read. Nothing was pushed.";
+        }
+
+        var meta = Path.Combine(packDirectory, "meta");
+        Directory.CreateDirectory(meta);
+        var compat = ReadCompat(Path.Combine(meta, "server-compat.json"));
+        compat.pin = sot!.pin;
+        compat.mc = sot.mc;
+        compat.loader = sot.loader;
+        ledger["pin"] = sot.pin;
+        ledger["mc"] = sot.mc;
+        ledger["loader"] = sot.loader;
+
+        File.WriteAllText(Path.Combine(meta, "server-pin.json"), sotBytes);
+        File.WriteAllText(Path.Combine(meta, "server-compat.json"), JsonSerializer.Serialize(compat, Json));
+        File.WriteAllText(Path.Combine(meta, "norcom-mod-pin.json"), ledger.ToJsonString(Json));
+        File.WriteAllText(Path.Combine(meta, "heal-hint.json"), JsonSerializer.Serialize(new HealHintFile
+        {
+            pin = sot.pin,
+            mc = sot.mc,
+            loader = sot.loader,
+            minLauncher = MinLauncher,
+            repairAction = RepairAction
+        }, Json));
+
+        if (!string.Equals(File.ReadAllText(sotPath), sotBytes, StringComparison.Ordinal))
+        {
+            return "Publish refused. The live server pin changed while packing meta. Nothing was pushed.";
+        }
+
+        return PublishBlock(packDirectory, serverDirectory);
+    }
 
     public static string? PublishBlock(string packDirectory, string serverDirectory)
     {
@@ -134,6 +227,35 @@ public static class NorcomPin
         Directory.CreateDirectory(directory);
         var line = stamp + " jar=" + jarName + " " + AskServer;
         File.AppendAllText(PingPath(serverDirectory), line + Environment.NewLine);
+    }
+
+    private static string? FindLedger(string packDirectory, string serverDirectory)
+    {
+        var packLedger = Path.Combine(packDirectory, "meta", "norcom-mod-pin.json");
+        if (File.Exists(packLedger))
+        {
+            return packLedger;
+        }
+
+        var serverLedger = Path.Combine(serverDirectory, "NORCOM-pack", "meta", "norcom-mod-pin.json");
+        return File.Exists(serverLedger) ? serverLedger : null;
+    }
+
+    private static ServerCompatFile ReadCompat(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return new ServerCompatFile();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ServerCompatFile>(File.ReadAllText(path), Json) ?? new ServerCompatFile();
+        }
+        catch (JsonException)
+        {
+            return new ServerCompatFile();
+        }
     }
 
     private static ServerPinFile? ReadPin(string path) =>

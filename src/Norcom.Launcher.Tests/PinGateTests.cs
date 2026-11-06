@@ -39,22 +39,44 @@ public class PinGateTests
 	public async Task PresentPinMismatchRefuses()
 	{
 		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		string json = JsonSerializer.Serialize(new { schema = 1, mc = "26.3", loader = "0.20.1", pin = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", source = "server" });
+		string dir = NewDir();
+		string jar = Path.Combine(dir, "mods", "Clumps-fabric.jar");
+		Directory.CreateDirectory(Path.GetDirectoryName(jar)!);
+		await File.WriteAllBytesAsync(jar, new byte[] { 9, 9, 9 });
+		string json = JsonSerializer.Serialize(new
+		{
+			schema = 1,
+			mc = "26.3",
+			loader = "0.20.1",
+			pin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
+			both = new Dictionary<string, string> { ["Clumps-fabric.jar"] = new string('a', 64) }
+		});
 		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>
 		{
 			["norcom-mod-pin.json"] = (HttpStatusCode.OK, json)
 		}));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, CancellationToken.None));
-		Assert.Equal(PinGate.BlockCopy, ex.Message);
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, pack, CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("expected", ex.Message);
 	}
 
 	[Fact]
-	public void PackSidecarPinIsCheckedBeforeTheMetaFiles()
+	public async Task ServerPinHashAloneDoesNotBlockThePackIndex()
+	{
+		TomlLite.Doc pack = TomlLite.Parse(Pack);
+		string json = JsonSerializer.Serialize(new { schema = 1, mc = "26.3", loader = "0.20.1", pin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac", source = "server" });
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, json));
+		await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-pin.json", CancellationToken.None);
+		Assert.Null(PinGate.LastWarning);
+	}
+
+	[Fact]
+	public void FriendsFetchNorcomModPinFirst()
 	{
 		IReadOnlyList<string> urls = PinGate.CandidateUrls("https://example.test/pack/pack.toml", "https://example.test/launcher/manifest.json");
-		Assert.Equal("https://example.test/pack/pin.json", urls[0]);
-		Assert.Contains("https://example.test/launcher/pin.json", urls);
-		Assert.Contains(PinGate.DefaultPinUrl, urls);
+		Assert.Equal(PinGate.DefaultPinUrl, urls[0]);
+		Assert.Equal("https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/server-pin.json", urls[1]);
+		Assert.Equal(PinGate.CompatPinUrl, urls[2]);
 	}
 
 	[Fact]
@@ -66,8 +88,8 @@ public class PinGateTests
 		{
 			TomlLite.Doc pack = TomlLite.Parse(Pack);
 			using HttpClient http = new(new StubHandler(HttpStatusCode.NotFound, ""));
-			PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None));
-			Assert.Equal("Pack doesn't match live server pin — wait for update", ex.Message);
+			await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None);
+			Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
 		}
 		finally
 		{
@@ -91,7 +113,8 @@ public class PinGateTests
 		string json = JsonSerializer.Serialize(new { schema = 1, mc = "1.21.1", loader = "0.20.1", packVersion = "1.0.35", indexSha256 = "abc123", source = "server" });
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, json));
 		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None));
-		Assert.Equal(PinGate.BlockCopy, ex.Message);
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("expected 1.21.1", ex.Message);
 	}
 
 	[Fact]
@@ -129,6 +152,7 @@ public class PinGateTests
 	[InlineData("iris", "mods/iris.jar")]
 	[InlineData("rei", "mods/rei.jar")]
 	[InlineData("some-pack", "resourcepacks/Patrix.zip")]
+	[InlineData("DistantHorizons", "mods/DistantHorizons-3.3.4-26.3-fabric-neoforge.jar")]
 	[InlineData("shade", "shaderpacks/Complementary.zip")]
 	public void ClientSurfacesAreIgnored(string modid, string jar)
 	{

@@ -23,7 +23,7 @@ public sealed class PackSyncService
 	{
 		meter.SetPhase("Reading pack", 0.02, 0.05);
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
-		await PinGate.EnforceAsync(_http, gameDir, doc, ct, packUrl, null).ConfigureAwait(continueOnCapturedContext: false);
+		await PinGate.EnforceAsync(_http, gameDir, doc, ct, packUrl, null, missingBlocks: false).ConfigureAwait(continueOnCapturedContext: false);
 		string value;
 		string text = (doc.Keys.TryGetValue("index.file", out value) ? value : "index.toml");
 		string indexHash = doc.Keys.GetValueOrDefault("index.hash") ?? "";
@@ -106,6 +106,7 @@ public sealed class PackSyncService
 		{
 			WriteIndented = true
 		}), ct).ConfigureAwait(continueOnCapturedContext: false);
+		await PinGate.EnforceAsync(_http, gameDir, doc, ct, packUrl, null, missingBlocks: true).ConfigureAwait(continueOnCapturedContext: false);
 		meter.SetPhase("Pack ready", 0.92, 0.0);
 		LauncherLog.Write("Pack sync complete files=" + managed.Count);
 	}

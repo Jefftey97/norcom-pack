@@ -17,9 +17,9 @@ public static class GraphicsPack
 
 	public const string MarbleFile = "norcom_marble.zip";
 
-	public const string MarbleSha256 = "368ffaaa8accafa2c4c7110ff7e1c4f96c8a53109ab872677ab045d67f453d2f";
+	public const string MarbleSha256 = "80770a4a8735188b8b9ac5e2f0d1ca8247bd76b17b86edde659261b7b1c21db5";
 
-	public const int MarbleBytes = 2615106;
+	public const int MarbleBytes = 3515313;
 
 	public const string MarbleUrl = "https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/norcom_marble.zip";
 

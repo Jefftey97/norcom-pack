@@ -149,9 +149,9 @@ public class GraphicsWriterTests
 		new GraphicsService().Apply(dir, GraphicsTier.High);
 		Assert.Equal("do-not-touch", File.ReadAllText(Path.Combine(packsDir, "Alacrity.zip")));
 		string marble = Path.Combine(packsDir, GraphicsPack.MarbleFile);
-		Assert.Equal(3, new FileInfo(marble).Length);
-		Assert.Equal("368ffaaa8accafa2c4c7110ff7e1c4f96c8a53109ab872677ab045d67f453d2f", GraphicsPack.MarbleSha256);
-		Assert.Equal(2615106, GraphicsPack.MarbleBytes);
+		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(marble))).ToLowerInvariant();
+		Assert.Equal(GraphicsPack.MarbleSha256, sha);
+		Assert.Equal(GraphicsPack.MarbleBytes, new FileInfo(marble).Length);
 		string packs = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
 		int alacrity = packs.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
 		int candle = packs.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);

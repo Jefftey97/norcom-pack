@@ -5,5 +5,5 @@ side = "client"
 [download]
 mode = "url"
 url = "https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/norcom_marble.zip"
-hash-format = "sha256"
-hash = "368ffaaa8accafa2c4c7110ff7e1c4f96c8a53109ab872677ab045d67f453d2f"
+hash-format = "sha512"
+hash = "9099f6be474a4dd893c208049bd8a98a9722bfd942a8eea9d721afd6a53d75ea6b9292c7a9731a4f678d3fb69e52a26d4c4d390123b95174f827167de0006664"

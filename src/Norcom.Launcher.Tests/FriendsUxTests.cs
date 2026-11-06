@@ -1,4 +1,5 @@
 using Xunit;
+using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Services;
 
@@ -7,14 +8,39 @@ namespace Norcom.Launcher.Tests;
 public class FriendsUxTests
 {
 	[Fact]
-	public void MissingStatusFileIsUnknown()
+	public void ServerListPingOnlineShowsThePlayerCount()
 	{
-		HomeStatus status = HomeStatusClient.ReadFile(Path.Combine(Path.GetTempPath(), "norcom-missing-" + Guid.NewGuid().ToString("n") + ".json"));
+		HomeStatus status = HomeStatusClient.FromPing(new ServerStatus(Online: true, 4, 20, "secret motd", 12, new[] { "Alice" }, ""));
+		Assert.True(status.ShowOnline);
+		Assert.Equal("Online", status.Headline);
+		Assert.Equal("4 online", status.PlayersText);
+		Assert.Equal(NorcomPaths.ServerHost + ":" + NorcomPaths.ServerPort, status.Source);
+		Assert.DoesNotContain("Alice", status.Detail);
+		Assert.DoesNotContain("secret", status.Detail);
+		Assert.DoesNotContain("not published", status.Detail);
+	}
+
+	[Fact]
+	public void ServerListPingTimeoutIsOffline()
+	{
+		HomeStatus status = HomeStatusClient.FromPing(new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), "Timed out reaching the server."));
 		Assert.False(status.ShowOnline);
-		Assert.Equal("Unknown", status.Headline);
+		Assert.Equal("Offline", status.Headline);
 		Assert.Equal("—", status.PlayersText);
-		Assert.Contains("not published", status.Detail);
-		Assert.Contains(HomeStatusClient.HostStatusPath, status.Source);
+		Assert.Equal("Timed out reaching the server.", status.Detail);
+		Assert.DoesNotContain("not published", status.Detail);
+		Assert.Equal("shrimp-cub.tun.ply.gg:25565", status.Source);
+	}
+
+	[Fact]
+	public void PresentStatusFileOverridesThePing()
+	{
+		string path = Path.Combine(Path.GetTempPath(), "norcom-status-" + Guid.NewGuid().ToString("n") + ".json");
+		File.WriteAllText(path, """{"up":true,"players":2,"updatedUtc":"2026-11-06T03:00:00Z"}""");
+		HomeStatus? file = HomeStatusClient.ReadFile(path);
+		Assert.NotNull(file);
+		Assert.Equal("2 online", file.PlayersText);
+		Assert.Null(HomeStatusClient.ReadFile(path + ".missing"));
 	}
 
 	[Fact]
@@ -41,11 +67,11 @@ public class FriendsUxTests
 	}
 
 	[Fact]
-	public void BadStatusJsonFailsSoft()
+	public void BadStatusJsonIsNotAnOverride()
 	{
-		HomeStatus status = HomeStatusClient.Parse("not-json", "status.json");
-		Assert.Equal("Unknown", status.Headline);
-		Assert.Contains("could not be read", status.Detail);
+		string path = Path.Combine(Path.GetTempPath(), "norcom-bad-" + Guid.NewGuid().ToString("n") + ".json");
+		File.WriteAllText(path, "not-json");
+		Assert.Null(HomeStatusClient.ReadFile(path));
 	}
 
 	[Fact]

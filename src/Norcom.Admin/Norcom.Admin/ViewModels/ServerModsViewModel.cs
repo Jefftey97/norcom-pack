@@ -67,6 +67,12 @@ public partial class ServerModsViewModel : ObservableObject
             return;
         }
 
+        if (!Ask.Yes("Save " + card.Title + " settings?"))
+        {
+            Status = "Save cancelled.";
+            return;
+        }
+
         try
         {
             var edits = card.Fields.Select(field => new ServerSettingEdit(

@@ -9,9 +9,7 @@
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
-        <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
-        <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBlock Text="BACKUP zips only when Java is quiet. A live process or session.lock is a hard refuse. save-all flush is RCON-only, and a world that is still live after flush needs Stop first. 04:00–04:01 Denver, backups\auto newer than 2 minutes, or maintenance.flag skips a second zip. Server soft restart is unchanged. RESTORE moves the live world aside first." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <TextBlock Text="Backup zips only when Java is quiet. A live process or session.lock is a hard refuse. save-all flush is RCON-only, and a world that is still live after flush needs Stop first. 04:00–04:01 Denver, backups\auto newer than 2 minutes, or maintenance.flag skips a second zip. Restore moves the live world aside first. Both ask before they run." Foreground="#93A4BD" TextWrapping="Wrap"/>
         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
       </StackPanel>
     </Border>

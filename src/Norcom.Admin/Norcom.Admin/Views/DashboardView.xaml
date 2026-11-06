@@ -12,9 +12,7 @@
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
-        <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
-        <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBlock Text="STOP, RESTART, CRASH, BACKUP. Backup Now refuses a live world. save-all flush runs only when RCON is up; if Java is still writing, Stop first. A second zip is skipped at 04:00–04:01 Denver, after a fresh auto zip, or while maintenance.flag covers that window." Foreground="#93A4BD" Margin="0,6,0,0" TextWrapping="Wrap"/>
+        <TextBlock Text="Stop, soft restart, and backup ask before they run. Backup refuses a live world. save-all flush runs only when RCON is up; if Java is still writing, Stop first. A second zip is skipped at 04:00–04:01 Denver, after a fresh auto zip, or while maintenance.flag covers that window." Foreground="#93A4BD" TextWrapping="Wrap"/>
         <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
         <Border Background="#2A1220" BorderBrush="#FF3DB8" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,8,0,0"
                 Visibility="{Binding FrozenNotice, Converter={StaticResource TextVis}}">

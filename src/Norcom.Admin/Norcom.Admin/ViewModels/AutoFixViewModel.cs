@@ -36,15 +36,14 @@ public partial class AutoFixViewModel : ObservableObject
     [ObservableProperty] private bool diskLogCleanup;
     [ObservableProperty] private bool brokenConfigRestore;
     [ObservableProperty] private bool crashAlerts;
-    [ObservableProperty] private string confirmText = "";
-    [ObservableProperty] private string status = "Type AUTOFIX before Run now. Notices on the timer do not move jars.";
+    [ObservableProperty] private string status = "Run now can clean logs, restore JSON, or quarantine a mod. Notices on the timer do not move jars.";
 
     [RelayCommand]
     private void RunNow()
     {
-        if (!Confirm.Matches(ConfirmText, "AUTOFIX"))
+        if (!Ask.Yes("Run auto-fix now? This can delete old logs, restore JSON, or quarantine a mod."))
         {
-            Status = "Type AUTOFIX to run log cleanup, JSON restore, or bad-mod quarantine.";
+            Status = "Auto-fix cancelled.";
             return;
         }
 

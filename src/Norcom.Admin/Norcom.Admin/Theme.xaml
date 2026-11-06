@@ -70,9 +70,10 @@
   </Style>
 
   <Style x:Key="CyanButton" TargetType="Button">
-    <Setter Property="Foreground" Value="#041018"/>
-    <Setter Property="Background" Value="{StaticResource Cyan}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource Cyan}"/>
+    <Setter Property="Foreground" Value="#F4FBFF"/>
+    <Setter Property="Background" Value="#3A4454"/>
+    <Setter Property="BorderBrush" Value="#6E7C90"/>
+    <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Padding" Value="14,8"/>
     <Setter Property="Margin" Value="0,0,8,8"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
@@ -80,38 +81,34 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border Background="{TemplateBinding Background}" CornerRadius="16" Padding="{TemplateBinding Padding}">
+          <Border x:Name="Box" Background="#3A4454" BorderBrush="#6E7C90" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="Background" Value="#4A5568"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="#8B97AB"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Box" Property="Background" Value="#2C3544"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Box" Property="Opacity" Value="0.55"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
   </Style>
 
-  <Style x:Key="PinkButton" TargetType="Button" BasedOn="{StaticResource CyanButton}">
-    <Setter Property="Background" Value="{StaticResource Pink}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource Pink}"/>
-    <Setter Property="Foreground" Value="#1A0612"/>
-  </Style>
+  <Style x:Key="PinkButton" TargetType="Button" BasedOn="{StaticResource CyanButton}"/>
 
-  <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource CyanButton}">
-    <Setter Property="Foreground" Value="{StaticResource Ink}"/>
-    <Setter Property="Background" Value="#00000000"/>
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="Button">
-          <Border Background="#121C2E" BorderBrush="#2A4A62" BorderThickness="1" CornerRadius="16" Padding="{TemplateBinding Padding}">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-          </Border>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
-  </Style>
+  <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource CyanButton}"/>
 
   <Style x:Key="NavButton" TargetType="Button">
-    <Setter Property="Foreground" Value="#D5E7F4"/>
-    <Setter Property="Background" Value="#00000000"/>
-    <Setter Property="BorderBrush" Value="#00000000"/>
+    <Setter Property="Foreground" Value="#F4FBFF"/>
+    <Setter Property="Background" Value="#3A4454"/>
+    <Setter Property="BorderBrush" Value="#6E7C90"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="Padding" Value="12,8"/>
     <Setter Property="Margin" Value="0,2"/>
@@ -119,16 +116,16 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Edge" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="{TemplateBinding Padding}">
+          <Border x:Name="Edge" Background="#3A4454" BorderBrush="#6E7C90" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="Tag" Value="True">
-              <Setter TargetName="Edge" Property="Background" Value="#102833"/>
-              <Setter TargetName="Edge" Property="BorderBrush" Value="#00E5FF"/>
+              <Setter TargetName="Edge" Property="Background" Value="#4A5568"/>
+              <Setter TargetName="Edge" Property="BorderBrush" Value="#C5D0DE"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Edge" Property="Background" Value="#0E1C2A"/>
+              <Setter TargetName="Edge" Property="Background" Value="#4A5568"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

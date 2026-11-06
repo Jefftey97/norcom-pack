@@ -36,9 +36,8 @@ public partial class SettingsViewModel : ObservableObject
 
     public ObservableCollection<PropertyRow> Extra { get; } = new();
 
-    [ObservableProperty] private string status = "Type TIME to save. simulation-distance is left unchanged.";
+    [ObservableProperty] private string status = "Save writes server settings. simulation-distance is left unchanged.";
     [ObservableProperty] private string schedulerLine = "";
-    [ObservableProperty] private string confirmText = "";
     [ObservableProperty] private string motd = "NORCOM";
     [ObservableProperty] private string difficulty = "easy";
     [ObservableProperty] private string gamemode = "survival";
@@ -67,9 +66,9 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task Save()
     {
-        if (!Confirm.Matches(ConfirmText, "TIME"))
+        if (!Ask.Yes("Save these settings and game rules to the server?"))
         {
-            Status = "Type TIME before saving settings, game rules, or day and night length.";
+            Status = "Save cancelled. Server files were not changed.";
             return;
         }
 

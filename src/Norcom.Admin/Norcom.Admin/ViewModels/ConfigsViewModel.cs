@@ -53,6 +53,12 @@ public partial class ConfigsViewModel : ObservableObject
             return;
         }
 
+        if (!Ask.Yes("Save " + SelectedFile + "?"))
+        {
+            Status = "Config save cancelled.";
+            return;
+        }
+
         try
         {
             ServerCommands.SaveConfig(_serverPath(), SelectedFile, Editor);

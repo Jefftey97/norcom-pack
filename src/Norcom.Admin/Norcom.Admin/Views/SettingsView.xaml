@@ -9,9 +9,7 @@
     </StackPanel>
     <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
-        <TextBlock Text="Type TIME" Style="{StaticResource Label}"/>
-        <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>
     <ScrollViewer VerticalScrollBarVisibility="Auto">

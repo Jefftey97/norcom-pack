@@ -129,9 +129,6 @@ public partial class OpsViewModel : ObservableObject
     private string playerName = "";
 
     [ObservableProperty]
-    private string confirmText = "";
-
-    [ObservableProperty]
     private bool serverPresent;
 
     [ObservableProperty]
@@ -185,6 +182,12 @@ public partial class OpsViewModel : ObservableObject
             return;
         }
 
+        if (!Ask.Yes("Write the RCON password into server.properties?"))
+        {
+            Status = "Password save cancelled. server.properties was not changed.";
+            return;
+        }
+
         ServerProperties.WriteSecret(Path.Combine(ServerPath, "server.properties"), _password);
         _redactor.WriteLog("RCON password updated on the server file");
         Status = "RCON password stored in server.properties. It was not written to the admin log.";
@@ -196,9 +199,9 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private async Task Stop()
     {
-        if (!Confirm.Matches(ConfirmText, "STOP"))
+        if (!Ask.Yes("Stop the server?"))
         {
-            Status = "Type STOP to confirm.";
+            Status = "Stop cancelled.";
             return;
         }
 
@@ -209,9 +212,9 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private async Task Restart()
     {
-        if (!Confirm.Matches(ConfirmText, "RESTART"))
+        if (!Ask.Yes("Soft restart the server? It stops, waits until quiet, then starts. Java is not killed."))
         {
-            Status = "Type RESTART to confirm a soft restart.";
+            Status = "Soft restart cancelled.";
             return;
         }
 
@@ -231,9 +234,9 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private async Task CrashRestart()
     {
-        if (!Confirm.Matches(ConfirmText, "CRASH"))
+        if (!Ask.Yes("Close a hung server process and start again?"))
         {
-            Status = "Type CRASH to confirm the hung-process path.";
+            Status = "Hung-process restart cancelled.";
             return;
         }
 
@@ -284,6 +287,23 @@ public partial class OpsViewModel : ObservableObject
             return;
         }
 
+        if (step == BackupStep.Refuse)
+        {
+            Status = HasPassword
+                ? BackupPolicy.RefuseMessage(ServerCommands.WritingReason(ServerPath))
+                : BackupPolicy.NoFlushPathMessage;
+            _redactor.WriteLog(Status);
+            return;
+        }
+
+        if (!Ask.Yes(step == BackupStep.Zip
+            ? "Zip the quiet world now?"
+            : "The world is live. Try save-all flush, then zip only if Java has stopped?"))
+        {
+            Status = "Backup cancelled. Nothing was zipped.";
+            return;
+        }
+
         if (step == BackupStep.FlushThenRecheck)
         {
             try
@@ -326,12 +346,6 @@ public partial class OpsViewModel : ObservableObject
             return;
         }
 
-        if (!Confirm.Matches(ConfirmText, "BACKUP"))
-        {
-            Status = "Type BACKUP to zip a quiet world. A live world is refused. 04:00–04:01 Denver, a fresh auto zip, or maintenance.flag skips a second zip.";
-            return;
-        }
-
         try
         {
             var zip = BackupArchive.CreateZip(ServerPath);
@@ -348,16 +362,16 @@ public partial class OpsViewModel : ObservableObject
     [RelayCommand]
     private void Restore()
     {
-        if (!Confirm.Matches(ConfirmText, "RESTORE"))
-        {
-            Status = "Type RESTORE to confirm. The current world is moved aside first.";
-            return;
-        }
-
         var entry = _backups.FirstOrDefault(item => item.Name == SelectedBackup);
         if (entry == null)
         {
             Status = "Pick a backup first.";
+            return;
+        }
+
+        if (!Ask.Yes("Restore " + entry.Name + "? The current world folder is moved aside first."))
+        {
+            Status = "Restore cancelled.";
             return;
         }
 
@@ -443,60 +457,30 @@ public partial class OpsViewModel : ObservableObject
     private async Task WhitelistAdd() => Status = await AccessAsync("whitelist add " + CleanName(PlayerName));
 
     [RelayCommand]
-    private async Task WhitelistRemove() => Status = await AccessAsync("whitelist remove " + CleanName(PlayerName));
+    private async Task WhitelistRemove() => Status = await PlayerChange("whitelist remove", "Remove this player from the whitelist?");
 
     [RelayCommand]
-    private async Task OpAdd()
-    {
-        if (!Confirm.Matches(ConfirmText, "OP"))
-        {
-            Status = "Type OP to confirm.";
-            return;
-        }
-
-        Status = await AccessAsync("op " + CleanName(PlayerName));
-    }
+    private async Task OpAdd() => Status = await PlayerChange("op", "Give this player operator?");
 
     [RelayCommand]
-    private async Task Deop()
-    {
-        if (!Confirm.Matches(ConfirmText, "DEOP"))
-        {
-            Status = "Type DEOP to confirm.";
-            return;
-        }
-
-        Status = await AccessAsync("deop " + CleanName(PlayerName));
-    }
+    private async Task Deop() => Status = await PlayerChange("deop", "Remove operator from this player?");
 
     [RelayCommand]
-    private async Task Kick()
-    {
-        if (!Confirm.Matches(ConfirmText, "KICK"))
-        {
-            Status = "Type KICK to confirm.";
-            return;
-        }
-
-        Status = await AccessAsync("kick " + CleanName(PlayerName));
-    }
+    private async Task Kick() => Status = await PlayerChange("kick", "Kick this player?");
 
     [RelayCommand]
-    private async Task Ban()
-    {
-        if (!Confirm.Matches(ConfirmText, "BAN"))
-        {
-            Status = "Type BAN to confirm.";
-            return;
-        }
-
-        Status = await AccessAsync("ban " + CleanName(PlayerName));
-    }
+    private async Task Ban() => Status = await PlayerChange("ban", "Ban this player?");
 
     [RelayCommand]
     private async Task WhitelistToggle()
     {
         var enable = !WhitelistOn;
+        if (!Ask.Yes(enable ? "Turn the whitelist on?" : "Turn the whitelist off?"))
+        {
+            Status = "Whitelist change cancelled.";
+            return;
+        }
+
         try
         {
             var path = Path.Combine(ServerPath, "server.properties");
@@ -608,6 +592,22 @@ public partial class OpsViewModel : ObservableObject
         {
             return _redactor.Clean(ex.Message);
         }
+    }
+
+    private async Task<string> PlayerChange(string verb, string question)
+    {
+        var name = CleanName(PlayerName);
+        if (name.Length == 0)
+        {
+            return "Enter a player name made of letters, numbers, or underscores.";
+        }
+
+        if (!Ask.Yes(question + "\n\n" + name))
+        {
+            return verb + " cancelled.";
+        }
+
+        return await AccessAsync(verb + " " + name);
     }
 
     private async Task<string> AccessAsync(string command)

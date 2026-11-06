@@ -1,7 +1,7 @@
 {
-  "version": "2.0.38",
+  "version": "2.0.39",
   "minVersion": "2.0.0",
-  "sha256": "a324a5ba20a5fe38742b08062d3295306b24f367e2cd33ce49fce2a5cb8c6d70",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/1117b2494e26f5c351e2f48e8d50cea3f0909369/launcher/NorcomWpf-2.0.38.zip",
-  "notes": "EMERGENCY rollback. Launcher 2.0.37 (265e123e) crashes on start: Cannot locate resource app.xaml (decompiled WPF publish). Restores known-good exe 8e3005d9fe22551bccfaafc11b3dc90e348133c1710b935838fa8c6bb6e2aecc (same bits as feed 2.0.36 tip 803a3bab). Marble tip RP 80770a4a and jar 47fe426d stay on release assets; Discord held. Do not tip another decompiled single-file until Windows GUI smoke PASS."
+  "sha256": "af6b33f3444edc34a14d65935a4885b453116c42e9eb833ab6cc9ada6aac8b54",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/ff1ea74673efc08b09167f1e2f7526e2e562ae3c/launcher/NorcomWpf-2.0.39.zip",
+  "notes": "LivePin soft/warn-only; RAIN_STYLE=1; Windows GUI smoke PASS cea44ca8; Discord HELD; RP tip HOLD (Carrara denser retune — keep marble hash 80770a4a / do NOT tip 8ED811DB)."
 }

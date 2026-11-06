@@ -177,14 +177,21 @@ internal static class PlayChrome
 			Foreground = Brush(61, 240, 255),
 			Cursor = Cursors.Hand,
 			Focusable = false,
-			ToolTip = "Fetch the live server pin and adopt it",
+			ToolTip = "Heal pack jars that lag the live pin and record it",
 			Template = (ControlTemplate)XamlReader.Parse("<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{x:Type Button}'><Border Background='#0C1324' BorderBrush='#3DF0FF' BorderThickness='1' CornerRadius='6' Padding='10,4'><ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center'/></Border></ControlTemplate>")
 		};
 		AutomationProperties.SetAutomationId(fix, "FixPin");
 		AutomationProperties.SetName(fix, "Fix pin");
-		fix.Click += delegate
+		fix.Click += async delegate
 		{
-			vm.FixPinAsync();
+			try
+			{
+				await vm.FixPinAsync().ConfigureAwait(true);
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("pin fix " + ex.GetType().Name);
+			}
 		};
 		StackPanel row = new StackPanel
 		{
@@ -211,6 +218,7 @@ internal static class PlayChrome
 		{
 			string state = vm.PinStatus ?? "";
 			word.Text = state;
+			word.ToolTip = string.IsNullOrWhiteSpace(vm.PinDetail) ? null : vm.PinDetail;
 			if (state == "correct")
 			{
 				word.Foreground = Brush(61, 255, 176);
@@ -226,7 +234,7 @@ internal static class PlayChrome
 		}
 		vm.PropertyChanged += delegate(object _, System.ComponentModel.PropertyChangedEventArgs args)
 		{
-			if (args.PropertyName == "PinStatus")
+			if (args.PropertyName == "PinStatus" || args.PropertyName == "PinDetail")
 			{
 				Paint();
 			}

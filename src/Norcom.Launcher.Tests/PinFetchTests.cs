@@ -34,9 +34,11 @@ public class PinFetchTests
 		PinFetch.ResetForTests();
 		List<string> urls = new List<string>();
 		string dir = NewDir();
+		string primary = Path.Combine(dir, "primary");
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
 		using HttpClient http = new(new OrderHandler(urls, commitRefBody: Full(Published, null)));
-		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: false);
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: false, primary);
+		Assert.Equal(Published, PinGate.ReadPrimaryAppliedPin(primary));
 		Assert.Equal("correct", result.State);
 		Assert.Equal(Published, result.Pin);
 		Assert.Equal(Published, PinGate.ReadAppliedPin(dir));
@@ -58,7 +60,7 @@ public class PinFetchTests
 		});
 		string dir = NewDir();
 		using HttpClient http = new(new OrderHandler(urls, commitRefBody: null, jsDelivrBody: null, contentsBody: wrapped));
-		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true);
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true, Path.Combine(dir, "primary"));
 		Assert.Equal("correct", result.State);
 		Assert.Equal(Published, PinGate.ReadAppliedPin(dir));
 		int commit = urls.FindIndex(url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
@@ -81,12 +83,14 @@ public class PinFetchTests
 		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "norcom-marble-1.0.0.jar"), local);
 		string expected = new string('d', 64);
 		string dirPin = Full(published, "[{\"name\":\"norcom-marble-1.0.0.jar\",\"sha256\":\"" + expected + "\",\"size\":" + local.Length + "}]");
+		string primary = Path.Combine(dir, "primary");
 		using HttpClient http = new(new OrderHandler(new List<string>(), dirPin));
-		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true);
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true, primary);
 		Assert.Equal("mismatch", result.State);
-		Assert.Equal(published, result.Pin);
-		Assert.Equal(published, PinGate.ReadAppliedPin(dir));
-		Assert.NotEqual(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+		Assert.Equal("", result.Pin);
+		Assert.Null(PinGate.ReadAppliedPin(dir));
+		Assert.Null(PinGate.ReadPrimaryAppliedPin(primary));
+		Assert.Equal("stale-marble", Encoding.UTF8.GetString(await File.ReadAllBytesAsync(Path.Combine(dir, "mods", "norcom-marble-1.0.0.jar"))));
 	}
 
 	[Fact]
@@ -96,7 +100,7 @@ public class PinFetchTests
 		string temp = "07983921" + new string('a', 56);
 		string dir = NewDir();
 		using HttpClient http = new(new OrderHandler(new List<string>(), Full(temp, null)));
-		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true);
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: true, Path.Combine(dir, "primary"));
 		Assert.Equal(temp, result.Pin);
 		Assert.Equal(temp, PinGate.ReadAppliedPin(dir));
 		Assert.NotEqual(PinGate.LivePin, result.Pin);

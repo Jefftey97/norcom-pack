@@ -41,7 +41,7 @@ public sealed class HealHintFile
 
     public string loader { get; set; } = "";
 
-    public string minLauncher { get; set; } = "2.0.0";
+    public string minLauncher { get; set; } = "2.0.1";
 
     public string repairAction { get; set; } = "resync-pack";
 }
@@ -51,7 +51,7 @@ public static class NorcomPin
     public const string AskServer =
         "Ask NORCOM Server to regenerate the pin before friends sync. Admin did not rewrite server-pin.json.";
 
-    public const string MinLauncher = "2.0.0";
+    public const string MinLauncher = "2.0.1";
 
     public const string RepairAction = "resync-pack";
 

@@ -239,6 +239,58 @@ public class GraphicsWriterTests
 		Assert.Equal("stacked", File.ReadAllText(Path.Combine(packs, "norcom-held", "FreshAnimations.zip")));
 	}
 
+	[Theory]
+	[InlineData(GraphicsTier.Low, "0.5")]
+	[InlineData(GraphicsTier.Medium, "0.5")]
+	[InlineData(GraphicsTier.MediumHigh, "0.5")]
+	[InlineData(GraphicsTier.High, "0.5")]
+	[InlineData(GraphicsTier.Ultra, "1.0")]
+	public void ReflectionScaleStaysNumericForIris(GraphicsTier tier, string scale)
+	{
+		string dir = NewGame();
+		new GraphicsService().Apply(dir, tier);
+		foreach (string name in new string[2] { "ComplementaryUnbound_r5.9.3.txt", "ComplementaryUnbound_r5.9.3.zip.txt" })
+		{
+			Dictionary<string, string> shader = ReadProperties(Path.Combine(dir, "shaderpacks", name));
+			Assert.Equal(scale, shader["REFLECTION_RES"]);
+			Assert.Contains(".", shader["REFLECTION_RES"]);
+			Assert.Equal("100", shader["WATERCOLOR_R"]);
+			Assert.Equal("100", shader["WATERCOLOR_G"]);
+			Assert.Equal("100", shader["WATERCOLOR_B"]);
+			Assert.Equal("0.65", shader["COLORED_LIGHT_FOG_I"]);
+			Assert.Equal("28", shader["NETHER_STORM_LOWER_ALT"]);
+			Assert.Equal("192", shader["CLOUD_ALT1"]);
+			Assert.Equal("1.00", shader["MOON_PHASE_FULL"]);
+			Assert.Equal("0.25", shader["LIGHTSHAFT_SUNSET_SATURATION"]);
+			Assert.Equal("false", shader["ATM_COLOR_MULTS"]);
+			Assert.Equal("false", shader["LIGHT_COLOR_MULTS"]);
+			Assert.Equal("false", shader["WB_FOV_SCALED"]);
+			Assert.Equal("false", shader["WORLD_OUTLINE_SCALED"]);
+			Assert.Equal("true", shader["FANCY_GLASS"]);
+		}
+	}
+
+	[Fact]
+	public void CoerceRewritesFalseBeforeTextureScaleParseInt()
+	{
+		string bad = "profile=HIGH\nREFLECTION_RES=false\nWATERCOLOR_R=false\nCOLORED_LIGHT_FOG_I=false\nNETHER_STORM_LOWER_ALT=false\nCLOUD_ALT1=false\nMOON_PHASE_FULL=false\nLIGHTSHAFT_SUNSET_SATURATION=false\nFANCY_GLASS=true\nshadowDistance=112.0\n";
+		string coerced = ShaderScale.Coerce(bad, GraphicsTier.High);
+		Assert.Contains("REFLECTION_RES=0.5", coerced);
+		Assert.Contains("WATERCOLOR_R=100", coerced);
+		Assert.Contains("COLORED_LIGHT_FOG_I=0.65", coerced);
+		Assert.Contains("NETHER_STORM_LOWER_ALT=28", coerced);
+		Assert.Contains("CLOUD_ALT1=192", coerced);
+		Assert.Contains("MOON_PHASE_FULL=1.00", coerced);
+		Assert.Contains("LIGHTSHAFT_SUNSET_SATURATION=0.25", coerced);
+		Assert.Contains("FANCY_GLASS=true", coerced);
+		Assert.Contains("shadowDistance=112.0", coerced);
+		Assert.DoesNotContain("REFLECTION_RES=false", coerced);
+		Assert.Contains("REFLECTION_RES=1.0", ShaderScale.Coerce("REFLECTION_RES=false\n", GraphicsTier.Ultra));
+		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=false\n", GraphicsTier.Low));
+		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=1\n", GraphicsTier.High));
+		Assert.Contains("REFLECTION_RES=0.5", ShaderScale.Coerce("REFLECTION_RES=0.5\n", GraphicsTier.High));
+	}
+
 	[Fact]
 	public void TwelveGigabyteCardsMapToUltra()
 	{

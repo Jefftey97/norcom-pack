@@ -20,63 +20,85 @@ public class PinGateTests
 		fabric = "0.20.1"
 		""";
 
+	private const string LivePin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac";
+
 	[Fact]
-	public async Task FallbackPinIsUsedWhenPrimaryIsMissing()
+	public void FriendsFetchServerPinThenCompat()
 	{
-		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		string json = JsonSerializer.Serialize(new { schema = 1, mc = "26.3", loader = "0.20.1", pin = "abc123", source = "server" });
-		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>
-		{
-			["norcom-mod-pin.json"] = (HttpStatusCode.NotFound, ""),
-			["server-pin.json"] = (HttpStatusCode.NotFound, ""),
-			["server-compat.json"] = (HttpStatusCode.OK, json)
-		}));
-		await PinGate.EnforceAsync(http, NewDir(), pack, CancellationToken.None);
-		Assert.Null(PinGate.LastWarning);
+		IReadOnlyList<string> urls = PinGate.CandidateUrls("https://example.test/pack/pack.toml", null);
+		Assert.Equal(PinGate.ServerPinUrl, urls[0]);
+		Assert.Equal(PinGate.CompatPinUrl, urls[1]);
+		Assert.DoesNotContain(urls, url => url.Contains("norcom-mod-pin.json", StringComparison.Ordinal));
 	}
 
 	[Fact]
-	public async Task PresentPinMismatchRefuses()
+	public async Task CompatFallbackIsUsedWhenServerPinIsMissing()
 	{
 		TomlLite.Doc pack = TomlLite.Parse(Pack);
+		string json = LockedPin("26.3", "0.20.1", LivePin);
+		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>
+		{
+			["server-pin.json"] = (HttpStatusCode.NotFound, ""),
+			["server-compat.json"] = (HttpStatusCode.OK, json)
+		}));
 		string dir = NewDir();
-		string jar = Path.Combine(dir, "mods", "Clumps-fabric.jar");
-		Directory.CreateDirectory(Path.GetDirectoryName(jar)!);
-		await File.WriteAllBytesAsync(jar, new byte[] { 9, 9, 9 });
+		await PinGate.EnforceAsync(http, dir, pack, CancellationToken.None);
+		Assert.Null(PinGate.LastWarning);
+		Assert.Equal(LivePin, PinGate.ReadAppliedPin(dir));
+	}
+
+	[Fact]
+	public async Task ExtraFieldsAreIgnored()
+	{
+		TomlLite.Doc pack = TomlLite.Parse(Pack);
 		string json = JsonSerializer.Serialize(new
 		{
 			schema = 1,
 			mc = "26.3",
 			loader = "0.20.1",
-			pin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
-			both = new Dictionary<string, string> { ["Clumps-fabric.jar"] = new string('a', 64) }
+			pin = LivePin,
+			source = "server",
+			updatedUtc = "2026-11-06T02:04:49Z",
+			packVersion = "9.9.9",
+			indexSha256 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			both = new Dictionary<string, string> { ["Clumps.jar"] = new string('a', 64) }
 		});
-		using HttpClient http = new(new RouteHandler(new Dictionary<string, (HttpStatusCode, string)>
-		{
-			["norcom-mod-pin.json"] = (HttpStatusCode.OK, json)
-		}));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, pack, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains("expected", ex.Message);
-	}
-
-	[Fact]
-	public async Task ServerPinHashAloneDoesNotBlockThePackIndex()
-	{
-		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		string json = JsonSerializer.Serialize(new { schema = 1, mc = "26.3", loader = "0.20.1", pin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac", source = "server" });
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, json));
-		await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-pin.json", CancellationToken.None);
+		await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-compat.json", CancellationToken.None);
 		Assert.Null(PinGate.LastWarning);
 	}
 
 	[Fact]
-	public void FriendsFetchNorcomModPinFirst()
+	public async Task StoredPinMismatchRefuses()
 	{
-		IReadOnlyList<string> urls = PinGate.CandidateUrls("https://example.test/pack/pack.toml", "https://example.test/launcher/manifest.json");
-		Assert.Equal(PinGate.DefaultPinUrl, urls[0]);
-		Assert.Equal("https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/server-pin.json", urls[1]);
-		Assert.Equal(PinGate.CompatPinUrl, urls[2]);
+		TomlLite.Doc pack = TomlLite.Parse(Pack);
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, LockedPin("26.3", "0.20.1", LivePin)));
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, pack, "https://example.test/server-pin.json", CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains(LivePin, ex.Message);
+		Assert.Contains("old-pin", ex.Message);
+		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
+	}
+
+	[Fact]
+	public async Task MismatchedMinecraftBlocks()
+	{
+		TomlLite.Doc pack = TomlLite.Parse(Pack);
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, LockedPin("1.21.1", "0.20.1", LivePin)));
+		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-pin.json", CancellationToken.None));
+		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
+		Assert.Contains("1.21.1", ex.Message);
+	}
+
+	[Fact]
+	public async Task MissingPinWarnsAndContinues()
+	{
+		TomlLite.Doc pack = TomlLite.Parse(Pack);
+		using HttpClient http = new(new StubHandler(HttpStatusCode.NotFound, ""));
+		await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-pin.json", CancellationToken.None);
+		Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
 	}
 
 	[Fact]
@@ -88,8 +110,8 @@ public class PinGateTests
 		{
 			TomlLite.Doc pack = TomlLite.Parse(Pack);
 			using HttpClient http = new(new StubHandler(HttpStatusCode.NotFound, ""));
-			await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None);
-			Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
+			PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/server-pin.json", CancellationToken.None));
+			Assert.Equal(PinGate.BlockCopy, ex.Message);
 		}
 		finally
 		{
@@ -97,66 +119,9 @@ public class PinGateTests
 		}
 	}
 
-	[Fact]
-	public async Task MissingPinWarnsAndContinues()
+	private static string LockedPin(string mc, string loader, string pin)
 	{
-		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		using HttpClient http = new(new StubHandler(HttpStatusCode.NotFound, ""));
-		await PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None);
-		Assert.Equal(PinGate.MissingCopy, PinGate.LastWarning);
-	}
-
-	[Fact]
-	public async Task MismatchedMinecraftBlocks()
-	{
-		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		string json = JsonSerializer.Serialize(new { schema = 1, mc = "1.21.1", loader = "0.20.1", packVersion = "1.0.35", indexSha256 = "abc123", source = "server" });
-		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, json));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains("expected 1.21.1", ex.Message);
-	}
-
-	[Fact]
-	public async Task ClientModsAreIgnoredAndBothJarMustMatch()
-	{
-		string dir = NewDir();
-		string jar = Path.Combine(dir, "mods", "fabric-api.jar");
-		Directory.CreateDirectory(Path.GetDirectoryName(jar)!);
-		await File.WriteAllBytesAsync(jar, new byte[] { 1, 2, 3, 4 });
-		string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(new byte[] { 1, 2, 3, 4 })).ToLowerInvariant();
-		TomlLite.Doc pack = TomlLite.Parse(Pack);
-		string json = JsonSerializer.Serialize(new
-		{
-			schema = 1,
-			mc = "26.3",
-			loader = "0.20.1",
-			packVersion = "1.0.35",
-			indexSha256 = "abc123",
-			both = new Dictionary<string, object>
-			{
-				["sodium"] = new { jar = "mods/sodium.jar", hash = "deadbeef" },
-				["fabric-api"] = new { jar = "mods/fabric-api.jar", hash }
-			},
-			source = "server"
-		});
-		JsonElement pin = JsonDocument.Parse(json).RootElement;
-		Assert.Null(await PinGate.DescribeMismatchAsync(pin, pack, dir, CancellationToken.None));
-		json = json.Replace(hash, new string('a', 64));
-		pin = JsonDocument.Parse(json).RootElement;
-		Assert.Contains("fabric-api", await PinGate.DescribeMismatchAsync(pin, pack, dir, CancellationToken.None));
-	}
-
-	[Theory]
-	[InlineData("sodium", "mods/sodium.jar")]
-	[InlineData("iris", "mods/iris.jar")]
-	[InlineData("rei", "mods/rei.jar")]
-	[InlineData("some-pack", "resourcepacks/Patrix.zip")]
-	[InlineData("DistantHorizons", "mods/DistantHorizons-3.3.4-26.3-fabric-neoforge.jar")]
-	[InlineData("shade", "shaderpacks/Complementary.zip")]
-	public void ClientSurfacesAreIgnored(string modid, string jar)
-	{
-		Assert.True(PinGate.IsClientOnly(modid, jar));
+		return JsonSerializer.Serialize(new { schema = 1, mc, loader, pin, source = "server", updatedUtc = "2026-11-06T02:04:49Z" });
 	}
 
 	private static string NewDir()

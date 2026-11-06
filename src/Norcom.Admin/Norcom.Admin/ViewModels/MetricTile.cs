@@ -19,5 +19,11 @@ public partial class MetricTile : ObservableObject
     private string value = "—";
 
     [ObservableProperty]
+    private string chip = "";
+
+    [ObservableProperty]
+    private bool muted;
+
+    [ObservableProperty]
     private bool alert;
 }

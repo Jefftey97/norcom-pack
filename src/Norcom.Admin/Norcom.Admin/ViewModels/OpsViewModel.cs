@@ -103,7 +103,7 @@ public partial class OpsViewModel : ObservableObject
 
     public MetricTile Playit { get; } = new("playit", "hostname only");
 
-    public MetricTile LastBackup { get; } = new("Last backup", "zip only while the world is quiet");
+    public MetricTile LastBackup { get; } = new("Nightly backup", "newest zip");
 
     public MetricTile Health { get; } = new("Health", "MSPT, disk, swap, tunnel");
 
@@ -161,6 +161,40 @@ public partial class OpsViewModel : ObservableObject
 
     [ObservableProperty]
     private string trendStrip = "Waiting for Spark.";
+
+    [ObservableProperty]
+    private string nightlyAge = "—";
+
+    [ObservableProperty]
+    private bool nightlyLive;
+
+    [ObservableProperty]
+    private string nightlyChip = "";
+
+    [ObservableProperty]
+    private string nightlyHint = "No backup-age.json";
+
+    [ObservableProperty]
+    private string playitUpChip = "";
+
+    [ObservableProperty]
+    private bool playitUpAlert;
+
+    [ObservableProperty]
+    private string heapText = "—";
+
+    [ObservableProperty]
+    private bool heapLive;
+
+    [ObservableProperty]
+    private string heapHint = "No state.json";
+
+    [ObservableProperty]
+    private string watchdogLine = "";
+
+    private BackupAgeReading _backupAge = BackupAgeReading.Absent;
+    private HeapPlayitReading _heapPlayit = HeapPlayitReading.Absent;
+    private DateTime _hooksReadUtc = DateTime.MinValue;
 
     public string PasswordForSession() => _password;
 
@@ -643,7 +677,6 @@ public partial class OpsViewModel : ObservableObject
         var drive = HostSnapshot.ReadDrive(ServerPath);
         var ram = HostSnapshot.ReadRam();
         var swap = HostSnapshot.ReadSwap();
-        var backup = BackupArchive.Age(ServerPath);
         var online = ServerPresence.IsOnline(ServerPath, _localProbe);
         Online.Value = !overview.FolderExists ? "Missing" : online ? "Online" : "Offline";
         Online.Alert = overview.FolderExists && !online;
@@ -669,7 +702,8 @@ public partial class OpsViewModel : ObservableObject
         Uptime.Value = UptimeText();
         Playit.Value = overview.Tunnel;
         Playit.Alert = PlayitAddress.IsDown(overview.Tunnel);
-        LastBackup.Value = backup;
+        Playit.Hint = "hostname only";
+        ApplyHooks();
         var health = ServerHealth.Score(Mspt.Alert, Disk.Alert, Swap.Alert, Playit.Alert);
         Health.Value = health;
         Health.Alert = health != "Clear";
@@ -967,8 +1001,61 @@ public partial class OpsViewModel : ObservableObject
         }
     }
 
+    private void ApplyHooks()
+    {
+        var now = DateTime.UtcNow;
+        if (now - _hooksReadUtc >= TimeSpan.FromSeconds(30))
+        {
+            _hooksReadUtc = now;
+            try
+            {
+                var command = string.IsNullOrWhiteSpace(ServerPath) ? "" : ServerPresence.ServingCommand(ServerPath);
+                _backupAge = HookDesk.ReadBackup(ServerPath, now);
+                _heapPlayit = HookDesk.ReadHeapPlayit(ServerPath, now, command);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        NightlyLive = _backupAge.Live;
+        NightlyAge = _backupAge.AgeText;
+        NightlyChip = _backupAge.Chip;
+        NightlyHint = _backupAge.Hint;
+        LastBackup.Value = _backupAge.AgeText;
+        LastBackup.Chip = _backupAge.Chip;
+        LastBackup.Hint = _backupAge.Hint;
+        LastBackup.Alert = _backupAge.Alert;
+        LastBackup.Muted = !_backupAge.Live || _backupAge.AgeText == "—";
+
+        PlayitUpChip = _heapPlayit.PlayitChip;
+        PlayitUpAlert = _heapPlayit.PlayitAlert;
+        HeapLive = _heapPlayit.HeapLive;
+        HeapText = _heapPlayit.HeapText;
+        HeapHint = _heapPlayit.Hint;
+        WatchdogLine = _heapPlayit.OneLiner;
+        Heap.Hint = _heapPlayit.HeapFlags.Length > 0
+            ? "used / max · " + _heapPlayit.HeapFlags
+            : "used / max · Xms = Xmx = 8G";
+
+        if (_report.HeapUsed == null && _heapPlayit.HeapLive)
+        {
+            Heap.Value = _heapPlayit.HeapText;
+        }
+
+        if (_heapPlayit.PlayitLive)
+        {
+            Playit.Value = string.IsNullOrWhiteSpace(_heapPlayit.Tunnel)
+                ? (_heapPlayit.PlayitAlert ? "down" : "up")
+                : _heapPlayit.Tunnel;
+            Playit.Alert = _heapPlayit.PlayitAlert;
+            Playit.Hint = "state.json";
+        }
+    }
+
     partial void OnServerPathChanged(string value)
     {
+        _hooksReadUtc = DateTime.MinValue;
         _settings.ServerPath = value.Trim();
         if (!_live)
         {

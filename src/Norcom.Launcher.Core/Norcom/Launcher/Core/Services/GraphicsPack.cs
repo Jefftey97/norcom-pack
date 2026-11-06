@@ -9,7 +9,13 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class GraphicsPack
 {
-	public const string AlacrityPacks = "[\"vanilla\",\"continuity:default\",\"continuity:glass_pane_culling_fix\",\"file/Alacrity.zip\"]";
+	public const string AlacrityPacks = "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]";
+
+	public const string OverlayFile = "norcom-alacrity-candle-glass-fix.zip";
+
+	public const string OverlaySha256 = "b820f0a09bd5341ee262f23dd5963bc64d4656c1b1a2e1562a9f825f98009b2a";
+
+	public const string NeverEnable = "continuity:glass_pane_culling_fix";
 
 	public static string Folder(GraphicsTier tier)
 	{

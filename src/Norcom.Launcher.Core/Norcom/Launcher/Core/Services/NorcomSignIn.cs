@@ -46,7 +46,7 @@ public sealed class NorcomSignIn
 			return new AuthSnapshot
 			{
 				SignedIn = false,
-				Message = "Sign in with Microsoft in Settings. NORCOM does not read the official launcher account, and Play does not start without a verified Minecraft profile."
+				Message = "Play opens Microsoft sign-in. NORCOM does not read the official launcher account, and Play does not start without a verified Minecraft profile."
 			};
 		}
 		if (tuple.Value.Item2 <= _clock())
@@ -120,6 +120,10 @@ public sealed class NorcomSignIn
 			if (microsoftAccountResult.Failure == AuthFailure.InteractionRequired)
 			{
 				_store.Delete("session.bin");
+			}
+			if (microsoftAccountResult.Failure == AuthFailure.InteractionRequired || microsoftAccountResult.Failure == AuthFailure.Rejected || microsoftAccountResult.Failure == AuthFailure.None)
+			{
+				return await SignInAsync(MicrosoftPrompt.SystemBrowser, null, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 			}
 			return AuthResult.Fail((microsoftAccountResult.Failure == AuthFailure.None) ? AuthFailure.InteractionRequired : microsoftAccountResult.Failure);
 		}

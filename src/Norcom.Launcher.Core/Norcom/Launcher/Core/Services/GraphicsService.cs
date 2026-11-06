@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Norcom.Launcher.Core.Models;
@@ -20,7 +21,13 @@ public sealed class GraphicsService
 		Directory.CreateDirectory(Path.Combine(gameDir, "config"));
 		Directory.CreateDirectory(Path.Combine(gameDir, "shaderpacks"));
 		Dictionary<string, string> updates = GraphicsPack.ReadJsonMap(folder + "/options-patches.json");
-		updates["resourcePacks"] = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
+		string packs = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
+		if (packs.Contains(GraphicsPack.NeverEnable, StringComparison.OrdinalIgnoreCase))
+		{
+			packs = GraphicsPack.AlacrityPacks;
+		}
+		updates["resourcePacks"] = packs;
+		HealOverlay(gameDir);
 		string path = Path.Combine(gameDir, "options.txt");
 		string existing = (File.Exists(path) ? File.ReadAllText(path) : null);
 		File.WriteAllText(path, OptionsPatch.Apply(existing, updates));
@@ -81,6 +88,48 @@ public sealed class GraphicsService
 			}
 		}
 		return list;
+	}
+
+	public static void HealOverlay(string gameDir)
+	{
+		string directory = Path.Combine(gameDir, "resourcepacks");
+		Directory.CreateDirectory(directory);
+		string dest = Path.Combine(directory, GraphicsPack.OverlayFile);
+		string alacrity = Path.Combine(directory, "Alacrity.zip");
+		string? before = File.Exists(alacrity) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(alacrity))) : null;
+		if (!File.Exists(dest) || !HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dest))), GraphicsPack.OverlaySha256))
+		{
+			using Stream stream = OpenOverlay();
+			using FileStream file = File.Create(dest);
+			stream.CopyTo(file);
+		}
+		if (before != null && !HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(alacrity))), before))
+		{
+			throw new InvalidOperationException("Alacrity.zip was changed while healing the candle overlay.");
+		}
+	}
+
+	private static Stream OpenOverlay()
+	{
+		string name = "Norcom.Launcher.Core.GraphicsPack." + GraphicsPack.OverlayFile;
+		Stream? stream = typeof(GraphicsPack).Assembly.GetManifestResourceStream(name);
+		if (stream != null)
+		{
+			return stream;
+		}
+		foreach (string resource in typeof(GraphicsPack).Assembly.GetManifestResourceNames())
+		{
+			if (resource.EndsWith(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase))
+			{
+				return typeof(GraphicsPack).Assembly.GetManifestResourceStream(resource) ?? throw new FileNotFoundException(resource);
+			}
+		}
+		throw new FileNotFoundException("Candle overlay was not embedded.");
+	}
+
+	private static bool HexEquals(string actual, string expected)
+	{
+		return actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
 	}
 
 	private static void WriteDistantHorizons(string path, IReadOnlyDictionary<string, string> patches)

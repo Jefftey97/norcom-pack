@@ -21,6 +21,22 @@ public static class PrismPlay
 		{
 			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
 		}
+		try
+		{
+			GraphicsPlay.ApplyAuto(gameDir);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play graphics " + ex.GetType().Name);
+		}
+		try
+		{
+			PlayAccount.EnsureForPlay();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play account " + ex.GetType().Name);
+		}
 		string text = PrismInstall.Find(prismEnvironment, prismCandidates);
 		if (text == null)
 		{

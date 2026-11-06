@@ -27,6 +27,8 @@ public class GraphicsWriterTests
 		Assert.Equal(graphicsMode, options["graphicsMode"]);
 		Assert.Equal(GraphicsPack.AlacrityPacks, options["resourcePacks"]);
 		Assert.DoesNotContain("Patrix", options["resourcePacks"]);
+		Assert.DoesNotContain(GraphicsPack.NeverEnable, options["resourcePacks"]);
+		Assert.Contains("file/norcom-alacrity-candle-glass-fix.zip", options["resourcePacks"]);
 		Assert.Contains("key_key.attack:key.mouse.left", File.ReadAllText(Path.Combine(dir, "options.txt")));
 		Dictionary<string, string> iris = ReadProperties(Path.Combine(dir, "config", "iris.properties"));
 		Assert.Equal(irisShadow, iris["maxShadowRenderDistance"]);
@@ -36,6 +38,7 @@ public class GraphicsWriterTests
 		Assert.Equal(298, AssignmentCount(shader));
 		Assert.Equal(298, AssignmentCount(shaderZip));
 		Assert.Contains("shadowDistance=" + shadowDistance, shader);
+		Assert.Contains("FANCY_GLASS=true", shader);
 		Assert.Contains("no Patrix", shader);
 		string sodium = File.ReadAllText(Path.Combine(dir, "config", "sodium-options.json"));
 		Assert.Contains("\"chunk_builder_threads\": 0", sodium);
@@ -59,6 +62,9 @@ public class GraphicsWriterTests
 		Assert.Contains("profile=HIGH", shader);
 		Assert.Contains("SHADOW_QUALITY=2", shader);
 		Assert.Contains("COLORED_LIGHTING=128", shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=true", shader);
+		Assert.Contains("FANCY_GLASS=true", shader);
+		Assert.Equal("true", options["improvedTransparency"]);
 		Assert.Contains("LIGHTSHAFT_QUALI_DEFINE=2", shader);
 		Assert.Contains("shadowDistance=128.0", shader);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
@@ -75,8 +81,11 @@ public class GraphicsWriterTests
 		Assert.Equal("14", options["renderDistance"]);
 		Assert.Equal("false", options["exclusiveFullscreen"]);
 		string shader = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("profile=ULTRA", shader);
 		Assert.Contains("shadowDistance=160.0", shader);
 		Assert.Contains("COLORED_LIGHTING=192", shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=true", shader);
+		Assert.Equal("true", options["improvedTransparency"]);
 		Assert.Contains("ANISOTROPIC_FILTER=4", shader);
 		Assert.Contains("LIGHTSHAFT_QUALI_DEFINE=2", shader);
 		Dictionary<string, string> iris = ReadProperties(Path.Combine(dir, "config", "iris.properties"));
@@ -84,6 +93,65 @@ public class GraphicsWriterTests
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
 		Assert.Contains("lodChunkRenderDistanceRadius = 256", dh);
 		Assert.Contains("horizontalQuality = \"HIGH\"", dh);
+	}
+
+	[Fact]
+	public void CandleOverlayIsHealedBesideAlacrityAndCullingStaysOff()
+	{
+		string dir = NewGame();
+		string packs = Path.Combine(dir, "resourcepacks");
+		Directory.CreateDirectory(packs);
+		File.WriteAllText(Path.Combine(packs, "Alacrity.zip"), "do-not-touch");
+		new GraphicsService().Apply(dir, GraphicsTier.Low);
+		Assert.Equal("do-not-touch", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
+		string overlay = Path.Combine(packs, GraphicsPack.OverlayFile);
+		Assert.True(File.Exists(overlay));
+		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(overlay))).ToLowerInvariant();
+		Assert.Equal(GraphicsPack.OverlaySha256, sha);
+		string shader = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RP_MODE=1", shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=false", shader);
+		Assert.DoesNotContain(GraphicsPack.NeverEnable, File.ReadAllText(Path.Combine(dir, "options.txt")));
+		string tier = File.ReadAllText(Path.Combine(dir, "norcom-graphics-tier.txt"));
+		Assert.StartsWith("tier=Low", tier);
+		Assert.Equal(tier, File.ReadAllText(Path.Combine(dir, "config", "norcom-tier.txt")));
+	}
+
+	[Fact]
+	public void MediumHighUsesTheHighShaderProfile()
+	{
+		string dir = NewGame();
+		new GraphicsService().Apply(dir, GraphicsTier.MediumHigh);
+		string shader = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("profile=HIGH", shader);
+		Assert.Contains("COLORED_LIGHTING=0", shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=false", shader);
+		Assert.Equal("false", ReadOptions(Path.Combine(dir, "options.txt"))["improvedTransparency"]);
+	}
+
+	[Theory]
+	[InlineData("low", "LOW", "1", "0", "false", "false")]
+	[InlineData("medium", "MEDIUM", "1", "0", "false", "false")]
+	[InlineData("medium_high", "HIGH", "1", "0", "false", "false")]
+	[InlineData("high", "HIGH", "1", "128", "true", "true")]
+	[InlineData("ultra", "ULTRA", "1", "192", "true", "true")]
+	[InlineData("normal", "HIGH", "1", "128", "true", "true")]
+	public void EveryTierFileMatchesTheCandleMatrix(string folder, string profile, string rpMode, string lighting, string candle, string transparency)
+	{
+		string shader = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.txt");
+		string shaderZip = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.zip.txt");
+		Assert.Contains("profile=" + profile, shader);
+		Assert.Contains("profile=" + profile, shaderZip);
+		Assert.Contains("FANCY_GLASS=true", shader);
+		Assert.Contains("FANCY_GLASS=true", shaderZip);
+		Assert.Contains("RP_MODE=" + rpMode, shader);
+		Assert.Contains("COLORED_LIGHTING=" + lighting, shader);
+		Assert.Contains("COLORED_CANDLE_LIGHT=" + candle, shader);
+		Assert.DoesNotContain("glass_pane_culling_fix", shader);
+		string packs = GraphicsPack.ReadText(folder + "/resourcePacks.txt");
+		Assert.Equal(GraphicsPack.AlacrityPacks, packs.Trim());
+		Assert.DoesNotContain(GraphicsPack.NeverEnable, packs);
+		Assert.Equal(transparency, GraphicsPack.ReadJsonMap(folder + "/options-patches.json")["improvedTransparency"]);
 	}
 
 	[Fact]

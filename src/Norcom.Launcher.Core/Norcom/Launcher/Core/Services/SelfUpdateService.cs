@@ -284,6 +284,70 @@ public sealed class SelfUpdateService
 		return stringBuilder.ToString();
 	}
 
+	public static Func<string, string?> ExeVersionOf { get; set; } = NorcomVersion.TryReadExeVersion;
+
+	public static Action<string, string, string>? PlayScheduled { get; set; }
+
+	public static bool ShouldApply(string local, LauncherManifest manifest, bool allowLocalFile, HealHint? hint)
+	{
+		UpdateKind kind = Decide(local, manifest, allowLocalFile);
+		if (kind == UpdateKind.Mandatory || kind == UpdateKind.Available)
+		{
+			return true;
+		}
+		if (hint != null && !string.IsNullOrWhiteSpace(hint.MinLauncher) && VersionCompare.Compare(hint.MinLauncher, local) > 0 && VersionCompare.Compare(manifest.Version, local) > 0)
+		{
+			return true;
+		}
+		return false;
+	}
+
+	public async Task<bool> TrySchedulePlayUpdateAsync(CancellationToken ct)
+	{
+		LauncherManifest? manifest = await FetchManifestAsync(ct).ConfigureAwait(false);
+		if (manifest == null)
+		{
+			return false;
+		}
+		if (UpdateReport.SameSha(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256))
+		{
+			return false;
+		}
+		HealHint hint = await PinHeal.FetchHintAsync(_http, ct).ConfigureAwait(false);
+		if (!ShouldApply(NorcomVersion.Current, manifest, UsedPrivateManifest, hint))
+		{
+			return false;
+		}
+		string zipPath = await DownloadVerifiedAsync(manifest, new TransferMeter(), ct).ConfigureAwait(false);
+		if (Inspect(zipPath) != UpdatePackageKind.NativeExe)
+		{
+			UpdateReport.Write(NorcomPaths.LauncherDir, UpdateReport.LegacyPackage);
+			return false;
+		}
+		string? exe = FindNativeExe(zipPath);
+		if (string.IsNullOrWhiteSpace(exe))
+		{
+			UpdateReport.Write(NorcomPaths.LauncherDir, UpdateReport.MissingExe);
+			return false;
+		}
+		string? payload = ReadPayloadVersion(exe);
+		string? exeVersion = ExeVersionOf(exe);
+		string? rejection = UpdateReport.Rejection(NorcomVersion.Current, manifest.Version, payload, exeVersion, null, manifest.Sha256);
+		if (rejection != null)
+		{
+			UpdateReport.Write(NorcomPaths.LauncherDir, rejection);
+			return false;
+		}
+		string processPath = Environment.ProcessPath ?? FriendInstaller.InstalledExePath;
+		if (PlayScheduled != null)
+		{
+			PlayScheduled(exe, manifest.Version, manifest.Sha256);
+			return true;
+		}
+		ScheduleReplace(exe, processPath, Environment.ProcessId, manifest.Version, manifest.Sha256);
+		return true;
+	}
+
 	public static void ScheduleReplace(string newExe, string currentExe, int pid, string version, string sha256)
 	{
 		currentExe = LauncherInstall.Resolve(currentExe, FriendInstaller.InstalledExePath);

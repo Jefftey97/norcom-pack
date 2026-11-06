@@ -20,6 +20,17 @@ public static class JavaRuntime
 	{
 		try
 		{
+			if (await PlayUpdateGate.ApplyAsync(http, ct).ConfigureAwait(false))
+			{
+				PlayUpdateGate.ExitIfScheduled();
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play update " + ex.GetType().Name);
+		}
+		try
+		{
 			LauncherCleanup.BeforePlay();
 		}
 		catch (Exception ex)

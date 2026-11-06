@@ -156,10 +156,10 @@ public static class PinHeal
 		LauncherLog.Write("pin feed behind minLauncher=" + hint.MinLauncher + " packVersion=" + hint.PackVersion);
 		try
 		{
-			LauncherManifest? manifest = await new SelfUpdateService(http).FetchManifestAsync(ct).ConfigureAwait(false);
-			if (manifest != null && VersionCompare.Compare(manifest.Version, NorcomVersion.Current) > 0)
+			if (await new SelfUpdateService(http).TrySchedulePlayUpdateAsync(ct).ConfigureAwait(false))
 			{
-				LauncherLog.Write("pin feed update available " + manifest.Version);
+				LauncherLog.Write("pin feed update applying " + hint.MinLauncher);
+				PlayUpdateGate.ExitIfScheduled();
 			}
 		}
 		catch (Exception ex)

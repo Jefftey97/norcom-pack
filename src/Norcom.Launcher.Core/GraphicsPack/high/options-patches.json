@@ -18,7 +18,7 @@
   "cloudStatus": "false",
   "renderClouds": "false",
   "cutoutLeaves": "true",
-  "improvedTransparency": "false",
+  "improvedTransparency": "true",
   "maxAnisotropyBit": "2",
   "textureFiltering": "0",
   "vignette": "false",

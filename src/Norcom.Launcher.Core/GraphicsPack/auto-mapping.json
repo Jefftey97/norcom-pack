@@ -8,7 +8,7 @@
     "Faithful",
     "FreshAnimations"
   ],
-  "resourcePacks": "[\"vanilla\",\"continuity:default\",\"continuity:glass_pane_culling_fix\",\"file/Alacrity.zip\"]",
+  "resourcePacks": "[\"vanilla\",\"continuity:default\",\"file/Alacrity.zip\",\"file/norcom-alacrity-candle-glass-fix.zip\"]",
   "shaderPack": "ComplementaryUnbound_r5.9.3.zip",
   "borderless": {
     "fullscreen": "true",
@@ -116,7 +116,7 @@
       "shaderProfile": "LOW",
       "shaderHighlight": {
         "profile": "LOW",
-        "RP_MODE": "0",
+        "RP_MODE": "1",
         "SHADOW_QUALITY": "-1",
         "shadowDistance": "64.0",
         "WATER_REFLECT_QUALITY": "1",
@@ -283,7 +283,7 @@
       },
       "shaderProfile": "MEDIUM",
       "shaderHighlight": {
-        "profile": "MEDIUM",
+        "profile": "HIGH",
         "RP_MODE": "1",
         "SHADOW_QUALITY": "2",
         "shadowDistance": "112.0",
@@ -330,7 +330,7 @@
         "cloudStatus": "false",
         "renderClouds": "false",
         "cutoutLeaves": "true",
-        "improvedTransparency": "false",
+        "improvedTransparency": "true",
         "maxAnisotropyBit": "2",
         "textureFiltering": "0",
         "vignette": "false",
@@ -414,7 +414,7 @@
         "cloudStatus": "false",
         "renderClouds": "false",
         "cutoutLeaves": "true",
-        "improvedTransparency": "false",
+        "improvedTransparency": "true",
         "maxAnisotropyBit": "2",
         "textureFiltering": "0",
         "vignette": "false",
@@ -448,7 +448,7 @@
       },
       "shaderProfile": "HIGH",
       "shaderHighlight": {
-        "profile": "HIGH",
+        "profile": "ULTRA",
         "RP_MODE": "1",
         "SHADOW_QUALITY": "2",
         "shadowDistance": "160.0",
@@ -499,7 +499,7 @@
         "cloudStatus": "false",
         "renderClouds": "false",
         "cutoutLeaves": "true",
-        "improvedTransparency": "false",
+        "improvedTransparency": "true",
         "maxAnisotropyBit": "2",
         "textureFiltering": "0",
         "vignette": "false",
@@ -562,5 +562,14 @@
         "CUSTOM_EMISSION_INTENSITY": "100"
       }
     }
-  }
+  },
+  "overlayPack": {
+    "file": "norcom-alacrity-candle-glass-fix.zip",
+    "sha256": "b820f0a09bd5341ee262f23dd5963bc64d4656c1b1a2e1562a9f825f98009b2a",
+    "loadAfter": "file/Alacrity.zip",
+    "reason": "Alacrity candle blockstates omit lit=; overlay wires *_lit textures"
+  },
+  "neverEnable": [
+    "continuity:glass_pane_culling_fix"
+  ]
 }

@@ -1,1 +1,1 @@
-["vanilla","continuity:default","continuity:glass_pane_culling_fix","file/Alacrity.zip"]
+["vanilla","continuity:default","file/Alacrity.zip","file/norcom-alacrity-candle-glass-fix.zip"]

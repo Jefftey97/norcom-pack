@@ -91,7 +91,7 @@
 		"leftSideMobEffects": false,
 		// Declares whether subsets is enabled.
 		"isSubsetsEnabled": false,
-		"allowInventoryHighlighting": true,
+		"allowInventoryHighlighting": false,
 		"inventoryHighlightingDarkenOpacity": 0.85,
 		"inventoryHighlightingOpacity": 1.0,
 		"itemCheatingMode": "REI_LIKE"

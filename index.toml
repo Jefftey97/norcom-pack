@@ -11,7 +11,7 @@ preserve = true
 
 [[files]]
 file = "config/inventoryprofilesnext/inventoryprofiles.json"
-hash = "0c0de7cc8d09849336ca51b48c4320c2d6ed8800a7c8615225925ad9ae767a17"
+hash = "1622926b8dae3a839fb8933cea1d1ddf222e3bdeb2fa3310b1c59ab8e487cd54"
 preserve = true
 
 [[files]]
@@ -29,7 +29,7 @@ hash = "1b78f38a328f5aa5bc4a7bf52512a8baf1744cff73cc31b54618c11b3f3f31ab"
 
 [[files]]
 file = "config/roughlyenoughitems/config.json5"
-hash = "1c4ed2643204a7e51d242ab03bb7dfb6bfa0f84ba1ac084050ee5e49c35d0c4b"
+hash = "0c17c8fab67448fddf889e7026bdff00572b49b4e0dab0624f372b549fdf7695"
 preserve = true
 
 [[files]]

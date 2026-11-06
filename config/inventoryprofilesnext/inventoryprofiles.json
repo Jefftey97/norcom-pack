@@ -1,9 +1,11 @@
 {
   "ModSettings": {
-    "first_run": false
+    "first_run": false,
+    "highlight_foused_items": false,
+    "highlight_clicking_slot": false
   },
   "GuiSettings": {
-    "enable_inventory_buttons": false,
+    "enable_inventory_buttons": true,
     "enable_inventory_settings_button": false,
     "enable_inventory_editor_button": false,
     "enable_profiles_ui": false,
@@ -13,11 +15,14 @@
     "show_regular_sort_button": false,
     "show_sort_in_columns_button": false,
     "show_sort_in_rows_button": false,
-    "show_move_all_button": false,
-    "show_button_tooltips": false,
+    "show_move_all_button": true,
+    "show_button_tooltips": true,
     "continuous_crafting_checkbox_value": "UNCHECKED",
     "continuous_crafting_saved_value": false,
     "fast_rename_checkbox_value": "UNCHECKED",
     "fast_rename_saved_value": false
+  },
+  "Features": {
+    "item_scrolling": false
   }
 }

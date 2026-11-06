@@ -35,8 +35,8 @@ public sealed class GraphicsService
 		string path2 = Path.Combine(gameDir, "config", "iris.properties");
 		string existing2 = (File.Exists(path2) ? File.ReadAllText(path2) : null);
 		File.WriteAllText(path2, OptionsPatch.ApplyProperties(existing2, GraphicsPack.ReadProperties(folder + "/iris.properties")));
-		string shader = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.txt");
-		string shaderZip = GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.zip.txt");
+		string shader = ShaderScale.Coerce(GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.txt"), tier);
+		string shaderZip = ShaderScale.Coerce(GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.zip.txt"), tier);
 		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
 		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.zip.txt"), shaderZip);
 		WriteDistantHorizons(Path.Combine(gameDir, "config", "DistantHorizons.toml"), GraphicsPack.ReadJsonMap(folder + "/dh-patches.json"));

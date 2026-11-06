@@ -185,7 +185,7 @@
         "LIGHTSHAFT_BEHAVIOUR": "1",
         "SSAO_I": "100",
         "SHADOW_SMOOTHING": "3",
-        "REFLECTION_RES": "0.7"
+        "REFLECTION_RES": "0.5"
       }
     },
     "medium_high": {
@@ -272,7 +272,8 @@
         "NIGHT_STAR_AMOUNT": "2",
         "LIGHTSHAFT_BEHAVIOUR": "1",
         "SSAO_I": "100",
-        "SHADOW_SMOOTHING": "3"
+        "SHADOW_SMOOTHING": "3",
+        "REFLECTION_RES": "0.5"
       }
     },
     "high": {
@@ -362,7 +363,8 @@
         "SSAO_I": "100",
         "SHADOW_SMOOTHING": "4",
         "NORMAL_MAP_STRENGTH": "100",
-        "CUSTOM_EMISSION_INTENSITY": "100"
+        "CUSTOM_EMISSION_INTENSITY": "100",
+        "REFLECTION_RES": "0.5"
       }
     },
     "ultra": {
@@ -453,7 +455,8 @@
         "SHADOW_SMOOTHING": "4",
         "NORMAL_MAP_STRENGTH": "110",
         "CUSTOM_EMISSION_INTENSITY": "100",
-        "SKY_EFFECT_REFLECTION_DEFINE": "1"
+        "SKY_EFFECT_REFLECTION_DEFINE": "1",
+        "REFLECTION_RES": "1.0"
       }
     },
     "normal": {
@@ -543,7 +546,8 @@
         "SSAO_I": "100",
         "SHADOW_SMOOTHING": "4",
         "NORMAL_MAP_STRENGTH": "100",
-        "CUSTOM_EMISSION_INTENSITY": "100"
+        "CUSTOM_EMISSION_INTENSITY": "100",
+        "REFLECTION_RES": "0.5"
       }
     }
   }

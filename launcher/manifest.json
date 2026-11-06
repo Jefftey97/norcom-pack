@@ -1,7 +1,7 @@
 {
-  "version": "2.0.34",
+  "version": "2.0.35",
   "minVersion": "2.0.0",
-  "sha256": "3bac7f7a2ad8b425604c8873dae960bd449d68a93d02908087b978c6880d9905",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/fb5a2cbd3e89ca53e5048b7712ac3731bf704889/launcher/NorcomWpf-2.0.34.zip",
-  "notes": "Launcher 2.0.34. High keeps Complementary sun rays, trims shadow distance to 112 and Iris shadows to 7 chunks, Distant Horizons radius 160, and minimal particles. Fancy graphics, Alacrity plus the candle overlay, no glass pane culling, no Patrix. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 d0a81cd23401c2c0ce97175eb7692a086ccb9e0732441605fb4dac39770ddf4f."
+  "sha256": "9cd7798b840f7154672cc620f51d557bfeacf66030dd3f67cf0281bc966c78c1",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/fbdd5f4dc7aa2b43fea15eabd01815dc19d717e6/launcher/NorcomWpf-2.0.35.zip",
+  "notes": "Launcher 2.0.35. Iris loads Complementary again: REFLECTION_RES is 0.5 on High (1.0 on Ultra), not false, so colortex scale parses. Water color is 100 and the other numeric sliders are numbers. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. Fancy graphics, Alacrity plus the candle overlay, no glass pane culling, no Patrix. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 3cf2c1a705a74dadef6cbf696f1bb10d1994cb6db9d336c2fcaea14574ef6b15."
 }

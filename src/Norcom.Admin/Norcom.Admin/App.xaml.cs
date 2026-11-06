@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 using Norcom.Admin.Services;
 using Norcom.Admin.ViewModels;
 using Norcom.Admin.Views;
@@ -19,9 +20,11 @@ public partial class App : Application
         }
 
         DesktopShortcut.Ensure();
-        var window = new ShellWindow { DataContext = new ShellViewModel() };
+        var shell = new ShellViewModel();
+        var window = new ShellWindow { DataContext = shell };
         MainWindow = window;
-        window.Show();
+        StartupFrame.Present(window);
+        window.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(shell.Warmup));
     }
 
     protected override void OnExit(ExitEventArgs e)

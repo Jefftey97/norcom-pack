@@ -27,6 +27,12 @@ public partial class ShellViewModel : ObservableObject
             Configs.Refresh();
             Mods.Refresh();
         };
+    }
+
+    public void Warmup()
+    {
+        Ops.Activate();
+        Settings.Load();
         Mods.Refresh();
     }
 

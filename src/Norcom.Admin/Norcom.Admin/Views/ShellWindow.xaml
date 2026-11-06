@@ -11,6 +11,8 @@
         ResizeMode="CanResize"
         Background="#070A12"
         Foreground="#F4FBFF"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         FontFamily="Segoe UI"
         Icon="/Assets/norcom-admin.ico"
         Loaded="OnLoaded"

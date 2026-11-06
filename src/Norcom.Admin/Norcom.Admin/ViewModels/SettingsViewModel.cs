@@ -32,7 +32,6 @@ public partial class SettingsViewModel : ObservableObject
         _save = save;
         DayTicks = settings.DayTicks;
         NightTicks = settings.NightTicks;
-        Load();
     }
 
     public ObservableCollection<PropertyRow> Extra { get; } = new();

@@ -5,6 +5,9 @@
   <conv:BoolToVisibilityConverter x:Key="BoolVisInvert" Invert="True"/>
   <conv:StringNotEmptyConverter x:Key="TextVis"/>
   <conv:PageVisibilityConverter x:Key="PageVis"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#070A12"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#070A12"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#F4FBFF"/>
 
   <SolidColorBrush x:Key="Ink" Color="#F4FBFF"/>
   <SolidColorBrush x:Key="Muted" Color="#93A4BD"/>

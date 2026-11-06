@@ -20,6 +20,7 @@ public partial class OpsViewModel : ObservableObject
     private readonly ObservableCollection<string> _players = new();
     private readonly ObservableCollection<BackupEntry> _backups = new();
     private readonly ObservableCollection<string> _crashes = new();
+    private bool _live;
     private string _password = "";
     private long _logPosition = -1;
     private int _ticks;
@@ -37,6 +38,16 @@ public partial class OpsViewModel : ObservableObject
         _save = save;
         ServerPath = settings.ServerPath;
         RconPort = settings.RconPort;
+    }
+
+    public void Activate()
+    {
+        if (_live)
+        {
+            return;
+        }
+
+        _live = true;
         LoadSecretFromServerFile();
         RefreshPresence();
     }
@@ -801,6 +812,11 @@ public partial class OpsViewModel : ObservableObject
     partial void OnServerPathChanged(string value)
     {
         _settings.ServerPath = value.Trim();
+        if (!_live)
+        {
+            return;
+        }
+
         _save();
         _logPosition = -1;
         RefreshPresence();
@@ -811,6 +827,11 @@ public partial class OpsViewModel : ObservableObject
     partial void OnRconPortChanged(int value)
     {
         _settings.RconPort = Math.Clamp(value, 1, 65535);
+        if (!_live)
+        {
+            return;
+        }
+
         if (_settings.RconPort != value)
         {
             RconPort = _settings.RconPort;

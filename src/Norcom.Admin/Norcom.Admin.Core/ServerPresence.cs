@@ -39,6 +39,30 @@ public static class ServerPresence
     public static bool JavaServes(string serverDirectory) =>
         JavaServes(serverDirectory, ReadJava());
 
+    public static string ServingCommand(string serverDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(serverDirectory))
+        {
+            return "";
+        }
+
+        try
+        {
+            foreach (var process in ReadJava())
+            {
+                if (CommandMatches(process.CommandLine, process.WorkingDirectory, serverDirectory))
+                {
+                    return process.CommandLine ?? "";
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        return "";
+    }
+
     public static bool JavaServes(string serverDirectory, IEnumerable<JavaSeen> processes)
     {
         foreach (var process in processes)

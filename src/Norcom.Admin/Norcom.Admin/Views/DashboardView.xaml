@@ -39,6 +39,145 @@
             <TextBlock Text="Last 48 Spark polls on 127.0.0.1. Uses MSPT median when TPS is missing." Foreground="#93A4BD" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
+        <Border Style="{StaticResource PanelCard}" Margin="0,0,10,12" BorderBrush="{StaticResource NeonEdge}" BorderThickness="1.5" AutomationProperties.AutomationId="HookDesk" AutomationProperties.Name="Backup age and playit heap">
+          <StackPanel>
+            <DockPanel>
+              <Border DockPanel.Dock="Right" CornerRadius="8" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="{Binding NightlyChip, Converter={StaticResource TextVis}}">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Background" Value="#10281C"/>
+                    <Setter Property="BorderBrush" Value="#7CFFB2"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="CornerRadius" Value="8"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding NightlyChip}" Value="STALE">
+                        <Setter Property="Background" Value="#2A1220"/>
+                        <Setter Property="BorderBrush" Value="#FF3DB8"/>
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding NightlyChip}" Value="MISSING">
+                        <Setter Property="Background" Value="#10182A"/>
+                        <Setter Property="BorderBrush" Value="#1C3148"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding NightlyChip}" FontSize="11" FontWeight="SemiBold" AutomationProperties.AutomationId="BackupStatus">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Foreground" Value="#7CFFB2"/>
+                      <Setter Property="FontSize" Value="11"/>
+                      <Setter Property="FontWeight" Value="SemiBold"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding NightlyChip}" Value="STALE">
+                          <Setter Property="Foreground" Value="#FF3DB8"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding NightlyChip}" Value="MISSING">
+                          <Setter Property="Foreground" Value="#93A4BD"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+              </Border>
+              <TextBlock Text="Nightly backup" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+            </DockPanel>
+            <TextBlock Text="{Binding NightlyAge}" FontSize="22" FontWeight="SemiBold" AutomationProperties.AutomationId="BackupAge">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="#F4FBFF"/>
+                  <Setter Property="FontSize" Value="22"/>
+                  <Setter Property="FontWeight" Value="SemiBold"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding NightlyLive}" Value="False">
+                      <Setter Property="Foreground" Value="#93A4BD"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding NightlyAge}" Value="—">
+                      <Setter Property="Foreground" Value="#93A4BD"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="{Binding NightlyHint}" Foreground="#93A4BD" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+              <Border CornerRadius="8" Padding="10,6" Margin="0,0,8,0" VerticalAlignment="Center">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Background" Value="#10281C"/>
+                    <Setter Property="BorderBrush" Value="#7CFFB2"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="CornerRadius" Value="8"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding PlayitUpChip}" Value="">
+                        <Setter Property="Background" Value="#10182A"/>
+                        <Setter Property="BorderBrush" Value="#1C3148"/>
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding PlayitUpAlert}" Value="True">
+                        <Setter Property="Background" Value="#2A1220"/>
+                        <Setter Property="BorderBrush" Value="#FF3DB8"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <TextBlock AutomationProperties.AutomationId="PlayitUp" FontSize="12" FontWeight="SemiBold">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Text" Value="{Binding PlayitUpChip}"/>
+                      <Setter Property="Foreground" Value="#7CFFB2"/>
+                      <Setter Property="FontSize" Value="12"/>
+                      <Setter Property="FontWeight" Value="SemiBold"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding PlayitUpChip}" Value="">
+                          <Setter Property="Text" Value="PLAYIT —"/>
+                          <Setter Property="Foreground" Value="#93A4BD"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding PlayitUpAlert}" Value="True">
+                          <Setter Property="Foreground" Value="#FF3DB8"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+              </Border>
+              <Border CornerRadius="8" Padding="10,6" VerticalAlignment="Center" AutomationProperties.AutomationId="HeapUsedMax">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Background" Value="#101C32"/>
+                    <Setter Property="BorderBrush" Value="#00E5FF"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="CornerRadius" Value="8"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding HeapLive}" Value="False">
+                        <Setter Property="Background" Value="#10182A"/>
+                        <Setter Property="BorderBrush" Value="#1C3148"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="HEAP" FontSize="12" FontWeight="SemiBold" Foreground="#93A4BD" Margin="0,0,6,0"/>
+                  <TextBlock Text="{Binding HeapText}" FontSize="12" FontWeight="SemiBold">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#F4FBFF"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding HeapLive}" Value="False">
+                            <Setter Property="Foreground" Value="#93A4BD"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+            <TextBlock Text="{Binding HeapHint}" Foreground="#93A4BD" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            <TextBlock Text="{Binding WatchdogLine}" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.AutomationId="WatchdogLine" Visibility="{Binding WatchdogLine, Converter={StaticResource TextVis}}"/>
+            <TextBlock Text="Backup age from .norcom, then admin\hooks. playit and heap from admin\state.json. Refreshes every 30s." Foreground="#93A4BD" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
         <ItemsControl ItemsSource="{Binding Metrics}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -60,7 +199,59 @@
                 </Border.Style>
                 <StackPanel>
                   <TextBlock Text="{Binding Label}" Foreground="#93A4BD" FontSize="11"/>
-                  <TextBlock Text="{Binding Value}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,4"/>
+                  <DockPanel Margin="0,6,0,4">
+                    <Border DockPanel.Dock="Right" CornerRadius="8" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center" Visibility="{Binding Chip, Converter={StaticResource TextVis}}">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Background" Value="#10281C"/>
+                          <Setter Property="BorderBrush" Value="#7CFFB2"/>
+                          <Setter Property="BorderThickness" Value="1"/>
+                          <Setter Property="CornerRadius" Value="8"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding Chip}" Value="STALE">
+                              <Setter Property="Background" Value="#2A1220"/>
+                              <Setter Property="BorderBrush" Value="#FF3DB8"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Chip}" Value="MISSING">
+                              <Setter Property="Background" Value="#10182A"/>
+                              <Setter Property="BorderBrush" Value="#1C3148"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+                      <TextBlock Text="{Binding Chip}" FontSize="10" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#7CFFB2"/>
+                            <Setter Property="FontSize" Value="10"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Chip}" Value="STALE">
+                                <Setter Property="Foreground" Value="#FF3DB8"/>
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding Chip}" Value="MISSING">
+                                <Setter Property="Foreground" Value="#93A4BD"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Border>
+                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                          <Setter Property="Foreground" Value="#F4FBFF"/>
+                          <Setter Property="FontSize" Value="18"/>
+                          <Setter Property="FontWeight" Value="SemiBold"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding Muted}" Value="True">
+                              <Setter Property="Foreground" Value="#93A4BD"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                  </DockPanel>
                   <TextBlock Text="{Binding Hint}" Foreground="#93A4BD" FontSize="11" TextWrapping="Wrap"/>
                 </StackPanel>
               </Border>

@@ -185,6 +185,43 @@ public static class BankLedger
 {
     public static string PathFor() => Path.Combine(AdminPaths.Home, "bank-ledger.jsonl");
 
+    public static string ServerPath(string serverDirectory) =>
+        Path.Combine(serverDirectory, "admin", "bank-ledger.jsonl");
+
+    public static void EnsureServerFile(string serverDirectory)
+    {
+        var path = ServerPath(serverDirectory);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        if (!File.Exists(path))
+        {
+            File.WriteAllText(path, "");
+        }
+    }
+
+    public static IReadOnlyList<BankLedgerRow> ReadMerged(string serverDirectory, int count, string? adminPath = null)
+    {
+        try
+        {
+            EnsureServerFile(serverDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        var rows = new List<BankLedgerRow>();
+        rows.AddRange(ReadAll(adminPath ?? PathFor()));
+        rows.AddRange(ReadAll(ServerPath(serverDirectory)));
+        return rows
+            .OrderBy(row => row.Time, StringComparer.Ordinal)
+            .TakeLast(Math.Max(1, count))
+            .ToList();
+    }
+
     public static void Append(BankLedgerRow row, string? path = null)
     {
         path ??= PathFor();
@@ -224,14 +261,22 @@ public static class BankLedger
                 {
                     using var document = JsonDocument.Parse(line);
                     var root = document.RootElement;
+                    var tx = First(root, "txId", "tx-id", "id");
+                    var who = First(root, "player", "who");
+                    var kind = First(root, "op", "kind");
+                    if (tx.Length == 0 && who.Length == 0 && kind.Length == 0)
+                    {
+                        continue;
+                    }
+
                     rows.Add(new BankLedgerRow(
-                        Text(root, "time"),
-                        Text(root, "txId"),
-                        Text(root, "player"),
-                        Text(root, "op"),
-                        root.TryGetProperty("amount", out var amount) && amount.TryGetInt64(out var number) ? number : 0,
-                        Text(root, "target"),
-                        Text(root, "rconResult")));
+                        First(root, "time", "when"),
+                        tx,
+                        who,
+                        kind,
+                        Long(root, "amount"),
+                        First(root, "target"),
+                        First(root, "rconResult", "why", "reason")));
                 }
                 catch (JsonException)
                 {
@@ -244,6 +289,46 @@ public static class BankLedger
         {
             return Array.Empty<BankLedgerRow>();
         }
+    }
+
+    private static IReadOnlyList<BankLedgerRow> ReadAll(string path) => ReadLast(int.MaxValue, path);
+
+    private static string First(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!root.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString() ?? "";
+            }
+
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                return value.GetRawText();
+            }
+        }
+
+        return "";
+    }
+
+    private static long Long(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var value))
+        {
+            return 0;
+        }
+
+        if (value.TryGetInt64(out var number))
+        {
+            return number;
+        }
+
+        return value.ValueKind == JsonValueKind.String && long.TryParse(value.GetString(), out var parsed) ? parsed : 0;
     }
 
     private static string Text(JsonElement root, string name) =>

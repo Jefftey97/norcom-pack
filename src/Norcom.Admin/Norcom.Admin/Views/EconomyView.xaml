@@ -19,7 +19,8 @@
                 <TextBlock Text="{Binding Bank.HeroName}" FontSize="22" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding Bank.CurrencyName}" Foreground="#93A4BD"/>
                 <TextBlock Margin="0,8,0,0"><Run Text="Wallet "/><Run Text="{Binding Bank.HeroWallet, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Bank.CurrencySymbol, Mode=OneWay}"/></TextBlock>
-                <TextBlock><Run Text="Banked "/><Run Text="{Binding Bank.HeroBank, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Bank.CurrencySymbol, Mode=OneWay}"/></TextBlock>
+                <TextBlock><Run Text="Banked (read-only) "/><Run Text="{Binding Bank.HeroBank, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Bank.CurrencySymbol, Mode=OneWay}"/></TextBlock>
+                <TextBlock Text="Savings are in-game /eco bank (Server). Admin does not deposit or withdraw." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,6,0,0"/>
               </StackPanel>
             </DockPanel>
           </StackPanel>
@@ -32,7 +33,7 @@
                 <Run Text="{Binding Name, Mode=OneWay}"/>
                 <Run Text="  wallet "/>
                 <Run Text="{Binding Wallet, Mode=OneWay}"/>
-                <Run Text="  bank "/>
+                <Run Text="  banked read-only "/>
                 <Run Text="{Binding Banked, Mode=OneWay}"/>
               </TextBlock>
             </DataTemplate>

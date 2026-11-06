@@ -57,18 +57,19 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
         Selected ??= Accounts.FirstOrDefault();
         ApplyHero();
         Ledger.Clear();
-        var rows = BankLedger.ReadLast(40);
+        var rows = BankLedger.ReadMerged(_serverPath(), 40);
         if (rows.Count == 0)
         {
-            LedgerNote = "No Admin bank ops yet";
+            LedgerNote = "No Admin bank ops yet. Server lines appear here when admin\\bank-ledger.jsonl has them.";
         }
         else
         {
-            LedgerNote = "Admin ops only. Server price history is not a bank statement.";
+            LedgerNote = "Admin Set/Transfer plus Server lines from admin\\bank-ledger.jsonl. Price history is not a statement.";
             foreach (var row in rows.Reverse())
             {
                 var who = row.Target.Length == 0 ? row.Player : row.Player + " → " + row.Target;
-                Ledger.Add(row.Time + "  " + row.Op + "  " + who + "  " + row.Amount + "  " + row.TxId);
+                var why = row.RconResult.Length == 0 ? "" : "  " + row.RconResult;
+                Ledger.Add(row.Time + "  " + row.Op + "  " + who + "  " + row.Amount + why + "  " + row.TxId);
             }
         }
 

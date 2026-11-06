@@ -300,7 +300,17 @@ public class Admin140Tests
         Assert.Contains("not found", missing.Warning, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("kept", missing.Warning, StringComparison.OrdinalIgnoreCase);
         var ledger = Path.Combine(root, "bank-ledger.jsonl");
-        BankLedger.Append(new BankLedgerRow("t", "tx1", "Steve", "set", 50, "", "ok"), ledger);
+        BankLedger.Append(new BankLedgerRow("2026-11-06T06:00:00Z", "tx1", "Steve", "set", 50, "", "ok"), ledger);
+        var serverLedger = Path.Combine(root, "admin", "bank-ledger.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(serverLedger)!);
+        File.WriteAllText(serverLedger, "{\"txId\":\"shop1\",\"who\":\"Alex\",\"when\":\"2026-11-06T06:05:00Z\",\"kind\":\"shop\",\"amount\":-3,\"why\":\"npc debit\"}\n");
+        var merged = BankLedger.ReadMerged(root, 10, ledger);
+        Assert.Equal(2, merged.Count);
+        Assert.Equal("shop1", merged[^1].TxId);
+        Assert.Equal("Alex", merged[^1].Player);
+        Assert.Equal("shop", merged[^1].Op);
+        Assert.Equal(-3, merged[^1].Amount);
+        Assert.Equal("npc debit", merged[^1].RconResult);
         var rows = BankLedger.ReadLast(10, ledger);
         Assert.Single(rows);
         Assert.Equal("tx1", rows[0].TxId);

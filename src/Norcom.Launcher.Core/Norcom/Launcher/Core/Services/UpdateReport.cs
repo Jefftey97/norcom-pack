@@ -77,6 +77,23 @@ public static class UpdateReport
 		return false;
 	}
 
+	public static bool SkipApplied(string? appliedSha, string? manifestSha, string? runningVersion, string? manifestVersion, string? primaryVersion, bool runningFromAlt)
+	{
+		if (!SameSha(appliedSha, manifestSha))
+		{
+			return false;
+		}
+		if (VersionCompare.Compare(manifestVersion, runningVersion) > 0)
+		{
+			return false;
+		}
+		if (runningFromAlt && VersionCompare.Compare(manifestVersion, string.IsNullOrWhiteSpace(primaryVersion) ? "0" : primaryVersion) > 0)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	public static string? Rejection(string running, string manifestVersion, string? payloadVersion, string? exeFileVersion, string? appliedSha, string manifestSha)
 	{
 		if (SameSha(appliedSha, manifestSha))

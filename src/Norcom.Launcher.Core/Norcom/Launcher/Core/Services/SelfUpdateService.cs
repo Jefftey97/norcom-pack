@@ -201,7 +201,7 @@ public sealed class SelfUpdateService
 		return Path.Combine(recoveryRoot, "self-update-" + Sanitize(version), "NorcomLauncher.previous.exe");
 	}
 
-	public static string BuildApplyScript(string newExe, string currentExe, int pid, string version, string backupExe, string logPath, string statusPath, string appliedShaPath, string sha256, bool failReplace = false)
+	public static string BuildApplyScript(string newExe, string currentExe, int pid, string version, string backupExe, string logPath, string statusPath, string appliedShaPath, string sha256, bool failReplace = false, string? altExe = null, string? payloadVersionFile = null)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.AppendLine("@echo off");
@@ -240,6 +240,18 @@ public sealed class SelfUpdateService
 		stringBuilder.AppendLine("  timeout /t 1 /nobreak >nul");
 		stringBuilder.AppendLine("  goto swap");
 		stringBuilder.AppendLine(")");
+		if (!string.IsNullOrWhiteSpace(payloadVersionFile))
+		{
+			string? targetDir = Path.GetDirectoryName(currentExe);
+			if (!string.IsNullOrEmpty(targetDir))
+			{
+				stringBuilder.Append("copy /Y \"").Append(payloadVersionFile).Append("\" \"").Append(Path.Combine(targetDir, PayloadStamp.FileName)).AppendLine("\" >nul");
+			}
+		}
+		if (!string.IsNullOrWhiteSpace(altExe))
+		{
+			stringBuilder.Append("copy /Y \"").Append(newExe).Append("\" \"").Append(altExe).AppendLine("\" >nul");
+		}
 		stringBuilder.Append("echo updated to ").Append(version).Append(">>\"")
 			.Append(logPath)
 			.AppendLine("\"");
@@ -310,13 +322,20 @@ public sealed class SelfUpdateService
 			return false;
 		}
 		UpdateReport.ClearRejected(NorcomPaths.LauncherDir);
-		if (UpdateReport.SameSha(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256))
+		bool fromAlt = LauncherInstall.IsAltInstall(Environment.ProcessPath, FriendInstaller.InstalledExePath);
+		string? primaryVersion = NorcomVersion.TryReadExeVersion(FriendInstaller.InstalledExePath);
+		if (UpdateReport.SkipApplied(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256, NorcomVersion.Current, manifest.Version, primaryVersion, fromAlt))
 		{
 			return false;
 		}
 		HealHint hint = await PinHeal.FetchHintAsync(_http, ct).ConfigureAwait(false);
 		if (!ShouldApply(NorcomVersion.Current, manifest, UsedPrivateManifest, hint))
 		{
+			if (fromAlt && LauncherInstall.ShouldCopyRunningToPrimary(true, NorcomVersion.Current, primaryVersion, manifest.Version) && !string.IsNullOrWhiteSpace(Environment.ProcessPath))
+			{
+				LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
+				return true;
+			}
 			return false;
 		}
 		string zipPath = await DownloadVerifiedAsync(manifest, new TransferMeter(), ct).ConfigureAwait(false);
@@ -358,7 +377,22 @@ public sealed class SelfUpdateService
 		string text2 = Path.Combine(Path.GetTempPath(), "norcom-apply-" + Guid.NewGuid().ToString("N") + ".cmd");
 		string statusPath = Path.Combine(NorcomPaths.LauncherDir, "update-status.txt");
 		string appliedShaPath = Path.Combine(NorcomPaths.LauncherDir, "update-applied.sha");
-		File.WriteAllText(text2, BuildApplyScript(newExe, currentExe, pid, version, text, NorcomPaths.LogPath, statusPath, appliedShaPath, sha256.Trim().ToLowerInvariant(), QaGates.FailReplaceRequested()), Encoding.ASCII);
+		string? payloadFile = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(newExe)) ?? "", PayloadStamp.FileName);
+		if (!File.Exists(payloadFile))
+		{
+			payloadFile = null;
+		}
+		string? altExe = null;
+		if (LauncherInstall.IsPrimaryInstall(currentExe, FriendInstaller.InstalledExePath))
+		{
+			string alt = LauncherInstall.AltExeFor(currentExe);
+			string? altDir = string.IsNullOrEmpty(alt) ? null : Path.GetDirectoryName(alt);
+			if (!string.IsNullOrEmpty(alt) && !string.IsNullOrEmpty(altDir) && (File.Exists(alt) || Directory.Exists(altDir)))
+			{
+				altExe = alt;
+			}
+		}
+		File.WriteAllText(text2, BuildApplyScript(newExe, currentExe, pid, version, text, NorcomPaths.LogPath, statusPath, appliedShaPath, sha256.Trim().ToLowerInvariant(), QaGates.FailReplaceRequested(), altExe, payloadFile), Encoding.ASCII);
 		Process.Start(new ProcessStartInfo
 		{
 			FileName = "cmd.exe",

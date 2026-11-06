@@ -9,46 +9,28 @@ public static class ShortcutRepair
 {
 	public static void EnsureKnownShortcuts(string exePath)
 	{
-		if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+		if (!OperatingSystem.IsWindows())
 		{
 			return;
 		}
-		TryRetarget(Path.Combine(NorcomPaths.DesktopDirectory, "NORCOM Launcher.lnk"), exePath);
+		string primary = FriendInstaller.InstalledExePath;
+		if (File.Exists(primary))
+		{
+			FriendInstaller.PublishShortcuts(primary, createIfMissing: false);
+			return;
+		}
+		if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+		{
+			return;
+		}
+		WindowsShortcut.PointAt(Path.Combine(NorcomPaths.DesktopDirectory, FriendInstaller.ShortcutName), exePath, createIfMissing: false, anyLauncherExe: false);
 		if (!NorcomPaths.DisposableProfile)
 		{
 			string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
 			if (!string.IsNullOrWhiteSpace(folderPath))
 			{
-				TryRetarget(Path.Combine(folderPath, "NORCOM", "NORCOM Launcher.lnk"), exePath);
+				WindowsShortcut.PointAt(Path.Combine(folderPath, "NORCOM", FriendInstaller.ShortcutName), exePath, createIfMissing: false, anyLauncherExe: false);
 			}
-		}
-	}
-
-	private static void TryRetarget(string linkPath, string exePath)
-	{
-		try
-		{
-			if (!File.Exists(linkPath))
-			{
-				return;
-			}
-			Type typeFromProgID = Type.GetTypeFromProgID("WScript.Shell");
-			if ((object)typeFromProgID != null)
-			{
-				dynamic val = Activator.CreateInstance(typeFromProgID);
-				dynamic val2 = val.CreateShortcut(linkPath);
-				if (LegacyRetirement.IsLegacyShortcutTarget(val2.TargetPath))
-				{
-					val2.TargetPath = exePath;
-					val2.WorkingDirectory = Path.GetDirectoryName(exePath);
-					val2.IconLocation = exePath + ",0";
-					val2.Description = "NORCOM Launcher";
-					val2.Save();
-				}
-			}
-		}
-		catch
-		{
 		}
 	}
 }

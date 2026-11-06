@@ -1,0 +1,40 @@
+HOLD. Do not tip the live feed. Do not cut Install-NORCOM. Do not post Discord.
+Coordinator tips only after a Desktop Windows GUI smoke of at least 12 seconds PASS and Jeffrey OK.
+This agent published from Linux and did not run the WPF window.
+ProductVersion 2.0.42
+AssemblyVersion 2.0.1.0 (BAML load stays V2.0.1.0)
+FileVersion 2.0.42.0
+payload-version.txt 2.0.42
+
+exe SHA256 779726ebd5d2e396eacea0565f8a80807355b6d8ae1e45f56946141bf8eed54e
+exe bytes 72535748
+zip SHA256 ad9b515eb5ede178561ae9959dada4872ec21b4adbcde0b719343ccc30e061cf
+zip bytes 66930975
+zip path launcher/NorcomWpf-2.0.42.zip
+zip entries: payload-version.txt, NorcomLauncher.exe
+Clean dotnet publish, win-x64, self-contained single file. Not a binary patch.
+
+Install-NORCOM-2.0.42.exe SHA256 4907f618f362d52401c51a5cd4d0dc756709fe7cc8452363ee9e0e612b9eea50
+Install-NORCOM-2.0.42.exe bytes 107837291
+The raw installer is over GitHub's 100 MB limit, so it is staged as launcher/Install-NORCOM-2.0.42.zip (unzip to Install-NORCOM-2.0.42.exe). Not released.
+
+Live feed stays 2.0.41. launcher/manifest.json is unchanged.
+Live zip remains sha256 f5163a04f0beb17e95e1014993ffe0849aba3a35470bc7053cbeb55ce47ec1da.
+No Discord post.
+LivePin stays soft/warn-only. No Admin binaries in this zip.
+Auto graphics stay High. FPS stays the uncapped 260 preset. The PowerShell 1.0.36 feed is untouched.
+
+Windows smoke (this cloud VM cannot host the WPF GUI):
+1. Unzip launcher/NorcomWpf-2.0.42.zip. payload-version.txt must read 2.0.42.
+2. Smoke with tools/hot-swap-launcher.ps1 -Candidate <NorcomLauncher.exe>.
+   PASS means the process is still alive at 12 seconds. Do not tip a build that exits early.
+3. Confirm the window still shows the neon border, Playing while the game is open, the red X, and pin status with Fix.
+4. If %LocalAppData%\NorcomLauncher\NorcomLauncher.exe exists, open and close once.
+   The running window and the shortcut must be %LocalAppData%\NORCOM\Launcher\NorcomLauncher.exe at 2.0.42.
+   The alt exe, if that folder already existed, must match those bits. Do not leave a 2.0.40 shortcut behind.
+5. Play against a Prism instance named NORCOM that has no norcom-managed.txt.
+   Minecraft must start. Saves must still be present (copied into .norcom and kept beside the instance as minecraft.norcom-kept).
+Do not point the live manifest at this zip until that smoke passes.
+
+Friends-facing notes draft, not for the live tip:
+Launcher 2.0.42. Install and update land in NORCOM\Launcher, and an older NorcomLauncher folder is brought along. Play reuses a Prism NORCOM instance that was already on the PC and keeps the saves.

@@ -16,5 +16,7 @@ public static class PrismMessages
 
 	public const string LinkBlocked = "NORCOM's Prism instance already has a minecraft folder that is not the NORCOM game folder. It was not replaced, and Minecraft was not started.";
 
-	public const string ForeignInstance = "A Prism instance named NORCOM already exists and was not created by this launcher. It was left unchanged, and Minecraft was not started.";
+	public const string LinkKept = "NORCOM could not attach this Prism instance to the NORCOM game folder. Saves were not deleted.";
+
+	public const string Claimed = "Claimed the existing Prism NORCOM instance. Saves were kept.";
 }

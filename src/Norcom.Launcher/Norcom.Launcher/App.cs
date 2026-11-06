@@ -49,6 +49,31 @@ public class App : Application
 			((Application)this).Shutdown(0);
 			return;
 		}
+		if (LauncherInstall.ShouldPromoteAlt(Environment.ProcessPath, FriendInstaller.InstalledExePath))
+		{
+			try
+			{
+				LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
+				_instance.Dispose();
+				((Application)this).Shutdown(0);
+				return;
+			}
+			catch (Exception promoteEx)
+			{
+				LauncherLog.Write("alt promote " + promoteEx.GetType().Name);
+			}
+		}
+		else
+		{
+			try
+			{
+				LauncherInstall.TrySyncAlt(FriendInstaller.InstalledExePath);
+			}
+			catch (Exception syncEx)
+			{
+				LauncherLog.Write("alt sync " + syncEx.GetType().Name);
+			}
+		}
 		SplashWindow splash = new SplashWindow();
 		((Window)splash).Show();
 		await ((DispatcherObject)this).Dispatcher.InvokeAsync((Action)delegate

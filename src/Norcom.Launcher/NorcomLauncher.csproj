@@ -15,9 +15,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>2.0.41</Version>
-    <FileVersion>2.0.41.0</FileVersion>
-    <InformationalVersion>2.0.41</InformationalVersion>
+    <Version>2.0.42</Version>
+    <FileVersion>2.0.42.0</FileVersion>
+    <InformationalVersion>2.0.42</InformationalVersion>
     <AssemblyVersion>2.0.1.0</AssemblyVersion>
     <Product>NORCOM Launcher</Product>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>

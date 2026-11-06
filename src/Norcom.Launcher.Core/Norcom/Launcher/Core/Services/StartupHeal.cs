@@ -29,6 +29,14 @@ public static class StartupHeal
 		Directory.CreateDirectory(launcherDir);
 		try
 		{
+			UpdateReport.ClearRejected(launcherDir);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("update clear " + ex.GetType().Name);
+		}
+		try
+		{
 			string live = Environment.ProcessPath;
 			if (string.IsNullOrWhiteSpace(live) || !Path.GetFileName(live).Equals("NorcomLauncher.exe", StringComparison.OrdinalIgnoreCase))
 			{

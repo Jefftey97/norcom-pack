@@ -110,18 +110,26 @@ public static class PinHeal
 			{
 				check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 			}
-		if (check == PinGate.PinCheck.Open)
+		if (check == PinGate.PinCheck.Open || check == PinGate.PinCheck.Match)
 			{
-				await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
-				return;
-			}
-			if (check == PinGate.PinCheck.Match)
-			{
-				if (attempt == 1)
+				if (check == PinGate.PinCheck.Match && attempt > 1 && !PinGate.DeferAppliedWrite)
+				{
+					return;
+				}
+				try
 				{
 					await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
+					return;
 				}
-				return;
+				catch (Exception ex) when (ex is not PinMismatchException)
+				{
+					LauncherLog.Write("pin heal failed " + ex.GetType().Name);
+					if (attempt >= max)
+					{
+						throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
+					}
+					continue;
+				}
 			}
 			LauncherLog.Write("pin heal attempt " + attempt + " " + hint.RepairAction);
 			try

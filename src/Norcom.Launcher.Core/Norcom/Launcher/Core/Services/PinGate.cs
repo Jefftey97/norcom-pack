@@ -44,6 +44,8 @@ public static class PinGate
 
 	public static string? PublishedPin { get; private set; }
 
+	public static bool DeferAppliedWrite { get; private set; }
+
 	public const string RequireVariable = "NORCOM_PIN_REQUIRED";
 
 	public static readonly string[] PinUrls = new string[3] { FriendsPinUrl, ServerPinUrl, CompatPinUrl };
@@ -131,6 +133,7 @@ public static class PinGate
 		LastWarning = null;
 		AcceptedPinJson = null;
 		PublishedPin = null;
+		DeferAppliedWrite = false;
 		string? full = ReadIfExists(Environment.GetEnvironmentVariable("NORCOM_PIN_PATH")) ?? ReadIfExists(HostFullPinPath);
 		string? slim = ReadIfExists(HostSlimPinPath);
 		string source = full != null ? HostFullPinPath : "";
@@ -178,6 +181,7 @@ public static class PinGate
 		LastWarning = null;
 		AcceptedPinJson = null;
 		PublishedPin = null;
+		DeferAppliedWrite = false;
 		string? body = await TryFetchTextAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		if (body == null)
 		{
@@ -285,7 +289,10 @@ public static class PinGate
 			{
 				CheckCompat(compatJson, pinSha, gameDir);
 			}
-			Remember(gameDir, pinSha);
+			if (!DeferAppliedWrite)
+			{
+				Remember(gameDir, pinSha);
+			}
 		}
 	}
 
@@ -303,7 +310,10 @@ public static class PinGate
 			{
 				CheckCompat(compatJson, pin, gameDir);
 			}
-			Remember(gameDir, pin);
+			if (!DeferAppliedWrite)
+			{
+				Remember(gameDir, pin);
+			}
 		}
 	}
 
@@ -329,9 +339,10 @@ public static class PinGate
 		{
 			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
 		}
-		if (actualPin.Length > 0 && !string.Equals(actualPin, pin, StringComparison.OrdinalIgnoreCase))
+		DeferAppliedWrite = actualPin.Length > 0 && !string.Equals(actualPin, pin, StringComparison.OrdinalIgnoreCase);
+		if (DeferAppliedWrite)
 		{
-			throw new PinMismatchException(BlockCopy + " Expected pin " + pin + ". Actual pin " + actualPin + ".");
+			LauncherLog.Write("pin heal applied=" + actualPin + " published=" + pin);
 		}
 		AcceptedPinJson = pin;
 	}

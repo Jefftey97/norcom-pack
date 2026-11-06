@@ -28,15 +28,17 @@ public class PinGateTests
 	}
 
 	[Fact]
-	public async Task SlimPinMismatchRefuses()
+	public async Task AppliedPinIsReplacedWithoutARefusal()
 	{
 		string dir = NewDir();
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains(LivePin, ex.Message);
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
 		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
+		Assert.True(PinGate.DeferAppliedWrite);
+		PinGate.AdoptPublished(dir);
+		Assert.Equal(LivePin, PinGate.ReadAppliedPin(dir));
+		Assert.Null(PinGate.LastWarning);
 	}
 
 	[Fact]

@@ -1211,6 +1211,7 @@ public class ShellViewModel : ObservableObject
 		_ = 1;
 		try
 		{
+			UpdateReport.ClearRejected(NorcomPaths.LauncherDir);
 			report("Checking for a launcher update", 0.05);
 			using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
 			timeout.CancelAfter(TimeSpan.FromSeconds(12.0));

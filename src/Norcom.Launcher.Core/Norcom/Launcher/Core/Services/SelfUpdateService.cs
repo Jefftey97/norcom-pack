@@ -309,6 +309,7 @@ public sealed class SelfUpdateService
 		{
 			return false;
 		}
+		UpdateReport.ClearRejected(NorcomPaths.LauncherDir);
 		if (UpdateReport.SameSha(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256))
 		{
 			return false;

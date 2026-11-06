@@ -36,6 +36,23 @@ public static class UpdateReport
 		LauncherLog.Write("update " + token.Trim());
 	}
 
+	public static bool ClearRejected(string launcherDir)
+	{
+		string path = Path.Combine(launcherDir, "update-status.txt");
+		if (!File.Exists(path))
+		{
+			return false;
+		}
+		string text = File.ReadAllText(path).Trim();
+		if (!text.StartsWith("rejected", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		File.Delete(path);
+		LauncherLog.Write("update cleared stale " + text);
+		return true;
+	}
+
 	public static string? ReadAppliedSha(string launcherDir)
 	{
 		string path = Path.Combine(launcherDir, "update-applied.sha");

@@ -32,6 +32,9 @@ public partial class OpsViewModel : ObservableObject
     private bool _armSparkUrl;
     private string _playerLine = "—";
     private int _playersOnline = -1;
+
+    [ObservableProperty]
+    private bool stopEnabled = true;
     private bool _localProbe;
     private int _probeBusy;
 
@@ -826,7 +829,8 @@ public partial class OpsViewModel : ObservableObject
             return false;
         }
 
-        var message = online + " players are online. " + action + " is refused.";
+        _ = action;
+        const string message = "Players online — Stop/Soft locked";
         Ask.Warn(message);
         Status = message;
         return true;
@@ -834,25 +838,43 @@ public partial class OpsViewModel : ObservableObject
 
     private async Task<int> PlayersOnlineNowAsync()
     {
-        if (_password.Length == 0)
+        var counts = new List<int>();
+        var slp = await ServerListPing.PlayersAsync("127.0.0.1", 25565, TimeSpan.FromMilliseconds(800));
+        if (slp is int seen)
+        {
+            counts.Add(seen);
+        }
+
+        if (_password.Length > 0)
+        {
+            try
+            {
+                var text = await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "list", CancellationToken.None);
+                if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
+                {
+                    RememberPlayers(online, max, names);
+                    counts.Add(online);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        if (counts.Count == 0)
         {
             return _playersOnline;
         }
 
-        try
-        {
-            var text = await _rcon.CommandAsync("127.0.0.1", RconPort, _password, "list", CancellationToken.None);
-            if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
-            {
-                RememberPlayers(online, max, names);
-                return online;
-            }
-        }
-        catch
-        {
-        }
+        var count = counts.Max();
+        ApplyBuddy(count);
+        return count;
+    }
 
-        return _playersOnline;
+    private void ApplyBuddy(int online)
+    {
+        _playersOnline = online;
+        StopEnabled = online <= 0;
     }
 
     private void RememberPlayers(int online, int max, IReadOnlyList<string> names)
@@ -873,7 +895,9 @@ public partial class OpsViewModel : ObservableObject
         try
         {
             var slp = await ServerListPing.TryAsync("127.0.0.1", 25565, TimeSpan.FromMilliseconds(800));
+            var slpPlayers = await ServerListPing.PlayersAsync("127.0.0.1", 25565, TimeSpan.FromMilliseconds(800));
             var rcon = false;
+            int? listed = null;
             if (_password.Length > 0)
             {
                 try
@@ -882,6 +906,7 @@ public partial class OpsViewModel : ObservableObject
                     if (PlayerList.TryParse(_redactor.Clean(text), out var online, out var max, out var names))
                     {
                         rcon = true;
+                        listed = online;
                         RememberPlayers(online, max, names);
                     }
                     else if (!string.IsNullOrWhiteSpace(text))
@@ -892,6 +917,22 @@ public partial class OpsViewModel : ObservableObject
                 catch
                 {
                 }
+            }
+
+            var counts = new List<int>();
+            if (listed is int fromList)
+            {
+                counts.Add(fromList);
+            }
+
+            if (slpPlayers is int fromSlp)
+            {
+                counts.Add(fromSlp);
+            }
+
+            if (counts.Count > 0)
+            {
+                ApplyBuddy(counts.Max());
             }
 
             _localProbe = slp || rcon;

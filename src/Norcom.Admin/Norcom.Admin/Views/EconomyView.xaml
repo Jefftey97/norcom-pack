@@ -49,9 +49,16 @@
           <Button Content="Transfer" Command="{Binding Bank.TransferCommand}" Style="{StaticResource CyanButton}"/>
           <Button Content="Set" Command="{Binding Bank.SetBalanceCommand}" Style="{StaticResource CyanButton}"/>
         </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+          <Button Content="All" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="All" Style="{StaticResource GhostButton}"/>
+          <Button Content="Bank" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="Bank" Style="{StaticResource GhostButton}"/>
+          <Button Content="Shop" Command="{Binding Bank.SetLedgerFilterCommand}" CommandParameter="Shop" Style="{StaticResource GhostButton}"/>
+        </StackPanel>
+        <TextBlock Text="{Binding Bank.ShopSync}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,4"/>
         <TextBlock Text="{Binding Bank.LedgerNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,4,0,6"/>
         <ListBox ItemsSource="{Binding Bank.Ledger}" MaxHeight="140" Margin="0,0,0,16"/>
         <TextBlock Text="Shop prices" Style="{StaticResource PageTitle}"/>
+        <TextBlock Text="{Binding Bank.ShopShaShort}" ToolTip="{Binding Bank.ShopShaFull}" Foreground="#00E5FF" Margin="0,0,0,4"/>
         <TextBlock Text="{Binding Bank.ShopNote}" Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
         <Button Content="Save stall prices" Command="{Binding Bank.SavePricesCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" AutomationProperties.Name="Save stall prices"/>
         <TextBlock Text="Stall buy" Style="{StaticResource Label}"/>

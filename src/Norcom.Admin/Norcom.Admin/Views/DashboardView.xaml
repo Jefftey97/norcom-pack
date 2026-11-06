@@ -4,8 +4,8 @@
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
       <Button Content="Start" Command="{Binding StartCommand}" Style="{StaticResource CyanButton}"/>
-      <Button Content="Stop" Command="{Binding StopCommand}" Style="{StaticResource PinkButton}" AutomationProperties.AutomationId="Stop" AutomationProperties.Name="Stop"/>
-      <Button Content="Soft restart" Command="{Binding RestartCommand}" Style="{StaticResource GhostButton}" AutomationProperties.AutomationId="SoftRestart" AutomationProperties.Name="Soft restart"/>
+      <Button Content="Stop" Command="{Binding StopCommand}" Style="{StaticResource PinkButton}" AutomationProperties.AutomationId="Stop" AutomationProperties.Name="Stop" IsEnabled="{Binding StopEnabled}"/>
+      <Button Content="Soft restart" Command="{Binding RestartCommand}" Style="{StaticResource GhostButton}" AutomationProperties.AutomationId="SoftRestart" AutomationProperties.Name="Soft restart" IsEnabled="{Binding StopEnabled}"/>
       <Button Content="Spark 60s" Command="{Binding SparkCommand}" Style="{StaticResource CyanButton}"/>
       <Button Content="Backup" Command="{Binding BackupCommand}" Style="{StaticResource GhostButton}"/>
       <Button Content="Folder" Command="{Binding OpenFolderCommand}" Style="{StaticResource GhostButton}"/>
@@ -31,6 +31,7 @@
             <TextBlock Text="{Binding DataContext.Publish.Status, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
+        <TextBlock Text="{Binding DataContext.PinStrip, RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,0,10,8" Foreground="#00E5FF"/>
         <Border Style="{StaticResource PanelCard}" Margin="0,0,10,12">
           <StackPanel>
             <TextBlock Text="TPS 1m trend" Style="{StaticResource Label}"/>

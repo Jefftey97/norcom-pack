@@ -84,6 +84,9 @@ public partial class ShellViewModel : ObservableObject
     private string pinNudge = "";
 
     [ObservableProperty]
+    private string pinStrip = "Publish needed";
+
+    [ObservableProperty]
     private bool healBlocked;
 
     private DateTime _lastRawCheck = DateTime.MinValue;
@@ -126,6 +129,7 @@ public partial class ShellViewModel : ObservableObject
     {
         var sot = NorcomPin.TryRead(Ops.ServerPath);
         HealFails.ConsumeClientMarker(Ops.ServerPath, sot?.pin ?? "");
+        PinStrip = PackPinMatches(sot?.pin, PackPin(Publish.PackPath)) ? "pin OK" : "Publish needed";
         if (!PinChangedFlag.TryRead(Ops.ServerPath, out var flagged))
         {
             PinChanged = false;
@@ -175,6 +179,29 @@ public partial class ShellViewModel : ObservableObject
 
         PinChanged = false;
         PinNudge = "ALREADY_LIVE pin " + NorcomPin.Prefix(pin) + " index " + NorcomPin.Prefix(index) + " same-as-raw: yes. Flag cleared. Nothing was pushed.";
+    }
+
+    private static bool PackPinMatches(string? serverPin, string packPin) =>
+        !string.IsNullOrWhiteSpace(serverPin) &&
+        string.Equals(serverPin.Trim(), packPin.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static string PackPin(string packDirectory)
+    {
+        try
+        {
+            var path = Path.Combine(packDirectory, "meta", "server-pin.json");
+            if (!File.Exists(path))
+            {
+                return "";
+            }
+
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            return document.RootElement.TryGetProperty("pin", out var value) ? value.GetString() ?? "" : "";
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static string IndexSha(string packDirectory)

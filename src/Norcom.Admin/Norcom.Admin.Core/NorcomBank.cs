@@ -188,6 +188,10 @@ public static class BankLedger
     public static string ServerPath(string serverDirectory) =>
         Path.Combine(serverDirectory, "admin", "bank-ledger.jsonl");
 
+    public static bool IsShop(BankLedgerRow row) =>
+        row.TxId.StartsWith("NORCOM-TX-", StringComparison.OrdinalIgnoreCase) ||
+        row.Op.Equals("shop", StringComparison.OrdinalIgnoreCase);
+
     public static void EnsureServerFile(string serverDirectory)
     {
         var path = ServerPath(serverDirectory);

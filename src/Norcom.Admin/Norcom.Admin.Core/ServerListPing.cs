@@ -38,6 +38,38 @@ public static class ServerListPing
         }
     }
 
+    public static async Task<int?> PlayersAsync(string host, int port, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(host, "127.0.0.1", StringComparison.Ordinal) || port is < 1 or > 65535)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var tcp = new TcpClient();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linked.CancelAfter(timeout);
+            await tcp.ConnectAsync(host, port, linked.Token).ConfigureAwait(false);
+            await using var stream = tcp.GetStream();
+            await stream.WriteAsync(Handshake(host, port), linked.Token).ConfigureAwait(false);
+            await stream.WriteAsync(new byte[] { 1, 0 }, linked.Token).ConfigureAwait(false);
+            var length = await ReadVarIntAsync(stream, linked.Token).ConfigureAwait(false);
+            if (length is < 2 or > 65536)
+            {
+                return null;
+            }
+
+            var text = Encoding.UTF8.GetString(await ReadExactAsync(stream, length, linked.Token).ConfigureAwait(false));
+            var match = System.Text.RegularExpressions.Regex.Match(text, "\"online\"\\s*:\\s*(\\d+)");
+            return match.Success ? int.Parse(match.Groups[1].Value) : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static byte[] Handshake(string host, int port)
     {
         var payload = new List<byte> { 0 };

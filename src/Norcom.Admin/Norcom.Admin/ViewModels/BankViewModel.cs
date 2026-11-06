@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using Norcom.Admin.Core;
 
 namespace Norcom.Admin.ViewModels;
@@ -12,6 +13,7 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
     private readonly RconClient _rcon;
     private readonly HashSet<string> _txIds = new(StringComparer.OrdinalIgnoreCase);
     private ShopPriceDesk _shop = ShopPriceDesk.Load("");
+    private readonly List<BankLedgerRow> _ledgerRows = new();
     private bool _busy;
 
     public BankViewModel(Func<string> serverPath, Func<int> rconPort, Func<string> password, SecretRedactor redactor, RconClient rcon)
@@ -46,6 +48,10 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private BankAccount? selected;
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string ledgerNote = "No Admin bank ops yet";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string shopNote = "Stall prices load from admin\\shop-prices.json.";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string shopShaShort = "—";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string shopShaFull = "";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string shopSync = "No shop sync file yet.";
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string ledgerFilter = "All";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string traderSchedule = "Schedule is Server-owned. Admin shows this SoT only.";
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private string traderNote = "";
 
@@ -68,22 +74,10 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
 
         Selected ??= Accounts.FirstOrDefault();
         ApplyHero();
-        Ledger.Clear();
-        var rows = BankLedger.ReadMerged(_serverPath(), 40);
-        if (rows.Count == 0)
-        {
-            LedgerNote = "No Admin bank ops yet. Server lines appear here when admin\\bank-ledger.jsonl has them.";
-        }
-        else
-        {
-            LedgerNote = "Admin Set/Transfer, bank-ledger.jsonl, and shop rows from economy-ledger.jsonl. Price history is not a statement.";
-            foreach (var row in rows.Reverse())
-            {
-                var who = row.Target.Length == 0 ? row.Player : row.Player + " → " + row.Target;
-                var why = row.RconResult.Length == 0 ? "" : "  " + row.RconResult;
-                Ledger.Add(row.Time + "  " + row.Op + "  " + who + "  " + row.Amount + why + "  " + row.TxId);
-            }
-        }
+        _ledgerRows.Clear();
+        _ledgerRows.AddRange(BankLedger.ReadMerged(_serverPath(), 80));
+        PaintLedger();
+        ShopSync = SyncPulse(_serverPath());
 
         LoadShop();
         Status = snapshot.Note;
@@ -115,6 +109,8 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
     {
         _shop = ShopPriceDesk.Load(_serverPath());
         ShopNote = _shop.Note;
+        ShopShaFull = ShopPriceDesk.FileSha256(_shop.Path);
+        ShopShaShort = ShopShaFull.Length >= 8 ? ShopShaFull[..8] : (ShopShaFull.Length == 0 ? "—" : ShopShaFull);
         BuyOffers.Clear();
         SellOffers.Clear();
         foreach (var offer in _shop.Offers)
@@ -148,6 +144,68 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
         {
             TraderShelves.Add(shelf.Side + "  " + shelf.Sku + "  " + shelf.Item + "  qty " + shelf.Qty + "  " + shelf.Price + " C  " + shelf.Shelf);
         }
+    }
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void SetLedgerFilter(string? filter)
+    {
+        LedgerFilter = filter is "Bank" or "Shop" ? filter : "All";
+        PaintLedger();
+    }
+
+    private void PaintLedger()
+    {
+        var rows = _ledgerRows.Where(row => LedgerFilter switch
+        {
+            "Shop" => BankLedger.IsShop(row),
+            "Bank" => !BankLedger.IsShop(row),
+            _ => true
+        }).ToList();
+        Ledger.Clear();
+        if (rows.Count == 0)
+        {
+            LedgerNote = LedgerFilter == "Shop"
+                ? "No shop rows yet."
+                : "No Admin bank ops yet. Server lines appear here when admin\\bank-ledger.jsonl has them.";
+            return;
+        }
+
+        LedgerNote = "All / Bank / Shop. Shop rows use NORCOM-TX- or economy-ledger src. Price history is not a statement.";
+        foreach (var row in rows.AsEnumerable().Reverse())
+        {
+            var who = row.Target.Length == 0 ? row.Player : row.Player + " → " + row.Target;
+            var why = row.RconResult.Length == 0 ? "" : "  " + row.RconResult;
+            Ledger.Add(row.Time + "  " + row.Op + "  " + who + "  " + row.Amount + why + "  " + row.TxId);
+        }
+    }
+
+    private static string SyncPulse(string serverDirectory)
+    {
+        var parts = new List<string>();
+        var ledger = Path.Combine(serverDirectory, "admin", "economy-ledger.jsonl");
+        var state = Path.Combine(serverDirectory, "admin", "shop-tx-state.json");
+        if (File.Exists(ledger))
+        {
+            parts.Add("economy-ledger.jsonl " + File.GetLastWriteTime(ledger).ToString("HH:mm") + " (" + Age(ledger) + ")");
+        }
+
+        if (File.Exists(state))
+        {
+            parts.Add("sync state file age " + Age(state));
+        }
+
+        return parts.Count == 0 ? "No shop sync file yet." : string.Join(" · ", parts);
+    }
+
+    private static string Age(string path)
+    {
+        var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
+        if (age < TimeSpan.Zero)
+        {
+            age = TimeSpan.Zero;
+        }
+
+        return age.TotalHours >= 1 ? (int)age.TotalHours + "h" : (int)age.TotalMinutes + "m";
     }
 
     partial void OnSelectedChanged(BankAccount? value) => ApplyHero();

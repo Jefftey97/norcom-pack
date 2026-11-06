@@ -219,7 +219,7 @@ public sealed class ShopPriceDesk
 
         var interval = Span(trader, "interval_ticks", "intervalTicks", "interval");
         var stay = Span(trader, "stay_ticks", "stayTicks", "stay");
-        var schedule = "Interval " + (interval.Length == 0 ? "—" : interval) + " ticks. Stay " + (stay.Length == 0 ? "—" : stay) + " ticks. " + scheduleNote;
+        var schedule = "Stay " + Minutes(stay) + ". Respawn interval " + Minutes(interval) + ". " + scheduleNote;
         var books = new List<TraderBook>();
         if ((trader["books_price_emerald_or_coin_1to1"] ?? trader["books"]) is JsonArray list)
         {
@@ -324,6 +324,34 @@ public sealed class ShopPriceDesk
         key.Equals("buyback", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("sell", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("sells", StringComparison.OrdinalIgnoreCase);
+
+    private static string Minutes(string span)
+    {
+        if (span.Length == 0)
+        {
+            return "—";
+        }
+
+        var labels = new List<string>();
+        foreach (var part in span.Split('–'))
+        {
+            labels.Add(long.TryParse(part, out var ticks) ? (ticks / 1200) + "m" : part);
+        }
+
+        return string.Join("–", labels);
+    }
+
+    public static string FileSha256(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return "";
+        }
+
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        using var stream = SharedFile.Open(path);
+        return Convert.ToHexString(sha.ComputeHash(stream));
+    }
 
     private static string Span(JsonObject obj, params string[] names)
     {

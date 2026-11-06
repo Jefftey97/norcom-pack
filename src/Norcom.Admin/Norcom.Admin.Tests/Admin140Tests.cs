@@ -330,8 +330,12 @@ public class Admin140Tests
         Assert.DoesNotContain(live.Offers, offer => offer.Sku is "GAPPLE" or "IRON");
         Assert.Equal(2, live.Trader.Books.Count);
         Assert.Contains("1 commons + Mending (2 offers)", live.Trader.Note, StringComparison.Ordinal);
-        Assert.Contains("54000", live.Trader.Schedule, StringComparison.Ordinal);
-        Assert.Contains("108000", live.Trader.Schedule, StringComparison.Ordinal);
+        Assert.Contains("stay 30m–40m", live.Trader.Schedule, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("respawn interval 45m–90m", live.Trader.Schedule, StringComparison.OrdinalIgnoreCase);
+        Assert.True(BankLedger.IsShop(new BankLedgerRow("t", "NORCOM-TX-1-BREAD", "Steve", "set", 1, "", "")));
+        Assert.False(BankLedger.IsShop(new BankLedgerRow("t", "tx1", "Steve", "set", 1, "", "")));
+        var hash = ShopPriceDesk.FileSha256(prices);
+        Assert.Equal(64, hash.Length);
         Assert.Contains(live.Trader.Books, book => book.Sku == "BK00-MENDING1" && book.Pay == "64+64" && book.Tier == "rare" && book.MaxUses == "1");
         Assert.Contains(live.Trader.Books, book => book.Sku == "BK01" && book.Enchant == "sharpness");
         Assert.Contains(live.Trader.Shelves, shelf => shelf.Side == "buy" && shelf.Sku == "GAPPLE" && shelf.Shelf == "top");

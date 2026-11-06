@@ -9,6 +9,17 @@
     <TextBlock Text="Friends pin meta only: server-pin, server-compat, norcom-mod-pin, heal-hint. This is not a packwiz config publish." Foreground="#93A4BD" TextWrapping="Wrap" Margin="0,0,0,8"/>
     <Button Content="Packwiz config Publish" Command="{Binding PublishCommand}" Style="{StaticResource PinkButton}" HorizontalAlignment="Left"/>
     <TextBlock Text="Pack config such as mods and packwiz files. A jade or IPN edit is not a pin regen. Fast-forward only. launcher/ stays." Foreground="#93A4BD" TextWrapping="Wrap"/>
-    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0">
+      <TextBlock.Style>
+        <Style TargetType="TextBlock">
+          <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusFailed}" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource Danger}"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </TextBlock.Style>
+    </TextBlock>
   </StackPanel>
 </UserControl>

@@ -28,7 +28,18 @@
             <TextBlock Text="{Binding DataContext.PinNudge, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" FontWeight="SemiBold"/>
             <Button Content="Meta Publish" Command="{Binding DataContext.PublishFlagCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" Margin="0,8,0,0"
                     Visibility="{Binding DataContext.HealBlocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisInvert}}"/>
-            <TextBlock Text="{Binding DataContext.Publish.Status, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding DataContext.Publish.Status, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding DataContext.Publish.StatusFailed, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                      <Setter Property="Foreground" Value="{StaticResource Danger}"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
           </StackPanel>
         </Border>
         <TextBlock Text="{Binding DataContext.PinStrip, RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,0,10,8" Foreground="#00E5FF"/>

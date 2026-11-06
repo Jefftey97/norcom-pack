@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = Path(__file__).resolve().parent / "marble_templates"
 PACK = ROOT / "resourcepacks" / "_staging_norcom_marble_ctm"
 ZIP_PATH = ROOT / "resourcepacks" / "norcom_marble.zip"
-PREVIEW = Path("/opt/cursor/artifacts/norcom-marble-families.png")
+PREVIEW = Path("/opt/cursor/artifacts/norcom-marble-after.png")
+SHEET = Path("/opt/cursor/artifacts/norcom-marble-families.png")
 NS = "norcom_marble"
 SIZE = 128
 SUFFIXES = (
@@ -87,80 +88,181 @@ def fbm(size: int, seed: int, layers: tuple[tuple[int, float], ...]) -> np.ndarr
     return acc / weight
 
 
-def vein_mask(field: np.ndarray, coverage: float) -> np.ndarray:
-    ridge = np.abs(np.sin(field * np.pi * 3.15)).astype(np.float32)
-    # Pick a threshold so the smoothed mask covers about `coverage` of the face.
-    lo = 0.45
-    hi = 0.92
-    for _ in range(18):
-        mid = (lo + hi) * 0.5
-        soft = np.clip((ridge - mid) / 0.16, 0.0, 1.0)
-        soft = soft * soft * (3.0 - 2.0 * soft)
-        if float(soft.mean()) > coverage:
-            lo = mid
-        else:
-            hi = mid
-    soft = np.clip((ridge - lo) / 0.16, 0.0, 1.0)
-    return soft * soft * (3.0 - 2.0 * soft)
+def worley(size: int, cells: int, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """Seamless crystal cells. Returns cell brightness and a 0-1 facet edge."""
+    pts = rng.random((cells, cells, 2)).astype(np.float32)
+    bright = rng.random((cells, cells)).astype(np.float32)
+    ys = np.linspace(0, cells, size, endpoint=False).astype(np.float32)
+    xs = np.linspace(0, cells, size, endpoint=False).astype(np.float32)
+    y0 = np.floor(ys).astype(np.int32)
+    x0 = np.floor(xs).astype(np.int32)
+    best_d = np.full((size, size), np.float32(1e9))
+    second_d = np.full((size, size), np.float32(1e9))
+    best_b = np.zeros((size, size), np.float32)
+    for oy in (-1, 0, 1):
+        for ox in (-1, 0, 1):
+            cy = (y0 + oy) % cells
+            cx = (x0 + ox) % cells
+            point = pts[cy[:, None], cx[None, :]]
+            feat_y = (y0[:, None] + oy) + point[..., 0]
+            feat_x = (x0[None, :] + ox) + point[..., 1]
+            dy = ys[:, None] - feat_y
+            dx = xs[None, :] - feat_x
+            dist = dx * dx + dy * dy
+            shade = bright[cy[:, None], cx[None, :]]
+            closer = dist < best_d
+            second_d = np.where(closer, best_d, np.minimum(second_d, dist))
+            best_b = np.where(closer, shade, best_b)
+            best_d = np.minimum(best_d, dist)
+    edge = np.clip((np.sqrt(second_d) - np.sqrt(best_d)) * cells * 1.4, 0.0, 1.0)
+    return best_b.astype(np.float32), edge.astype(np.float32)
 
 
-def palette(color: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def crystal_grain(size: int, seed: int, kind: str) -> np.ndarray:
+    """Fine crystalline grit, closer to Clarity HD calcite than a large mosaic."""
+    rng = np.random.default_rng(seed)
+    if kind == "soft":
+        contrast = 0.72
+        cells = 42
+        facet_w = 0.18
+        spread = 0.42
+        center = 0.55
+    elif kind == "solid":
+        contrast = 1.2
+        cells = 30
+        facet_w = 0.30
+        spread = 0.78
+        center = 0.46
+    else:
+        contrast = 0.95
+        cells = 34
+        facet_w = 0.24
+        spread = 0.62
+        center = 0.5
+    facets, edge = worley(size, cells, rng)
+    grit = fbm(size, seed + 5, ((32, 0.4), (48, 0.35), (64, 0.25)))
+    speckle = fbm(size, seed + 19, ((64, 1.0),))
+    mottling = fbm(size, seed + 29, ((8, 0.6), (12, 0.4)))
+    spark = np.clip((grit - 0.5) * contrast + 0.5, 0.0, 1.0)
+    grain = facets * facet_w + spark * 0.46 + speckle * 0.2 + mottling * (0.34 - facet_w)
+    grain = grain * (0.86 + 0.14 * edge)
+    grain = center + (grain - 0.5) * spread
+    return np.clip(grain, 0.0, 1.0).astype(np.float32)
+
+
+def _noise1d(t: np.ndarray, knots: np.ndarray) -> np.ndarray:
+    count = len(knots)
+    x = t * count
+    i0 = np.floor(x).astype(np.int32) % count
+    frac = x - np.floor(x)
+    frac = frac * frac * (3.0 - 2.0 * frac)
+    i1 = (i0 + 1) % count
+    return knots[i0] * (1.0 - frac) + knots[i1] * frac
+
+
+def mineral_curve(
+    size: int,
+    rng: np.random.Generator,
+    nx: int,
+    ny: int,
+    amp: float,
+    t0: float = 0.0,
+    t1: float = 1.0,
+    samples: int = 360,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Irregular mineral line. Integer steps keep a full-span line seamless."""
+    x0 = float(rng.random() * size)
+    y0 = float(rng.random() * size)
+    if nx == 0 and ny == 0:
+        ny = 1
+    t = np.linspace(t0, t1, samples, endpoint=False if t1 >= 1.0 else True)
+    knots = rng.normal(0.0, 1.0, size=5).astype(np.float32)
+    knots_fine = rng.normal(0.0, 1.0, size=9).astype(np.float32)
+    wander = amp * _noise1d(t, knots) + amp * 0.45 * _noise1d(t, knots_fine)
+    length = float(np.hypot(nx, ny))
+    px = -ny / length
+    py = nx / length
+    cx = x0 + t * nx * size + px * wander
+    cy = y0 + t * ny * size + py * wander
+    if t1 < 1.0:
+        span = max(t1 - t0, 1e-4)
+        fade = np.sin(np.clip((t - t0) / span, 0.0, 1.0) * np.pi).astype(np.float32)
+    else:
+        fade = np.ones_like(t, dtype=np.float32)
+    return cx.astype(np.float32), cy.astype(np.float32), fade
+
+
+def curve_mask(size: int, cx: np.ndarray, cy: np.ndarray, radius: float, fade: np.ndarray | None = None) -> np.ndarray:
+    ys = np.arange(size, dtype=np.float32)[:, None]
+    xs = np.arange(size, dtype=np.float32)[None, :]
+    acc = np.zeros((size, size), np.float32)
+    step = 16
+    for i in range(0, len(cx), step):
+        cxx = cx[i : i + step][:, None, None]
+        cyy = cy[i : i + step][:, None, None]
+        dx = np.abs(xs[None, :, :] - cxx)
+        dy = np.abs(ys[None, :, :] - cyy)
+        dx = np.minimum(dx, size - dx)
+        dy = np.minimum(dy, size - dy)
+        dist = np.sqrt(dx * dx + dy * dy)
+        weight = np.exp(-((dist / radius) ** 2))
+        if fade is not None:
+            weight = weight * fade[i : i + step][:, None, None]
+        acc = np.maximum(acc, weight.max(axis=0))
+    return acc
+
+
+def marble_veins(size: int, seed: int) -> np.ndarray:
+    """Two thin irregular mineral lines plus a short branch. Not a sine grid."""
+    rng = np.random.default_rng(seed + 90)
+    cx, cy, fade = mineral_curve(size, rng, nx=1, ny=0, amp=6.5)
+    mask = curve_mask(size, cx, cy, 1.0, fade)
+    cx, cy, fade = mineral_curve(size, rng, nx=1, ny=1, amp=5.0)
+    mask = np.maximum(mask, curve_mask(size, cx, cy, 0.9, fade) * 0.95)
+    cx, cy, fade = mineral_curve(size, rng, nx=1, ny=-1, amp=4.0, t0=0.18, t1=0.62, samples=160)
+    mask = np.maximum(mask, curve_mask(size, cx, cy, 0.75, fade) * 0.8)
+    breaker = fbm(size, seed + 77, ((5, 0.6), (9, 0.4)))
+    keep = np.clip((breaker - 0.3) / 0.45, 0.0, 1.0)
+    return np.clip(mask * (0.2 + 0.8 * keep), 0.0, 1.0)
+
+
+def stone_colors(color: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if color == "white":
         return (
-            np.array([232, 228, 222], np.float32),
-            np.array([250, 248, 244], np.float32),
-            np.array([154, 162, 174], np.float32),
+            np.array([176, 170, 162], np.float32),
+            np.array([248, 246, 242], np.float32),
+            np.array([146, 150, 158], np.float32),
         )
     if color == "blue":
-        # Royal blue. Blue channel leads so it cannot read as green.
+        # Cobalt. Blue stays well ahead of green.
         return (
-            np.array([8, 28, 108], np.float32),
-            np.array([28, 64, 176], np.float32),
-            np.array([188, 206, 234], np.float32),
+            np.array([6, 22, 92], np.float32),
+            np.array([36, 72, 188], np.float32),
+            np.array([176, 198, 232], np.float32),
         )
     if color == "slate":
         return (
-            np.array([20, 26, 40], np.float32),
-            np.array([46, 54, 80], np.float32),
-            np.array([88, 72, 242], np.float32),
+            np.array([16, 20, 32], np.float32),
+            np.array([52, 60, 86], np.float32),
+            np.array([118, 96, 248], np.float32),
         )
     return (
-        np.array([7, 8, 11], np.float32),
-        np.array([24, 26, 32], np.float32),
-        np.array([36, 112, 255], np.float32),
+        np.array([6, 7, 9], np.float32),
+        np.array([20, 22, 28], np.float32),
+        np.array([64, 148, 255], np.float32),
     )
 
 
 def build_field(kind: str, color: str, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if kind == "soft":
-        grain = fbm(SIZE, seed, ((12, 0.45), (24, 0.35), (48, 0.20)))
-        grain = 0.46 + (grain - 0.5) * 0.42
-        vein = np.zeros((SIZE, SIZE), np.float32)
-    elif kind == "solid":
-        grain = fbm(SIZE, seed, ((4, 0.55), (8, 0.30), (16, 0.15)))
-        grain = np.clip(0.08 + grain * 0.92, 0.0, 1.0)
-        vein = np.zeros((SIZE, SIZE), np.float32)
-    else:
-        grain = fbm(SIZE, seed, ((4, 0.40), (8, 0.35), (18, 0.25)))
-        grain = np.clip(0.22 + grain * 0.70, 0.0, 1.0)
-        flow = fbm(SIZE, seed + 17, ((3, 0.65), (6, 0.35)))
-        vein = vein_mask(flow, 0.11 if kind == "veined" else 0.09)
-    base, high, vein_color = palette(color)
-    if kind == "solid":
-        # Wider albedo swing so grain still reads after the 16px mip.
-        mid = (base + high) * 0.5
-        base = np.clip(base - (mid - base) * 0.85, 0, 255)
-        high = np.clip(high + (high - mid) * 0.65, 0, 255)
-        if color == "white":
-            base = np.array([186, 176, 164], np.float32)
-            high = np.array([252, 250, 246], np.float32)
-    elif kind == "soft" and color == "white":
-        base = np.array([208, 200, 190], np.float32)
-        high = np.array([250, 248, 244], np.float32)
-    body = base + (high - base) * grain[..., None]
+    grain = crystal_grain(SIZE, seed, kind)
+    low, high, vein_color = stone_colors(color)
+    body = low + (high - low) * grain[..., None]
     if kind in ("veined", "glow"):
-        rgb = body * (1.0 - vein[..., None]) + vein_color * vein[..., None]
+        vein = marble_veins(SIZE, seed)
+        strength = 0.92 if kind == "glow" else 0.84
+        rgb = body * (1.0 - vein[..., None] * strength) + vein_color * (vein[..., None] * strength)
     else:
+        vein = np.zeros((SIZE, SIZE), np.float32)
         rgb = body
     return np.clip(rgb, 0, 255).astype(np.uint8), grain, vein
 
@@ -168,9 +270,10 @@ def build_field(kind: str, color: str, seed: int) -> tuple[np.ndarray, np.ndarra
 def normals_and_spec(
     kind: str, grain: np.ndarray, vein: np.ndarray, glow: bool
 ) -> tuple[np.ndarray, np.ndarray]:
-    height = grain * (0.55 if kind == "solid" else 0.28 if kind == "soft" else 0.36)
-    height = height - vein * 0.42
-    strength = 3.2 if kind == "solid" else 1.7 if kind == "soft" else 2.3
+    # Micro-relief follows the crystals. Veins are a shallow groove, not a ridge map.
+    height = (grain - 0.5) * (0.34 if kind == "solid" else 0.18 if kind == "soft" else 0.24)
+    height = height - vein * 0.16
+    strength = 1.15 if kind == "solid" else 0.72 if kind == "soft" else 0.9
     dx = np.roll(height, -1, axis=1) - np.roll(height, 1, axis=1)
     dy = np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)
     nx = -dx * strength
@@ -182,35 +285,36 @@ def normals_and_spec(
     normal = np.zeros((SIZE, SIZE, 4), np.uint8)
     normal[..., 0] = np.clip(nx * 127.5 + 128.0, 0, 255).astype(np.uint8)
     normal[..., 1] = np.clip(ny * 127.5 + 128.0, 0, 255).astype(np.uint8)
-    # Blue is ambient occlusion, not Z. Keep pits slightly darker, never crushed.
-    ao = 255.0 - (1.0 - grain) * (18.0 if kind == "solid" else 8.0) - vein * 10.0
-    normal[..., 2] = np.clip(ao, 210, 255).astype(np.uint8)
-    # Alpha is height. 255 is flush. Stay well above 1 so POM cannot collapse the face.
-    normal[..., 3] = np.clip(232.0 + grain * 20.0 - vein * 28.0, 188, 255).astype(np.uint8)
+    ao = 248.0 - (1.0 - grain) * (10.0 if kind == "solid" else 5.0)
+    normal[..., 2] = np.clip(ao, 220, 255).astype(np.uint8)
+    normal[..., 3] = np.clip(236.0 + grain * 14.0 - vein * 12.0, 200, 255).astype(np.uint8)
 
     if kind == "soft":
-        smooth = 122.0 + (grain - 0.5) * 16.0
-        porosity = 6.0
-    elif kind == "solid":
-        smooth = 74.0 + (grain - 0.5) * 26.0
-        porosity = 12.0
-    elif kind == "glow":
-        smooth = 90.0 + (grain - 0.5) * 14.0
-        smooth = smooth * (1.0 - vein) + 148.0 * vein
+        smooth = 128.0 + (grain - 0.5) * 14.0
         porosity = 5.0
+        f0 = 24.0 + grain * 6.0
+    elif kind == "solid":
+        smooth = 102.0 + (grain - 0.5) * 16.0
+        porosity = 8.0
+        f0 = 20.0 + grain * 6.0
+    elif kind == "glow":
+        smooth = 96.0 + (grain - 0.5) * 12.0
+        smooth = smooth * (1.0 - vein) + 142.0 * vein
+        porosity = 4.0
+        f0 = 18.0 + grain * 5.0
     else:
-        smooth = 98.0 + (grain - 0.5) * 18.0
-        porosity = 9.0
+        smooth = 112.0 + (grain - 0.5) * 14.0
+        porosity = 6.0
+        f0 = 22.0 + grain * 6.0
     spec = np.zeros((SIZE, SIZE, 4), np.uint8)
-    spec[..., 0] = np.clip(smooth, 48, 158).astype(np.uint8)
-    # Dielectric F0. Stay far below the metal range (230+).
-    spec[..., 1] = np.clip(16.0 + grain * 8.0, 12, 36).astype(np.uint8)
-    spec[..., 2] = np.clip(porosity + grain * 3.0, 0, 40).astype(np.uint8)
+    spec[..., 0] = np.clip(smooth, 70, 160).astype(np.uint8)
+    spec[..., 1] = np.clip(f0, 14, 40).astype(np.uint8)
+    spec[..., 2] = np.clip(porosity + grain * 2.0, 0, 24).astype(np.uint8)
     spec[..., 3] = 255
     if glow:
-        # 255 means "no emission" in labPBR. Veins use 1..250. Stone stays 255.
-        emit = np.clip(vein * 235.0, 0, 248)
-        alpha = np.where(vein > 0.04, np.clip(emit, 1, 248), 255).astype(np.uint8)
+        # 255 means "no emission" in labPBR. Only the blue vein pixels emit.
+        emit = np.clip(40.0 + vein * 200.0, 0, 240)
+        alpha = np.where(vein > 0.12, np.clip(emit, 1, 240), 255).astype(np.uint8)
         spec[..., 3] = alpha
     return normal, spec
 
@@ -252,17 +356,17 @@ def assert_family(name: str, kind: str, color: str, rgb: np.ndarray, spec: np.nd
     if int(spec[..., 2].max()) > 64:
         raise SystemExit(f"{name} porosity spilled into subsurface")
     if kind == "glow":
-        stone = vein <= 0.04
-        vein_px = vein > 0.45
+        stone = vein <= 0.12
+        vein_px = vein > 0.55
         if not np.all(spec[..., 3][stone] == 255):
             raise SystemExit(f"{name} stone emits; it must stay unlit")
-        if int(vein_px.sum()) < 20 or int(spec[..., 3][vein_px].min()) < 1:
+        if int(vein_px.sum()) < 12 or int(spec[..., 3][vein_px].min()) < 1:
             raise SystemExit(f"{name} veins do not emit")
         if int(spec[..., 3][vein_px].max()) >= 255:
             raise SystemExit(f"{name} vein emission was stored as the ignored alpha")
         glow_frac = float(np.mean(spec[..., 3] != 255))
-        if glow_frac > 0.28 or glow_frac < 0.04:
-            raise SystemExit(f"{name} glow coverage {glow_frac:.3f} is not a vein")
+        if glow_frac > 0.14 or glow_frac < 0.012:
+            raise SystemExit(f"{name} glow coverage {glow_frac:.3f} is not a thin vein")
         vein_mean = rgb[vein_px].mean(axis=0)
         if not (vein_mean[2] > vein_mean[1] + 40 and vein_mean[2] > vein_mean[0] + 40):
             raise SystemExit(f"{name} glowing veins are not blue: {vein_mean}")
@@ -270,15 +374,15 @@ def assert_family(name: str, kind: str, color: str, rgb: np.ndarray, spec: np.nd
         if not np.all(spec[..., 3] == 255):
             raise SystemExit(f"{name} should not emit")
     if kind in ("veined", "glow"):
-        cover = float((vein > 0.35).mean())
-        if cover < 0.03 or cover > 0.22:
+        cover = float((vein > 0.45).mean())
+        if cover < 0.008 or cover > 0.09:
             raise SystemExit(f"{name} vein coverage {cover:.3f} is out of range")
     else:
         if float(vein.max()) > 0:
             raise SystemExit(f"{name} solid has veins")
     small = Image.fromarray(rgb, "RGB").resize((16, 16), Image.Resampling.BOX)
     std = float(np.asarray(small).std())
-    floor = 4.0 if kind == "soft" else 6.0
+    floor = 3.2 if kind == "soft" else 4.5
     if std < floor:
         raise SystemExit(f"{name} loses grain at the 16px mip (std {std:.2f})")
     assert_wrap(name, rgb)
@@ -447,50 +551,59 @@ def pack_icon(rgb: np.ndarray) -> None:
     icon.save(PACK / "pack.png", optimize=True)
 
 
-def contact_sheet(images: list[tuple[str, np.ndarray, np.ndarray]]) -> None:
-    cell = 96
-    label_h = 28
-    cols = len(images)
-    rows = 3
-    sheet = Image.new("RGB", (cols * cell, rows * (cell + label_h)), (18, 18, 20))
+LABELS = {
+    "veined_classic_white": "Veined White",
+    "veined_norcom_blue": "Veined Blue",
+    "veined_neon_slate": "Veined Slate",
+    "solid_classic_white": "Solid White",
+    "solid_norcom_blue": "Solid Blue",
+    "solid_neon_slate": "Solid Slate",
+    "soft_classic_white": "Soft White",
+    "soft_norcom_blue": "Soft Blue",
+    "soft_neon_slate": "Soft Slate",
+    "veined_black_blue_glow": "Black Blue-Glow",
+}
+
+
+def _sheet(images: list[tuple[str, Image.Image]], title: str, path: Path, cols: int = 5) -> None:
+    cell = 160
+    label_h = 22
+    title_h = 36
+    rows = (len(images) + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * cell + 16, title_h + rows * (cell + label_h) + 8), (14, 16, 20))
     draw = ImageDraw.Draw(sheet)
-    captions = ("albedo", "normal", "specular")
-    for col, (name, albedo, spec) in enumerate(images):
-        normal = np.zeros_like(albedo)
-        # Show the tangent normal the way an artist reads it: R and G around mid grey.
-        # The stored normal is RGBA; rebuild a view from the file later. Here use albedo row only
-        # plus a spec RGB view and a glow view in the third row for the black marble.
-        tiles = (
-            Image.fromarray(albedo, "RGB").resize((cell, cell), Image.Resampling.BOX),
-            None,
-            None,
-        )
-        # placeholders filled below
-        del tiles
-        views = []
-        views.append(Image.fromarray(albedo, "RGB").resize((cell, cell), Image.Resampling.BOX))
-        n = np.array(Image.open(PACK / "assets" / NS / "textures" / "block" / f"{name}_n.png"))
-        n_view = np.stack([n[..., 0], n[..., 1], n[..., 2]], axis=-1)
-        views.append(Image.fromarray(n_view, "RGB").resize((cell, cell), Image.Resampling.NEAREST))
-        s = np.array(Image.open(PACK / "assets" / NS / "textures" / "block" / f"{name}_s.png"))
-        if name == "veined_black_blue_glow":
-            glow = s[..., 3] != 255
-            view = np.zeros((SIZE, SIZE, 3), np.uint8)
-            view[..., 2] = np.where(glow, 255, 0).astype(np.uint8)
-            view[..., 0] = np.where(glow, 20, 0).astype(np.uint8)
-            views.append(Image.fromarray(view, "RGB").resize((cell, cell), Image.Resampling.NEAREST))
-            captions_local = ("albedo", "normal", "vein glow only")
-        else:
-            spec_view = np.stack([s[..., 0], s[..., 1], np.full_like(s[..., 0], 40)], axis=-1)
-            views.append(Image.fromarray(spec_view, "RGB").resize((cell, cell), Image.Resampling.NEAREST))
-            captions_local = captions
-        for row, view in enumerate(views):
-            x = col * cell
-            y = row * (cell + label_h)
-            sheet.paste(view, (x, y + label_h))
-            draw.text((x + 4, y + 4), f"{name}\n{captions_local[row]}", fill=(230, 230, 230))
-    PREVIEW.parent.mkdir(parents=True, exist_ok=True)
-    sheet.save(PREVIEW, optimize=True)
+    draw.text((12, 10), title, fill=(236, 236, 236))
+    for index, (label, tile) in enumerate(images):
+        col = index % cols
+        row = index // cols
+        x = 8 + col * cell
+        y = title_h + row * (cell + label_h)
+        shown = tile.resize((cell - 12, cell - 12), Image.Resampling.NEAREST)
+        sheet.paste(shown, (x, y))
+        draw.text((x, y + cell - 10), label, fill=(210, 214, 220))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(path, optimize=True)
+
+
+def contact_sheet(images: list[tuple[str, np.ndarray, np.ndarray]]) -> None:
+    albedos = []
+    normals = []
+    for name, albedo, _spec in images:
+        label = LABELS[name]
+        albedos.append((label, Image.fromarray(albedo, "RGB")))
+        pixels = np.array(Image.open(PACK / "assets" / NS / "textures" / "block" / f"{name}_n.png"))
+        view = np.stack([pixels[..., 0], pixels[..., 1], pixels[..., 2]], axis=-1)
+        normals.append((label, Image.fromarray(view, "RGB")))
+    _sheet(albedos, "NORCOM marble — Al Clarity HD albedos (after)", PREVIEW)
+    glow_name = "veined_black_blue_glow"
+    spec_img = np.array(Image.open(PACK / "assets" / NS / "textures" / "block" / f"{glow_name}_s.png"))
+    glow = np.zeros((SIZE, SIZE, 3), np.uint8)
+    lit = spec_img[..., 3] != 255
+    glow[..., 2] = np.where(lit, 255, 12).astype(np.uint8)
+    glow[..., 0] = np.where(lit, 24, 12).astype(np.uint8)
+    glow[..., 1] = 12
+    detail = normals + [(LABELS[glow_name] + " glow", Image.fromarray(glow, "RGB"))]
+    _sheet(detail, "Normals, plus black-marble vein glow only", SHEET, cols=5)
 
 
 def sha256(path: Path) -> str:

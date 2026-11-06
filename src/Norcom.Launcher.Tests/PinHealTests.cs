@@ -113,6 +113,25 @@ public class PinHealTests
 	}
 
 	[Fact]
+	public async Task HealWritesThePublishedPinAfterTheJarSync()
+	{
+		string published = new string('c', 64);
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
+		string slim = JsonSerializer.Serialize(new { schema = 1, mc = "26.3", loader = "0.20.1", pin = published, source = "server" });
+		int calls = 0;
+		using HttpClient http = new(new PinHttp(slim));
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			calls++;
+			return Task.CompletedTask;
+		}, CancellationToken.None);
+		Assert.Equal(1, calls);
+		Assert.Equal(published, PinGate.ReadAppliedPin(dir));
+		Assert.NotEqual(PinGate.LivePin, published);
+	}
+
+	[Fact]
 	public async Task HealFailTwiceRefuses()
 	{
 		string dir = NewDir();
@@ -122,7 +141,7 @@ public class PinHealTests
 		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
 		{
 			calls++;
-			return Task.CompletedTask;
+			throw new InvalidOperationException("sync broke");
 		}, CancellationToken.None));
 		Assert.Contains("pack resync", ex.Message);
 		Assert.Contains(PinGate.BlockCopy, ex.Message);

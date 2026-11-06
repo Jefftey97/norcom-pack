@@ -42,6 +42,8 @@ public static class PinGate
 
 	public const string LivePin = "fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73";
 
+	public static string? PublishedPin { get; private set; }
+
 	public const string RequireVariable = "NORCOM_PIN_REQUIRED";
 
 	public static readonly string[] PinUrls = new string[3] { FriendsPinUrl, ServerPinUrl, CompatPinUrl };
@@ -128,6 +130,7 @@ public static class PinGate
 	{
 		LastWarning = null;
 		AcceptedPinJson = null;
+		PublishedPin = null;
 		string? full = ReadIfExists(Environment.GetEnvironmentVariable("NORCOM_PIN_PATH")) ?? ReadIfExists(HostFullPinPath);
 		string? slim = ReadIfExists(HostSlimPinPath);
 		string source = full != null ? HostFullPinPath : "";
@@ -174,6 +177,7 @@ public static class PinGate
 	{
 		LastWarning = null;
 		AcceptedPinJson = null;
+		PublishedPin = null;
 		string? body = await TryFetchTextAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		if (body == null)
 		{
@@ -263,6 +267,11 @@ public static class PinGate
 				}
 			}
 			LauncherLog.Write("pin " + source + " pin_sha256=" + pinSha + " dual-sided=" + dualSided + " server-only=" + serverOnly);
+			string applied = ReadAppliedPin(gameDir) ?? "";
+			if (applied.Length > 0 && !string.Equals(applied, pinSha, StringComparison.OrdinalIgnoreCase))
+			{
+				LauncherLog.Write("pin jar-set diff expected=" + pinSha + " actual=" + applied + " " + JarDiffSummary(gameDir, parsed));
+			}
 			RequirePack(minecraft, loader, pinSha, gameDir, pack, source);
 			if (!string.IsNullOrWhiteSpace(slimJson))
 			{
@@ -303,6 +312,10 @@ public static class PinGate
 		string packMc = pack.Keys.GetValueOrDefault("versions.minecraft") ?? pack.Keys.GetValueOrDefault("minecraft") ?? "";
 		string packLoader = pack.Keys.GetValueOrDefault("versions.fabric") ?? pack.Keys.GetValueOrDefault("fabric") ?? pack.Keys.GetValueOrDefault("loader") ?? "";
 		string actualPin = ReadAppliedPin(gameDir) ?? "";
+		if (!string.IsNullOrWhiteSpace(pin))
+		{
+			PublishedPin = pin.Trim();
+		}
 		LauncherLog.Write("pin " + source + " pin_sha256=" + pin + " mc=" + minecraft + " loader=" + loader + " actualPin=" + actualPin + " actualMc=" + packMc + " actualLoader=" + packLoader);
 		if (!SameToken(minecraft, packMc))
 		{
@@ -312,15 +325,52 @@ public static class PinGate
 		{
 			throw new PinMismatchException(BlockCopy + " Expected fabric_loader " + loader + " pin_sha256 " + pin + ". Actual fabric_loader " + packLoader + ".");
 		}
-		if (!string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
+		if (!string.IsNullOrWhiteSpace(pin) && !string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
 		{
-			throw new PinMismatchException(BlockCopy + " Expected pin " + LivePin + ". Actual pin " + pin + ".");
+			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
 		}
 		if (actualPin.Length > 0 && !string.Equals(actualPin, pin, StringComparison.OrdinalIgnoreCase))
 		{
 			throw new PinMismatchException(BlockCopy + " Expected pin " + pin + ". Actual pin " + actualPin + ".");
 		}
 		AcceptedPinJson = pin;
+	}
+
+	public static void AdoptPublished(string gameDir)
+	{
+		if (string.IsNullOrWhiteSpace(PublishedPin))
+		{
+			return;
+		}
+		Remember(gameDir, PublishedPin);
+		LauncherLog.Write("pin adopted " + PublishedPin);
+	}
+
+	public static string JarDiffSummary(string gameDir, IEnumerable<(string Name, string Sha256, long Size)> expected)
+	{
+		List<string> lines = new List<string>();
+		foreach ((string name, string sha, long _) in expected)
+		{
+			if (IsClientOnly(name))
+			{
+				continue;
+			}
+			string path = LocateJar(gameDir, name);
+			if (!File.Exists(path))
+			{
+				continue;
+			}
+			string actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+			if (!string.Equals(actual, sha, StringComparison.OrdinalIgnoreCase))
+			{
+				lines.Add(Path.GetFileName(name) + " expected=" + sha + " actual=" + actual);
+			}
+		}
+		if (lines.Count == 0)
+		{
+			return "jar-set matches";
+		}
+		return string.Join("; ", lines);
 	}
 
 	private static void RequireSamePin(string slimJson, string pinSha)

@@ -1,4 +1,4 @@
-# NORCOM MEDIUM_HIGH — Alacrity (Al Clarity) ONLY + Complementary Unbound r5.9.3
+﻿# NORCOM MEDIUM_HIGH â€” Alacrity (Al Clarity) ONLY + Complementary Unbound r5.9.3
 # Bias MOST FPS; clean visuals; light shafts on (cheap); POM off; no Patrix
 # Borderless via options.txt fullscreen=true exclusiveFullscreen=false
 # Full Complementary settings-folder matrix: 298 keys | 2026-11-06T05:03:52.388257+00:00
@@ -213,7 +213,7 @@ PORTAL_EDGE_EFFECT=false
 PUDDLE_VOXELIZATION=false
 RAINBOWS=0
 RAINBOW_STYLE_DEFINE=-1
-RAIN_STYLE=false
+RAIN_STYLE=1
 REDUCE_CLOSE_PARTICLES=false
 REFLECTION_RES=0.5
 SELECT_OUTLINE=1

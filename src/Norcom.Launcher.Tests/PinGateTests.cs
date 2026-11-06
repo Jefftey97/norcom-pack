@@ -91,12 +91,31 @@ public class PinGateTests
 	}
 
 	[Fact]
-	public async Task WrongLivePinRefuses()
+	public async Task PublishedPinIsAcceptedWhenItDiffersFromTheBakedPin()
 	{
-		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", new string('a', 64))));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains(PinGate.LivePin, ex.Message);
+		string published = new string('a', 64);
+		string dir = NewDir();
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", published)));
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
+		Assert.Equal(published, PinGate.ReadAppliedPin(dir));
+		Assert.NotEqual(PinGate.LivePin, published);
+	}
+
+	[Fact]
+	public void JarDiffNamesOnlyTheInstalledJarsThatDiffer()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "mods"));
+		byte[] bytes = Encoding.UTF8.GetBytes("local-jar");
+		File.WriteAllBytes(Path.Combine(dir, "mods", "fabric-api.jar"), bytes);
+		string actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+		string summary = PinGate.JarDiffSummary(dir, new[]
+		{
+			("fabric-api.jar", new string('b', 64), (long)bytes.Length),
+			("server-only.jar", new string('c', 64), 4L)
+		});
+		Assert.Contains("fabric-api.jar expected=" + new string('b', 64) + " actual=" + actual, summary);
+		Assert.DoesNotContain("server-only.jar", summary);
 	}
 
 	[Fact]

@@ -112,21 +112,21 @@ public static class PinHeal
 			}
 		if (check == PinGate.PinCheck.Open)
 			{
-				await resync(ct).ConfigureAwait(false);
+				await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
 				return;
 			}
 			if (check == PinGate.PinCheck.Match)
 			{
 				if (attempt == 1)
 				{
-					await resync(ct).ConfigureAwait(false);
+					await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
 				}
 				return;
 			}
 			LauncherLog.Write("pin heal attempt " + attempt + " " + hint.RepairAction);
 			try
 			{
-				await resync(ct).ConfigureAwait(false);
+				await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
 			}
 			catch (Exception ex) when (ex is not PinMismatchException)
 			{
@@ -144,6 +144,12 @@ public static class PinHeal
 			}
 		}
 		throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
+	}
+
+	private static async Task ResyncAsync(Func<CancellationToken, Task> resync, string gameDir, CancellationToken ct)
+	{
+		await resync(ct).ConfigureAwait(false);
+		PinGate.AdoptPublished(gameDir);
 	}
 
 	private static bool IsResync(string? repairAction)

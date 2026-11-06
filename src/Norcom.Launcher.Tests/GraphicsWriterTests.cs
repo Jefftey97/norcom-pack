@@ -121,6 +121,24 @@ public class GraphicsWriterTests
 	}
 
 	[Fact]
+	public void RainStyleStaysAnEnumOnHighAndUltra()
+	{
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.zip.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.zip.txt"));
+		Assert.DoesNotContain("RAIN_STYLE=false", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.DoesNotContain("RAIN_STYLE=false", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Equal("RAIN_STYLE=1\n", ShaderScale.Coerce("RAIN_STYLE=false\n", GraphicsTier.High));
+		Assert.Equal("RAIN_STYLE=2\n", ShaderScale.Coerce("RAIN_STYLE=2\n", GraphicsTier.Ultra));
+		string dir = NewGame();
+		new GraphicsService().Apply(dir, GraphicsTier.High);
+		string applied = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", applied);
+		Assert.DoesNotContain("RAIN_STYLE=false", applied);
+	}
+
+	[Fact]
 	public void MarblePackIsWrittenAfterTheCandleOverlay()
 	{
 		string dir = NewGame();

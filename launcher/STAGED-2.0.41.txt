@@ -1,0 +1,27 @@
+REFERENCE ONLY. Do not tip. Do not merge. Do not cut Install-NORCOM.
+The combined 2.0.41 ship (LivePin open-poll + this neon UI) is owned by the pin-hotfix agent, not this branch.
+ProductVersion 2.0.41
+AssemblyVersion 2.0.1.0 (BAML load stays V2.0.1.0)
+FileVersion 2.0.41.0
+payload-version.txt 2.0.41
+
+exe SHA256 20321cc0cddbe0e238045d811fb9322a12b01957fe9ec0ea6bba7451a711d7af
+exe bytes 72527127
+zip SHA256 cf73a8c63b9fe184a77d590124ac9204bb13e4295eb8776cf15db5fd678b8556
+zip bytes 66936260
+zip path launcher/NorcomWpf-2.0.41.zip
+
+Live feed stays 2.0.40. launcher/manifest.json is unchanged.
+No Install-NORCOM asset. No Discord post.
+LivePin stays soft/warn-only. No Admin binaries in this zip.
+
+Windows screenshot (this cloud VM cannot host the WPF GUI):
+1. Unzip launcher/NorcomWpf-2.0.41.zip. payload-version.txt must read 2.0.41.
+2. Smoke with tools/hot-swap-launcher.ps1 -Candidate <NorcomLauncher.exe> or launch the exe directly.
+3. Capture the main window: a cyan/violet/magenta border around the outer chrome, and Play with a light cyan glow.
+4. Start Minecraft from Play. The button label becomes Playing and a red X appears beside it.
+5. Click the X. That game process closes, the label returns to Play, and the X hides.
+Do not point the live manifest at this zip.
+
+Friends-facing notes draft, not for the live tip:
+Playing shows while the game is open; red X stops it. Neon window border.

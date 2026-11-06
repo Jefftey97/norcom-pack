@@ -12,6 +12,13 @@ public interface IPrismGameSignals
 	bool LogFreshenedSinceLaunch();
 }
 
+public interface IGameProcessLookup
+{
+	int? TryGameProcessId(int? prismProcessId);
+}
+
+public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid);
+
 public static class PrismGameSignals
 {
 	public static bool IsJavaProcess(string? processName)
@@ -52,6 +59,36 @@ public static class PrismGameSignals
 		}
 	}
 
+	public static int? SelectGamePid(IEnumerable<GameProcessRow> rows, string? instanceHint, int? prismPid)
+	{
+		if (rows == null)
+		{
+			return null;
+		}
+		int? any = null;
+		int? hinted = null;
+		foreach (GameProcessRow row in rows)
+		{
+			if (row.Pid <= 0 || !CommandLineIsGame(row.Name, row.CommandLine, instanceHint))
+			{
+				continue;
+			}
+			if (prismPid is int parent && parent > 0 && row.ParentPid == parent)
+			{
+				return row.Pid;
+			}
+			if (hinted == null && !string.IsNullOrWhiteSpace(instanceHint) && row.CommandLine.Contains(instanceHint, StringComparison.OrdinalIgnoreCase))
+			{
+				hinted = row.Pid;
+			}
+			if (any == null)
+			{
+				any = row.Pid;
+			}
+		}
+		return hinted ?? any;
+	}
+
 	public static bool MtimeFreshened(DateTime? baselineUtc, string path)
 	{
 		if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -66,7 +103,7 @@ public static class PrismGameSignals
 	}
 }
 
-public sealed class LivePrismGameSignals : IPrismGameSignals
+public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 {
 	private readonly string _instanceDir;
 
@@ -84,34 +121,36 @@ public sealed class LivePrismGameSignals : IPrismGameSignals
 
 	public bool MinecraftProcessRunning()
 	{
+		return TryGameProcessId(null) != null;
+	}
+
+	public int? TryGameProcessId(int? prismProcessId)
+	{
 		try
 		{
 			if (!OperatingSystem.IsWindows())
 			{
-				return false;
+				return null;
 			}
 			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");
 			if (searcherType == null)
 			{
-				return false;
+				return null;
 			}
-			object searcher = Activator.CreateInstance(searcherType, "SELECT Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'")!;
+			object searcher = Activator.CreateInstance(searcherType, "SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'")!;
 			object collection = searcherType.GetMethod("Get")!.Invoke(searcher, null)!;
+			List<GameProcessRow> rows = new List<GameProcessRow>();
 			foreach (object item in (System.Collections.IEnumerable)collection)
 			{
-				string name = ReadField(item, "Name");
-				string command = ReadField(item, "CommandLine");
-				if (PrismGameSignals.CommandLineIsGame(name, command, _instanceDir))
-				{
-					return true;
-				}
+				rows.Add(new GameProcessRow(ReadField(item, "Name"), ReadField(item, "CommandLine"), ReadInt(item, "ProcessId"), ReadInt(item, "ParentProcessId")));
 			}
+			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId);
 		}
 		catch (Exception ex)
 		{
 			LauncherLog.Write("prism game probe " + ex.GetType().Name);
+			return null;
 		}
-		return false;
 	}
 
 	public bool LogFreshenedSinceLaunch()
@@ -130,5 +169,22 @@ public sealed class LivePrismGameSignals : IPrismGameSignals
 	{
 		object? value = item.GetType().GetProperty("Item", new Type[] { typeof(string) })?.GetValue(item, new object[] { name });
 		return value?.ToString() ?? "";
+	}
+
+	private static int ReadInt(object item, string name)
+	{
+		object? value = item.GetType().GetProperty("Item", new Type[] { typeof(string) })?.GetValue(item, new object[] { name });
+		if (value == null)
+		{
+			return 0;
+		}
+		try
+		{
+			return Convert.ToInt32(value);
+		}
+		catch
+		{
+			return 0;
+		}
 	}
 }

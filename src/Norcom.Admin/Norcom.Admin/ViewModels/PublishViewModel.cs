@@ -25,7 +25,7 @@ public partial class PublishViewModel : ObservableObject
 
     [ObservableProperty] private string packPath = "";
     [ObservableProperty] private string confirmText = "";
-    [ObservableProperty] private string status = "Type PUBLISH. Push is refused unless the pack index pin matches G:\\MinecraftServer\\.norcom\\server-pin.json. No force-push. launcher/ stays.";
+    [ObservableProperty] private string status = "Type PUBLISH. Refused unless pack meta matches the server pin. Fast-forward only. launcher/ stays.";
     [ObservableProperty] private bool busy;
 
     [RelayCommand]

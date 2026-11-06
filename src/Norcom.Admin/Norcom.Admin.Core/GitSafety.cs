@@ -40,5 +40,31 @@ public static class GitSafety
         return false;
     }
 
-    public static IReadOnlyList<string> PushArguments() => ["push", "origin", "main"];
+    public static readonly string[] PackMetaFiles =
+    [
+        "meta/server-pin.json",
+        "meta/server-compat.json",
+        "meta/norcom-mod-pin.json"
+    ];
+
+    public static bool DropsPackMeta(string porcelain)
+    {
+        foreach (var line in porcelain.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        {
+            if (line.Length < 4 || !line[..2].Contains('D'))
+            {
+                continue;
+            }
+
+            var path = line[3..].Trim().Trim('"').Replace('\\', '/');
+            if (PackMetaFiles.Any(required => path.Equals(required, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static IReadOnlyList<string> PushArguments() => ["push", "--ff-only", "origin", "main"];
 }

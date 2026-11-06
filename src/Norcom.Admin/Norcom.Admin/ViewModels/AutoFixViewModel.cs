@@ -102,7 +102,7 @@ public partial class AutoFixViewModel : ObservableObject
                     var rolled = AutoFix.RollbackBadMod(server, File.ReadAllText(newest));
                     if (rolled != null)
                     {
-                        notes.Add("Quarantined " + rolled + ". Server pin bumped (Admin-AutoFix).");
+                        notes.Add("Quarantined " + rolled + ". " + NorcomPin.AskServer);
                     }
                 }
             }

@@ -172,7 +172,7 @@ public static class AutoFix
             File.Copy(previous, mod, overwrite: true);
         }
 
-        NorcomPin.BumpForJarMove(serverDirectory, name, DateTime.UtcNow);
+        NorcomPin.NoteJarMove(serverDirectory, name, DateTime.UtcNow);
         return name;
     }
 

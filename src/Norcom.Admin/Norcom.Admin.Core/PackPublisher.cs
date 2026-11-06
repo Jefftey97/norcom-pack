@@ -53,6 +53,11 @@ public sealed class PackPublisher
             return Fail("Refusing to publish because launcher/ would be deleted.");
         }
 
+        if (GitSafety.DropsPackMeta(status.Stdout))
+        {
+            return Fail("Refusing to publish because pin meta would be deleted. Nothing was pushed.");
+        }
+
         var remote = await Git(packDirectory, ["remote", "get-url", "origin"], cancellationToken).ConfigureAwait(false);
         if (remote.ExitCode != 0 || !remote.Stdout.Contains("Jefftey97/norcom-pack", StringComparison.OrdinalIgnoreCase))
         {
@@ -77,10 +82,10 @@ public sealed class PackPublisher
             return Fail("Could not read the staged files. " + Tail(staged));
         }
 
-        if (GitSafety.DeletesLauncher(staged.Stdout))
+        if (GitSafety.DeletesLauncher(staged.Stdout) || GitSafety.DropsPackMeta(staged.Stdout))
         {
             await Git(packDirectory, ["reset"], cancellationToken).ConfigureAwait(false);
-            return Fail("Refusing to publish because launcher/ was staged for deletion. The index was unstaged.");
+            return Fail("Refusing to publish because launcher/ or pin meta was staged for deletion. The index was unstaged.");
         }
 
         if (!string.IsNullOrWhiteSpace(staged.Stdout))
@@ -104,7 +109,7 @@ public sealed class PackPublisher
             return Fail("Push was rejected. The remote was not force-updated. " + Tail(push));
         }
 
-        return new PublishResult(true, true, "Published to Jefftey97/norcom-pack on main. launcher/ was kept, and installer-version.txt is not in the packwiz index.");
+        return new PublishResult(true, true, "Published to Jefftey97/norcom-pack on main with a fast-forward push. launcher/ and the server pin meta stayed. Nothing was force-pushed.");
     }
 
     private async Task<CommandResult> Git(string packDirectory, IReadOnlyList<string> args, CancellationToken cancellationToken)

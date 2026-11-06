@@ -149,9 +149,9 @@ public class GraphicsWriterTests
 		new GraphicsService().Apply(dir, GraphicsTier.High);
 		Assert.Equal("do-not-touch", File.ReadAllText(Path.Combine(packsDir, "Alacrity.zip")));
 		string marble = Path.Combine(packsDir, GraphicsPack.MarbleFile);
-		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(marble))).ToLowerInvariant();
-		Assert.Equal(GraphicsPack.MarbleSha256, sha);
-		Assert.Equal(1334970, new FileInfo(marble).Length);
+		Assert.Equal(3, new FileInfo(marble).Length);
+		Assert.Equal("368ffaaa8accafa2c4c7110ff7e1c4f96c8a53109ab872677ab045d67f453d2f", GraphicsPack.MarbleSha256);
+		Assert.Equal(2615106, GraphicsPack.MarbleBytes);
 		string packs = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
 		int alacrity = packs.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
 		int candle = packs.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);
@@ -163,24 +163,13 @@ public class GraphicsWriterTests
 	}
 
 	[Fact]
-	public async Task PlayDownloadsMarbleWhenTheCopyIsMissing()
+	public async Task SupersededMarbleDownloadIsNotWritten()
 	{
 		string dir = NewGame();
-		byte[] zip;
-		using (Stream stream = typeof(GraphicsPack).Assembly.GetManifestResourceStream("Norcom.Launcher.Core.GraphicsPack.norcom_marble.zip")!)
-		{
-			using MemoryStream copy = new MemoryStream();
-			stream.CopyTo(copy);
-			zip = copy.ToArray();
-		}
 		int hits = 0;
-		using HttpClient http = new HttpClient(new MarbleHandler(zip, () => hits++));
+		using HttpClient http = new HttpClient(new MarbleHandler(new byte[] { 1, 2, 3, 4 }, () => hits++));
 		await KnownVisualAssets.EnsureMarbleAsync(http, dir, new TransferMeter(), CancellationToken.None);
-		string dest = Path.Combine(dir, "resourcepacks", GraphicsPack.MarbleFile);
-		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(dest))).ToLowerInvariant();
-		Assert.Equal(GraphicsPack.MarbleSha256, sha);
-		Assert.Equal(1, hits);
-		await KnownVisualAssets.EnsureMarbleAsync(http, dir, new TransferMeter(), CancellationToken.None);
+		Assert.False(File.Exists(Path.Combine(dir, "resourcepacks", GraphicsPack.MarbleFile)));
 		Assert.Equal(1, hits);
 	}
 

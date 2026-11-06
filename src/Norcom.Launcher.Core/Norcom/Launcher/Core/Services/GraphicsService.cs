@@ -192,23 +192,43 @@ public sealed class GraphicsService
 		string directory = Path.Combine(gameDir, "resourcepacks");
 		Directory.CreateDirectory(directory);
 		string dest = Path.Combine(directory, GraphicsPack.MarbleFile);
-		if (File.Exists(dest) && HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dest))), GraphicsPack.MarbleSha256))
+		if (File.Exists(dest) && IsLiveMarbleFile(dest))
 		{
 			return;
 		}
-		using (Stream stream = OpenMarble())
+		Stream? stream = OpenMarbleOrNull();
+		if (stream == null)
 		{
-			using FileStream file = File.Create(dest);
+			LauncherLog.Write("marble embed is not the live pack");
+			return;
+		}
+		string temp = dest + ".heal";
+		using (stream)
+		{
+			using FileStream file = File.Create(temp);
 			stream.CopyTo(file);
 		}
-		if (!HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dest))), GraphicsPack.MarbleSha256))
+		if (!IsLiveMarbleFile(temp))
 		{
-			throw new InvalidDataException("norcom_marble.zip hash mismatch");
+			File.Delete(temp);
+			LauncherLog.Write("marble embed refused superseded pack");
+			return;
 		}
+		File.Move(temp, dest, overwrite: true);
 		LauncherLog.Write("marble healed");
 	}
 
-	private static Stream OpenMarble()
+	private static bool IsLiveMarbleFile(string path)
+	{
+		FileInfo info = new FileInfo(path);
+		if (!info.Exists || info.Length != GraphicsPack.MarbleBytes)
+		{
+			return false;
+		}
+		return HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), GraphicsPack.MarbleSha256);
+	}
+
+	private static Stream? OpenMarbleOrNull()
 	{
 		string name = "Norcom.Launcher.Core.GraphicsPack." + GraphicsPack.MarbleFile;
 		Stream? stream = typeof(GraphicsPack).Assembly.GetManifestResourceStream(name);
@@ -223,7 +243,7 @@ public sealed class GraphicsService
 				return typeof(GraphicsPack).Assembly.GetManifestResourceStream(resource) ?? throw new FileNotFoundException(resource);
 			}
 		}
-		throw new FileNotFoundException("norcom_marble.zip was not embedded.");
+		return null;
 	}
 
 	private static bool HexEquals(string actual, string expected)

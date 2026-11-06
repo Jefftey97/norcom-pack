@@ -128,14 +128,16 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
             var second = await SendAsync(give);
             if (second == null || NorcomBank.RconFailed(second))
             {
-                Status = "Remove was accepted, but give failed. " + _redactor.Clean(second ?? "RCON did not answer.");
+                var partialSync = await SyncNoteAsync();
+                Status = "Remove was accepted, but give failed. " + _redactor.Clean(second ?? "RCON did not answer.") + partialSync;
                 _redactor.WriteLog("bank tx " + tx + " partial " + remove);
                 return;
             }
 
             WriteLedger(tx, player, "transfer", amount, target, first + " | " + second);
+            var transferSync = await SyncNoteAsync();
             Refresh();
-            Status = "Transfer sent. economy.json was re-read. tx " + tx;
+            Status = "Transfer sent. economy.json was re-read. tx " + tx + transferSync;
         }
         finally
         {
@@ -174,8 +176,9 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
             }
 
             WriteLedger(tx, player, op, amount, "", result);
+            var sync = await SyncNoteAsync();
             Refresh();
-            Status = "Sent. economy.json was re-read. tx " + tx;
+            Status = "Sent. economy.json was re-read. tx " + tx + sync;
         }
         finally
         {
@@ -230,6 +233,17 @@ public partial class BankViewModel : CommunityToolkit.Mvvm.ComponentModel.Observ
         }
 
         return tx;
+    }
+
+    private async Task<string> SyncNoteAsync()
+    {
+        var result = await Task.Run(() => BankerWalletSync.Run(_serverPath()));
+        if (result.Output.Length > 0)
+        {
+            _redactor.WriteLog("banker-wallet-sync " + result.Output);
+        }
+
+        return result.Warning.Length == 0 ? "" : " " + result.Warning;
     }
 
     private async Task<string?> SendAsync(string command)

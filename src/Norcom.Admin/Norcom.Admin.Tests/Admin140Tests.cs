@@ -295,6 +295,10 @@ public class Admin140Tests
         Assert.Equal("eco remove Steve 50", NorcomBank.RemoveCommand("Steve", 50));
         Assert.Equal("eco give Alex 50", NorcomBank.GiveCommand("Alex", 50));
         Assert.Contains("no console deposit", NorcomBank.BankMenuOnly, StringComparison.OrdinalIgnoreCase);
+        var missing = BankerWalletSync.Run(root);
+        Assert.False(missing.Ok);
+        Assert.Contains("not found", missing.Warning, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("kept", missing.Warning, StringComparison.OrdinalIgnoreCase);
         var ledger = Path.Combine(root, "bank-ledger.jsonl");
         BankLedger.Append(new BankLedgerRow("t", "tx1", "Steve", "set", 50, "", "ok"), ledger);
         var rows = BankLedger.ReadLast(10, ledger);

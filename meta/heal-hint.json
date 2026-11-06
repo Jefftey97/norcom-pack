@@ -1,10 +1,10 @@
 {
     "schema":  1,
-    "pin":  "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
+    "pin":  "5aa575bd868624a3de52b2f92f242f0cfc86c72c5a0c4483bb08be9a4fbbf0b8",
     "mc":  "26.3",
     "loader":  "0.20.1",
     "minLauncher":  "2.0.1",
     "repairAction":  "resync-pack",
-    "updatedUtc":  "2026-11-06T03:56:26Z",
+    "updatedUtc":  "2026-11-06T09:05:59Z",
     "source":  "admin"
 }

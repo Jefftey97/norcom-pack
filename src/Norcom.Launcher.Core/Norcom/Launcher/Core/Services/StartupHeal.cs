@@ -123,6 +123,31 @@ public static class StartupHeal
 		}
 	}
 
+	public static int? ReadGamePid(string lockPath)
+	{
+		if (string.IsNullOrWhiteSpace(lockPath) || !File.Exists(lockPath))
+		{
+			return null;
+		}
+		try
+		{
+			string[] array = File.ReadAllText(lockPath).Split('\n');
+			for (int i = 0; i < array.Length; i++)
+			{
+				string text = array[i].Trim();
+				if (text.StartsWith("pid=", StringComparison.OrdinalIgnoreCase) && int.TryParse(text.Substring(4).Trim(), out var result) && result > 0)
+				{
+					return result;
+				}
+			}
+		}
+		catch
+		{
+			return null;
+		}
+		return null;
+	}
+
 	public static void WriteGameLock(string lockPath, int pid)
 	{
 		string directoryName = Path.GetDirectoryName(lockPath);

@@ -13,6 +13,8 @@ public static class PrismPlay
 
 	public static Action? GameObserved { get; set; }
 
+	public static Action<int?>? GameProcessObserved { get; set; }
+
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
 	{
 		try
@@ -90,9 +92,10 @@ public static class PrismPlay
 		Task<int> run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
 		while (!run.IsCompleted)
 		{
-			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
+			if (SeenGame(signals, process, out int? gamePid))
 			{
 				LauncherLog.Write("prism open minecraft started");
+				NotePid(gamePid);
 				NoteGame();
 				Observe(run);
 				return Started(prepared);
@@ -109,7 +112,7 @@ public static class PrismPlay
 				Arguments = prepared.Arguments
 			};
 		}
-		if (!await GameStartedAsync(signals, probeBudget, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
+		if (!await GameStartedAsync(signals, probeBudget, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
 		{
 			LauncherLog.Write("prism closed without minecraft");
 			return new PrismPreparation
@@ -136,6 +139,41 @@ public static class PrismPlay
 		}
 	}
 
+	private static void NotePid(int? pid)
+	{
+		try
+		{
+			GameProcessObserved?.Invoke(pid);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("game pid " + ex.GetType().Name);
+		}
+	}
+
+	private static bool SeenGame(IPrismGameSignals signals, IPrismProcess process, out int? gamePid)
+	{
+		gamePid = null;
+		if (signals is IGameProcessLookup lookup)
+		{
+			gamePid = lookup.TryGameProcessId(TrackedPid(process));
+			if (gamePid != null)
+			{
+				return true;
+			}
+		}
+		else if (signals.MinecraftProcessRunning())
+		{
+			return true;
+		}
+		return signals.LogFreshenedSinceLaunch();
+	}
+
+	private static int? TrackedPid(IPrismProcess process)
+	{
+		return (process as ITrackedPrismProcess)?.ProcessId;
+	}
+
 	private static PrismPreparation Started(PrismPreparation prepared)
 	{
 		return new PrismPreparation
@@ -158,13 +196,14 @@ public static class PrismPlay
 		}, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 	}
 
-	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken)
+	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken, IPrismProcess process = null)
 	{
 		Stopwatch watch = Stopwatch.StartNew();
 		while (true)
 		{
-			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
+			if (SeenGame(signals, process, out int? gamePid))
 			{
+				NotePid(gamePid);
 				NoteGame();
 				return true;
 			}

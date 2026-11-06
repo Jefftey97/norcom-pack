@@ -66,6 +66,34 @@ public class PrismPlayTests
 	}
 
 	[Fact]
+	public async Task ObservedGamePublishesThePrismChildPid()
+	{
+		int? seen = null;
+		PrismPlay.GameProcessObserved = pid => seen = pid;
+		try
+		{
+			TaskCompletionSource<int> gate = new TaskCompletionSource<int>();
+			PidSignals signals = new PidSignals { Pid = 4242 };
+			TrackedHang process = new TrackedHang(gate.Task) { ProcessId = 77 };
+			PrismPreparation result = await PrismPlay.RunAsync(new PrismPreparation
+			{
+				CanStart = true,
+				Executable = "prismlauncher.exe",
+				Message = PrismMessages.Opening
+			}, process, CancellationToken.None, signals, TimeSpan.FromSeconds(15));
+			Assert.True(result.CanStart);
+			Assert.Equal(PrismMessages.Closed, result.Message);
+			Assert.Equal(4242, seen);
+			Assert.Equal(77, signals.SeenPrism);
+			Assert.False(gate.Task.IsCompleted);
+		}
+		finally
+		{
+			PrismPlay.GameProcessObserved = null;
+		}
+	}
+
+	[Fact]
 	public void JavaCommandLineCountsMinecraftNorcomOrTheInstance()
 	{
 		Assert.True(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw -Dfoo=minecraft net.minecraft.client.main.Main", null));
@@ -101,6 +129,46 @@ public class PrismPlayTests
 			Executable = "prismlauncher.exe",
 			Message = PrismMessages.Opening
 		}, new FakeProcess(exitCode), CancellationToken.None, signals, TimeSpan.Zero);
+	}
+
+	private sealed class TrackedHang : ITrackedPrismProcess
+	{
+		private readonly Task<int> _task;
+
+		public TrackedHang(Task<int> task)
+		{
+			_task = task;
+		}
+
+		public int? ProcessId { get; set; }
+
+		public Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+		{
+			return _task;
+		}
+	}
+
+	private sealed class PidSignals : IPrismGameSignals, IGameProcessLookup
+	{
+		public int? Pid { get; set; }
+
+		public int? SeenPrism { get; private set; }
+
+		public bool MinecraftProcessRunning()
+		{
+			return false;
+		}
+
+		public bool LogFreshenedSinceLaunch()
+		{
+			return false;
+		}
+
+		public int? TryGameProcessId(int? prismProcessId)
+		{
+			SeenPrism = prismProcessId;
+			return Pid;
+		}
 	}
 
 	private sealed class HangProcess : IPrismProcess

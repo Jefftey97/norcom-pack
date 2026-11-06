@@ -1,11 +1,1 @@
-{
-    "schema":  1,
-    "pin":  "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1",
-    "mc":  "26.3",
-    "loader":  "0.20.1",
-    "minLauncher":  "2.0.1",
-    "repairAction":  "resync-pack",
-    "updatedUtc":  "2026-11-06T18:19:08.8852012Z",
-    "source":  "admin",
-    "jar_count":  87
-}
+{"loader":"0.20.1","schema":1,"updatedUtc":"2026-11-06T18:20:06Z","source":"admin","mc":"26.3","repairAction":"resync-pack","minLauncher":"2.0.1","pin":"49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1"}

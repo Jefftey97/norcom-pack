@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <DockPanel>
     <TextBlock DockPanel.Dock="Top" Text="Players" Style="{StaticResource PageTitle}"/>
-    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
         <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
         <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>

@@ -7,7 +7,7 @@
       <Button Content="Backup now" Command="{Binding BackupCommand}" Style="{StaticResource CyanButton}"/>
       <Button Content="Restore" Command="{Binding RestoreCommand}" Style="{StaticResource PinkButton}"/>
     </StackPanel>
-    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
         <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
         <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>

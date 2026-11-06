@@ -10,7 +10,7 @@
       <Button Content="Backup" Command="{Binding BackupCommand}" Style="{StaticResource GhostButton}"/>
       <Button Content="Folder" Command="{Binding OpenFolderCommand}" Style="{StaticResource GhostButton}"/>
     </StackPanel>
-    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
         <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
         <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
@@ -52,7 +52,7 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Border Style="{StaticResource Panel}" Margin="0,4,10,0">
+        <Border Style="{StaticResource PanelCard}" Margin="0,4,10,0">
           <StackPanel>
             <TextBlock Text="Server folder" Style="{StaticResource Label}"/>
             <TextBox Text="{Binding ServerPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>

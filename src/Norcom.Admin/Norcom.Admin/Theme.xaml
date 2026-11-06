@@ -162,7 +162,7 @@
     </Setter>
   </Style>
 
-  <Style x:Key="Panel" TargetType="Border">
+  <Style x:Key="PanelCard" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource Panel}"/>
     <Setter Property="BorderBrush" Value="{StaticResource PanelEdge}"/>
     <Setter Property="BorderThickness" Value="1"/>

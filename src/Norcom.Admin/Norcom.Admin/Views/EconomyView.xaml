@@ -11,7 +11,7 @@
       <ItemsControl ItemsSource="{Binding Mods}">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <Border Style="{StaticResource Panel}" Margin="0,0,0,10">
+            <Border Style="{StaticResource PanelCard}" Margin="0,0,0,10">
               <StackPanel>
                 <TextBlock FontWeight="SemiBold"><Run Text="{Binding Group, Mode=OneWay}"/> <Run Text="·"/> <Run Text="{Binding Title, Mode=OneWay}"/></TextBlock>
                 <TextBlock Text="{Binding Note}" Foreground="#93A4BD" Margin="0,4,0,8"/>

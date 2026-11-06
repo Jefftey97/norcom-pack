@@ -7,7 +7,7 @@
       <Button Content="Reload" Command="{Binding ReloadCommand}" Style="{StaticResource GhostButton}"/>
       <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}"/>
     </StackPanel>
-    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource PanelCard}" Margin="0,12,0,0">
       <StackPanel>
         <TextBlock Text="Type TIME" Style="{StaticResource Label}"/>
         <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>

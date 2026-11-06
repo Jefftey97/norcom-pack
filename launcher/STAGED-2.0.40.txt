@@ -1,4 +1,4 @@
-HOLD. Do not tip launcher/manifest.json until a Windows GUI smoke PASS.
+TIPPED after Windows GUI smoke PASS (run53-2.0.40, alive at 12s).
 ProductVersion 2.0.40
 AssemblyVersion 2.0.1.0 (BAML load stays V2.0.1.0)
 payload-version.txt 2.0.40
@@ -12,7 +12,7 @@ Install-NORCOM-2.0.40.exe SHA256 29698f399c380f2604eabeec144bdbe60ca2683d82abf9c
 Install-NORCOM-2.0.40.exe bytes 107812691
 Install URL https://github.com/Jefftey97/norcom-pack/releases/download/launcher-2.0.36/Install-NORCOM-2.0.40.exe
 
-Live feed stays 2.0.39 (af6b33f3 / cea44ca8). Discord Install-NORCOM.exe stays the 2.0.39 cut (38cd283c).
+Live feed is 2.0.40. Zip URL is pinned to merge commit 02c490a899018892c91557c3f8c8ccb1ece5c98b.
 Smoke on a Windows desktop: tools/hot-swap-launcher.ps1 -Candidate <NorcomLauncher.exe>
 PASS means the process is still alive at 12 seconds. Do not tip a build that exits early.
 LivePin stays soft/warn-only. RAIN_STYLE stays 1 or 2. The marble jar was not replaced.

@@ -1,6 +1,6 @@
-HOLD. Do not tip. Do not merge until coordinator Windows GUI smoke is alive at 12s and the neon + pin-status screenshot is OK.
+TIPPED. Live friends feed is 2.0.41. PR #18 was not tipped.
 ProductVersion 2.0.41
-AssemblyVersion 2.0.1.0 (BAML load stays V2.0.1.0)
+AssemblyVersion 2.0.1.0
 FileVersion 2.0.41.0
 payload-version.txt 2.0.41
 
@@ -9,22 +9,8 @@ exe bytes 72533206
 zip SHA256 f5163a04f0beb17e95e1014993ffe0849aba3a35470bc7053cbeb55ce47ec1da
 zip bytes 66942478
 zip path launcher/NorcomWpf-2.0.41.zip
+zip URL https://raw.githubusercontent.com/Jefftey97/norcom-pack/24f89548e4cadebd86ccfe095fd97f381766f317/launcher/NorcomWpf-2.0.41.zip
 
-Live feed stays 2.0.40. launcher/manifest.json is unchanged.
-No Install-NORCOM asset. No Discord post. PR #18 stays untipped.
-
-Combined cut: neon Playing + red X + full-window neon border, plus LivePin open-poll and the Home Fix button.
-Both poll and Fix use the same fetch order: commit-ref raw, jsDelivr @main, GitHub Contents API, then cache-busted raw@main. Bare raw@main is not used.
-Baked LivePin is 49ff8e68 and only warns. Jar checks use the jars from the fetched published pin. No TEMP bridge.
-
-Windows screenshot (this cloud VM cannot host the WPF GUI):
-1. Unzip launcher/NorcomWpf-2.0.41.zip. payload-version.txt must read 2.0.41.
-2. Smoke with tools/hot-swap-launcher.ps1 -Candidate <NorcomLauncher.exe> or launch the exe directly. It should still be open at 12s.
-3. Capture the main window: cyan/violet/magenta border, Play with a cyan glow, and a PIN box reading fetching, then correct or mismatch, with a Fix button.
-4. Start Minecraft from Play. The button label becomes Playing and a red X appears beside it.
-5. Click the X. That game process closes, the label returns to Play, and the X hides.
-6. Fix runs the same live-pin fetch as the open poll and writes norcom-applied-pin.txt to the published pin.
-Do not point the live manifest at this zip.
-
-Friends-facing notes draft, not for the live tip:
-Launcher 2.0.41. Playing shows while the game is open, and the red X stops it. The window has a neon border. The launcher keeps up with the live server pin while it is open.
+Merge commit 24f89548e4cadebd86ccfe095fd97f381766f317
+Pin meta was not changed by this tip.
+No Discord post.

@@ -146,6 +146,9 @@ public partial class OpsViewModel : ObservableObject
     private string crashInbox = "Crash reports and the latest.log tail appear here.";
 
     [ObservableProperty]
+    private string lastFault = "No crash reports.";
+
+    [ObservableProperty]
     private string frozenNotice = "";
 
     [ObservableProperty]
@@ -205,12 +208,12 @@ public partial class OpsViewModel : ObservableObject
             return;
         }
 
-        Status = ServerSession.Tag(StartReason.You, "Soft restart: RCON stop, then start. The process is not killed.");
-        await _session.StopAsync("127.0.0.1", RconPort, _password, _rcon, CancellationToken.None, StartReason.You);
+        Status = ServerSession.Tag(StartReason.You, "Soft restart: RCON stop, wait until quiet, then start. Java is not killed.");
+        await _session.StopAsync("127.0.0.1", RconPort, _password, _rcon, CancellationToken.None, StartReason.You, allowKill: false);
         var quiet = await _session.WaitUntilQuiet(ServerPath, TimeSpan.FromSeconds(20), CancellationToken.None);
-        if (!quiet && ServerCommands.JavaAppearsUp(ServerPath))
+        if (!quiet || ServerCommands.JavaAppearsUp(ServerPath))
         {
-            Status = ServerSession.Tag(StartReason.You, "Soft restart is waiting. Java is still up, so it was not killed.");
+            Status = ServerSession.Tag(StartReason.You, "Soft restart did not start again. Java is still up, so it was not killed.");
             return;
         }
 
@@ -676,10 +679,12 @@ public partial class OpsViewModel : ObservableObject
         WhitelistOn = overview.WhiteList.Equals("true", StringComparison.OrdinalIgnoreCase);
         AccessLine = "Whitelist: " + Join(overview.Whitelist) + ". Ops: " + Join(overview.Ops) + ".";
         FeaturesLine = overview.Features;
-        CrashInbox = Inbox(ServerPath);
+        var crashes = CrashReports.Read(ServerPath);
+        LastFault = crashes.LastFault;
+        CrashInbox = crashes.LastFault + "\n" + Inbox(ServerPath);
         FrozenNotice = FrozenText();
         Replace(_backups, BackupArchive.List(ServerPath));
-        Replace(_crashes, CrashNames(ServerPath));
+        Replace(_crashes, crashes.Files.ToList());
     }
 
     private string SampleCpu()

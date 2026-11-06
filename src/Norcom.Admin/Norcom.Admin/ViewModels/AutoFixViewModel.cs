@@ -36,12 +36,24 @@ public partial class AutoFixViewModel : ObservableObject
     [ObservableProperty] private bool diskLogCleanup;
     [ObservableProperty] private bool brokenConfigRestore;
     [ObservableProperty] private bool crashAlerts;
-    [ObservableProperty] private string status = "Each toggle is independent. Frozen only posts a notice. Restart stays typed.";
+    [ObservableProperty] private string confirmText = "";
+    [ObservableProperty] private string status = "Type AUTOFIX before Run now. Notices on the timer do not move jars.";
 
     [RelayCommand]
-    private void RunNow() => Tick(announce: true);
+    private void RunNow()
+    {
+        if (!Confirm.Matches(ConfirmText, "AUTOFIX"))
+        {
+            Status = "Type AUTOFIX to run log cleanup, JSON restore, or bad-mod quarantine.";
+            return;
+        }
 
-    public void Tick(bool announce)
+        Tick(announce: true, act: true);
+    }
+
+    public void Tick(bool announce) => Tick(announce, act: false);
+
+    private void Tick(bool announce, bool act)
     {
         var server = _serverPath();
         if (!Directory.Exists(server))
@@ -65,7 +77,7 @@ public partial class AutoFixViewModel : ObservableObject
             }
         }
 
-        if (DiskLogCleanup)
+        if (act && DiskLogCleanup)
         {
             var count = AutoFix.CleanupCandidates(server, DateTime.UtcNow, _settings.AutoFix.KeepLogsDays).Count;
             AutoFix.DeleteOldLogs(server, DateTime.UtcNow, _settings.AutoFix.KeepLogsDays);
@@ -75,7 +87,7 @@ public partial class AutoFixViewModel : ObservableObject
             }
         }
 
-        if (BrokenConfigRestore)
+        if (act && BrokenConfigRestore)
         {
             var backupRoot = Path.Combine(server, "config", ".norcom-backup");
             if (Directory.Exists(backupRoot))
@@ -91,7 +103,7 @@ public partial class AutoFixViewModel : ObservableObject
             }
         }
 
-        if (BadModRollback)
+        if (act && BadModRollback)
         {
             var crashes = Path.Combine(server, "crash-reports");
             if (Directory.Exists(crashes))

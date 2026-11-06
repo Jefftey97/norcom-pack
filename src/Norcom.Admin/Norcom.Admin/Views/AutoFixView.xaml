@@ -9,8 +9,10 @@
     <CheckBox Content="Log cleanup" IsChecked="{Binding DiskLogCleanup}" Style="{StaticResource Pill}"/>
     <CheckBox Content="Broken JSON restore" IsChecked="{Binding BrokenConfigRestore}" Style="{StaticResource Pill}"/>
     <CheckBox Content="Crash alerts" IsChecked="{Binding CrashAlerts}" Style="{StaticResource Pill}"/>
-    <Button Content="Run now" Command="{Binding RunNowCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-    <TextBlock Text="Frozen only posts a notice. Soft restart still needs RESTART. These toggles do not edit server.properties." Foreground="#93A4BD" TextWrapping="Wrap"/>
+    <TextBlock Text="Type AUTOFIX" Style="{StaticResource Label}" Margin="0,12,0,4"/>
+    <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+    <Button Content="Run now" Command="{Binding RunNowCommand}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+    <TextBlock Text="Run now needs AUTOFIX. The timer only posts notices. Jar moves do not rewrite the server pin. Soft restart still needs RESTART and does not kill Java." Foreground="#93A4BD" TextWrapping="Wrap"/>
     <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
   </StackPanel>
 </UserControl>

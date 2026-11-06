@@ -7,6 +7,8 @@
             Visibility="{Binding FrozenNotice, Converter={StaticResource TextVis}}">
       <TextBlock Text="{Binding FrozenNotice}" TextWrapping="Wrap"/>
     </Border>
+    <TextBlock DockPanel.Dock="Top" Text="Latest files in crash-reports. Last fault is read-only." Foreground="#93A4BD" Margin="0,0,0,8"/>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding LastFault}" TextWrapping="Wrap" Margin="0,0,0,8"/>
     <ListBox DockPanel.Dock="Left" Width="280" ItemsSource="{Binding Crashes}" Margin="0,0,12,0"/>
     <TextBox Text="{Binding CrashInbox}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
   </DockPanel>

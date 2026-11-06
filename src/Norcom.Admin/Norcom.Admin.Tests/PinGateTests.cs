@@ -31,7 +31,7 @@ public class PinGateTests
         var git = new RecordingGit();
         var result = await new PackPublisher(git, new SecretRedactor()).PublishAsync(pack, server, CancellationToken.None);
         Assert.False(result.Pushed);
-        Assert.Contains("does not match", result.Message, StringComparison.Ordinal);
+        Assert.Contains("pin disagrees", result.Message, StringComparison.Ordinal);
         Assert.Contains("Nothing was pushed", result.Message, StringComparison.Ordinal);
         Assert.Empty(git.Calls);
         Cleanup(pack, server);

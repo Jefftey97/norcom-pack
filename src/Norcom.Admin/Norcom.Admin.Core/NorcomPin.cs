@@ -97,24 +97,30 @@ public static class NorcomPin
             return "Publish refused. Pack meta/server-pin.json is missing schema, mc, loader, or pin. Nothing was pushed.";
         }
 
-        if (!SameSlim(sot!, packPin!))
+        var slim = FieldDiffs(sot!, packPin!, "meta/server-pin.json");
+        if (slim.Count > 0)
         {
-            return "Publish refused. Pack meta/server-pin.json mc, loader, or pin does not match the server pin. Nothing was pushed.";
+            return "Publish refused. " + string.Join(" ", slim) + " Nothing was pushed.";
         }
 
-        if (compat == null || string.IsNullOrWhiteSpace(compat.pin) || !Same(sot!.pin, compat.pin))
+        if (compat == null || string.IsNullOrWhiteSpace(compat.pin))
         {
-            return "Publish refused. Pack meta/server-compat.json pin does not match the server pin. Nothing was pushed.";
+            return "Publish refused. meta/server-compat.json is missing pin. Nothing was pushed.";
+        }
+
+        if (!Same(sot!.pin, compat.pin))
+        {
+            return "Publish refused. pin disagrees in meta/server-compat.json (server " + sot.pin.Trim() + ", pack " + compat.pin.Trim() + "). Nothing was pushed.";
         }
 
         if (!string.IsNullOrWhiteSpace(compat.mc) && !SameExact(sot.mc, compat.mc))
         {
-            return "Publish refused. Pack meta/server-compat.json mc does not match the server pin. Nothing was pushed.";
+            return "Publish refused. mc disagrees in meta/server-compat.json (server " + sot.mc.Trim() + ", pack " + compat.mc.Trim() + "). Nothing was pushed.";
         }
 
         if (!string.IsNullOrWhiteSpace(compat.loader) && !SameExact(sot.loader, compat.loader))
         {
-            return "Publish refused. Pack meta/server-compat.json loader does not match the server pin. Nothing was pushed.";
+            return "Publish refused. loader disagrees in meta/server-compat.json (server " + sot.loader.Trim() + ", pack " + compat.loader.Trim() + "). Nothing was pushed.";
         }
 
         return null;
@@ -139,8 +145,26 @@ public static class NorcomPin
         !string.IsNullOrWhiteSpace(file.loader) &&
         !string.IsNullOrWhiteSpace(file.pin);
 
-    private static bool SameSlim(ServerPinFile sot, ServerPinFile pack) =>
-        SameExact(sot.mc, pack.mc) && SameExact(sot.loader, pack.loader) && Same(sot.pin, pack.pin);
+    private static List<string> FieldDiffs(ServerPinFile sot, ServerPinFile pack, string file)
+    {
+        var diffs = new List<string>();
+        if (!SameExact(sot.mc, pack.mc))
+        {
+            diffs.Add("mc disagrees in " + file + " (server " + sot.mc.Trim() + ", pack " + pack.mc.Trim() + ").");
+        }
+
+        if (!SameExact(sot.loader, pack.loader))
+        {
+            diffs.Add("loader disagrees in " + file + " (server " + sot.loader.Trim() + ", pack " + pack.loader.Trim() + ").");
+        }
+
+        if (!Same(sot.pin, pack.pin))
+        {
+            diffs.Add("pin disagrees in " + file + " (server " + sot.pin.Trim() + ", pack " + pack.pin.Trim() + ").");
+        }
+
+        return diffs;
+    }
 
     private static bool Same(string left, string right) =>
         string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);

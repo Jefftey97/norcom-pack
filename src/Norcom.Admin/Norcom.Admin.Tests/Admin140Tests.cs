@@ -166,6 +166,12 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Crash_inbox_names_the_last_fault()
+    {
+        Assert.Equal("Description: Watching server", CrashReports.FaultLine("----\nDescription: Watching server\n"));
+    }
+
+    [Fact]
     public void Settings_upsert_rejects_simulation_distance_and_passwords()
     {
         Assert.Throws<InvalidOperationException>(() =>

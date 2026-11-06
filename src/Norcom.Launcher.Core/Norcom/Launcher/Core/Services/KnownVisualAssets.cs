@@ -1,7 +1,9 @@
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -14,8 +16,49 @@ public static class KnownVisualAssets
 		new VisualAsset("resourcepacks/Patrix_26.3_32x_addon.zip", "https://cdn.modrinth.com/data/olO1TaXd/versions/V9k0Ak3w/Patrix_26.3_32x_addon.zip", "b739041ad699ea3e532724ffabd128567f5f0686afbd259ba8eb7f88d9f194781cadeebfa9b18d46f6de9a453bf674d78b9d806a950eddcf11ec4fccb320333f"),
 		new VisualAsset("resourcepacks/Patrix_26.3_models.zip", "https://cdn.modrinth.com/data/olO1TaXd/versions/V9k0Ak3w/Patrix_26.3_models.zip", "39d4e6fd92d1daa9fb515ed59f57dc3d09ba5b2067c9f4bc0639447dc74079c9aff46fa1138495074ee3b1eb6ef2b6bbd85d5c2dd576cf69656f9b62163067dd"),
 		new VisualAsset("resourcepacks/Alacrity.zip", "https://cdn.modrinth.com/data/PUUpX2qq/versions/Kc2ktOzs/Alacrity.zip", "0b0faa45553153000b4cbb187672f49d06e19b4212f3c490964cc91e6e97767ba00ab42a30c4b77ab52994883f9a2a1251f98fd383d59cfa07ce5793d1452822"),
-		new VisualAsset("resourcepacks/norcom_marble.zip", "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/resourcepacks/norcom_marble.zip", "95c00fd5d78d426d534e0579511ae261421a8e8ef1fad945a54517d7b9ac419b7d53e5f4c61cd49fa8b8622d1648b1b0babb2a470e76cac2e53f8929915cc128")
+		new VisualAsset("resourcepacks/norcom_marble.zip", GraphicsPack.MarbleUrl, "076b2f3bed26b8aac1dd82da7b2cd6aeab8d081ed1c843e448cc284ed796120539f092b8b6e052a98324b9149891383dd7c945160e300acd7c0289d65ea031ef")
 	};
+
+	public static async Task EnsureMarbleAsync(HttpClient http, string gameDir, TransferMeter meter, CancellationToken ct)
+	{
+		string dest = Path.Combine(gameDir, "resourcepacks", GraphicsPack.MarbleFile);
+		Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+		if (File.Exists(dest) && Hashing.EqualsHex(await Hashing.FileHexAsync(dest, "sha256", ct).ConfigureAwait(continueOnCapturedContext: false), GraphicsPack.MarbleSha256))
+		{
+			return;
+		}
+		string temp = Path.Combine(Path.GetTempPath(), "norcom-marble-" + Guid.NewGuid().ToString("n") + ".zip");
+		try
+		{
+			meter.SetPhase("Downloading norcom_marble.zip", Math.Max(meter.Snapshot().Fraction, 0.9), 0.02);
+			await HttpDownload.DownloadAsync(http, GraphicsPack.MarbleUrl, temp, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+			if (!Hashing.EqualsHex(await Hashing.FileHexAsync(temp, "sha256", ct).ConfigureAwait(continueOnCapturedContext: false), GraphicsPack.MarbleSha256))
+			{
+				LauncherLog.Write("marble download hash");
+				return;
+			}
+			File.Move(temp, dest, overwrite: true);
+			LauncherLog.Write("marble downloaded");
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("marble download " + ex.GetType().Name);
+		}
+		finally
+		{
+			try
+			{
+				if (File.Exists(temp))
+				{
+					File.Delete(temp);
+				}
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("marble download " + ex.GetType().Name);
+			}
+		}
+	}
 
 	public static async Task EnsureAsync(HttpClient http, string gameDir, TransferMeter meter, CancellationToken ct)
 	{

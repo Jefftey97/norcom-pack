@@ -34,6 +34,21 @@ public class PrismPlayTests
 	}
 
 	[Fact]
+	public async Task MinecraftStartingWhilePrismStaysOpenFinishesPlay()
+	{
+		TaskCompletionSource<int> gate = new TaskCompletionSource<int>();
+		PrismPreparation result = await PrismPlay.RunAsync(new PrismPreparation
+		{
+			CanStart = true,
+			Executable = "prismlauncher.exe",
+			Message = PrismMessages.Opening
+		}, new HangProcess(gate.Task), CancellationToken.None, new FakeSignals { Running = true }, TimeSpan.FromSeconds(15));
+		Assert.True(result.CanStart);
+		Assert.Equal(PrismMessages.Closed, result.Message);
+		Assert.False(gate.Task.IsCompleted);
+	}
+
+	[Fact]
 	public async Task NonZeroExitDoesNotProbeForTheGame()
 	{
 		FakeSignals signals = new FakeSignals { Running = true, Freshened = true };
@@ -86,6 +101,21 @@ public class PrismPlayTests
 			Executable = "prismlauncher.exe",
 			Message = PrismMessages.Opening
 		}, new FakeProcess(exitCode), CancellationToken.None, signals, TimeSpan.Zero);
+	}
+
+	private sealed class HangProcess : IPrismProcess
+	{
+		private readonly Task<int> _task;
+
+		public HangProcess(Task<int> task)
+		{
+			_task = task;
+		}
+
+		public Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+		{
+			return _task;
+		}
 	}
 
 	private sealed class FakeProcess : IPrismProcess

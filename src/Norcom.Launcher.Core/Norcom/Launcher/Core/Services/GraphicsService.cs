@@ -22,12 +22,13 @@ public sealed class GraphicsService
 		Directory.CreateDirectory(Path.Combine(gameDir, "shaderpacks"));
 		Dictionary<string, string> updates = GraphicsPack.ReadJsonMap(folder + "/options-patches.json");
 		string packs = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
-		if (PacksConflict(packs))
+		if (PacksConflict(packs) || !packs.Contains("file/" + GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
 		{
 			packs = GraphicsPack.AlacrityPacks;
 		}
 		updates["resourcePacks"] = packs;
 		HealOverlay(gameDir);
+		HealMarble(gameDir);
 		QuarantineStackedPacks(gameDir);
 		string path = Path.Combine(gameDir, "options.txt");
 		string existing = (File.Exists(path) ? File.ReadAllText(path) : null);
@@ -118,7 +119,7 @@ public sealed class GraphicsService
 		foreach (string path in Directory.EnumerateFiles(directory))
 		{
 			string name = Path.GetFileName(path);
-			if (name.Equals("Alacrity.zip", StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase))
+			if (name.Equals("Alacrity.zip", StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
 			{
 				continue;
 			}
@@ -184,6 +185,45 @@ public sealed class GraphicsService
 			}
 		}
 		throw new FileNotFoundException("Candle overlay was not embedded.");
+	}
+
+	public static void HealMarble(string gameDir)
+	{
+		string directory = Path.Combine(gameDir, "resourcepacks");
+		Directory.CreateDirectory(directory);
+		string dest = Path.Combine(directory, GraphicsPack.MarbleFile);
+		if (File.Exists(dest) && HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dest))), GraphicsPack.MarbleSha256))
+		{
+			return;
+		}
+		using (Stream stream = OpenMarble())
+		{
+			using FileStream file = File.Create(dest);
+			stream.CopyTo(file);
+		}
+		if (!HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dest))), GraphicsPack.MarbleSha256))
+		{
+			throw new InvalidDataException("norcom_marble.zip hash mismatch");
+		}
+		LauncherLog.Write("marble healed");
+	}
+
+	private static Stream OpenMarble()
+	{
+		string name = "Norcom.Launcher.Core.GraphicsPack." + GraphicsPack.MarbleFile;
+		Stream? stream = typeof(GraphicsPack).Assembly.GetManifestResourceStream(name);
+		if (stream != null)
+		{
+			return stream;
+		}
+		foreach (string resource in typeof(GraphicsPack).Assembly.GetManifestResourceNames())
+		{
+			if (resource.EndsWith(GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
+			{
+				return typeof(GraphicsPack).Assembly.GetManifestResourceStream(resource) ?? throw new FileNotFoundException(resource);
+			}
+		}
+		throw new FileNotFoundException("norcom_marble.zip was not embedded.");
 	}
 
 	private static bool HexEquals(string actual, string expected)

@@ -85,7 +85,18 @@ public static class PrismPlay
 		{
 			return prepared;
 		}
-		if (await process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken).ConfigureAwait(continueOnCapturedContext: false) != 0)
+		Task<int> run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
+		while (!run.IsCompleted)
+		{
+			if (signals.MinecraftProcessRunning() || signals.LogFreshenedSinceLaunch())
+			{
+				LauncherLog.Write("prism open minecraft started");
+				Observe(run);
+				return Started(prepared);
+			}
+			await Task.WhenAny(run, Task.Delay(500, cancellationToken)).ConfigureAwait(continueOnCapturedContext: false);
+		}
+		if (await run.ConfigureAwait(continueOnCapturedContext: false) != 0)
 		{
 			return new PrismPreparation
 			{
@@ -107,6 +118,11 @@ public static class PrismPlay
 			};
 		}
 		LauncherLog.Write("prism closed minecraft started");
+		return Started(prepared);
+	}
+
+	private static PrismPreparation Started(PrismPreparation prepared)
+	{
 		return new PrismPreparation
 		{
 			CanStart = true,
@@ -114,6 +130,17 @@ public static class PrismPlay
 			Executable = prepared.Executable,
 			Arguments = prepared.Arguments
 		};
+	}
+
+	private static void Observe(Task task)
+	{
+		_ = task.ContinueWith(delegate(Task done)
+		{
+			if (done.IsFaulted)
+			{
+				LauncherLog.Write("prism exit " + done.Exception?.InnerException?.GetType().Name);
+			}
+		}, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 	}
 
 	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken)

@@ -15,6 +15,12 @@ public static class GraphicsPack
 
 	public const string OverlaySha256 = "b820f0a09bd5341ee262f23dd5963bc64d4656c1b1a2e1562a9f825f98009b2a";
 
+	public const string MarbleFile = "norcom_marble.zip";
+
+	public const string MarbleSha256 = "e3ed6e0685ee92b1914f8822894529fb2d45aeeb4e7a0615b89d4df13281ee86";
+
+	public const string MarbleUrl = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/resourcepacks/norcom_marble.zip";
+
 	public const string NeverEnable = "continuity:glass_pane_culling_fix";
 
 	public static readonly string[] NeverStack = new string[4] { "Patrix", "Faithful", "FreshAnimations", "FreshMoves" };

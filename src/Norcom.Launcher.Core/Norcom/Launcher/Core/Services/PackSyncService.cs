@@ -116,8 +116,10 @@ public sealed class PackSyncService
 		{
 			WriteIndented = true
 		}), ct).ConfigureAwait(continueOnCapturedContext: false);
+		await KnownVisualAssets.EnsureMarbleAsync(_http, gameDir, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		meter.SetPhase("Pack ready", 0.92, 0.0);
 		LauncherLog.Write("Pack sync complete files=" + managed.Count);
+		meter.HandOff();
 		}, ct).ConfigureAwait(continueOnCapturedContext: false);
 	}
 

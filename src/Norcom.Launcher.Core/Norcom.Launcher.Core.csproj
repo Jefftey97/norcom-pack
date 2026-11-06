@@ -15,5 +15,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="GraphicsPack\**\*.*" />
+    <EmbeddedResource Include="..\..\resourcepacks\norcom_marble.zip">
+      <LogicalName>Norcom.Launcher.Core.GraphicsPack.norcom_marble.zip</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

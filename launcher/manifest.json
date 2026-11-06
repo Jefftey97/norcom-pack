@@ -1,1 +1,7 @@
-{"version":"2.0.30","minVersion":"2.0.0","sha256":"4b9f270d2588867481eba26692e51face8edea40041cb81d258b807750cadcf2","zipUrl":"https://raw.githubusercontent.com/Jefftey97/norcom-pack/0a0744fec5834f7668f3a7aa71601c3133bd8452/launcher/NorcomWpf-2.0.30.zip","notes":"Launcher 2.0.30. Prism exit 0 is Closed only after javaw or a fresh latest.log. Otherwise: Prism closed without Minecraft, finish Microsoft sign-in, then Play again. Home SRV port 60313; host PC 127.0.0.1:25565. Dual-sided pin check stays. Exe SHA256 490ac5e7447df57f1a1683c227fb5a41d643abd16675a45918c7f4cdece34b7a. Auto Fabulous High; pin heal-hint resync-pack; .norcom junction."}
+{
+  "version": "2.0.31",
+  "minVersion": "2.0.0",
+  "sha256": "5246030c3d0e841ffd6106a2c09b7c2d4b78e857a78c97aca21f65d86994bcb7",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8d6e0ab23a72785a46f86329f2d804dcb112d8dc/launcher/NorcomWpf-2.0.31.zip",
+  "notes": "Launcher 2.0.31. Every Play removes obsolete launcher copies and keeps the current install only. Close exits. Auto uses Alacrity. Home SRV port 60313; host PC 127.0.0.1:25565. Dual-sided pin check stays. Exe SHA256 549469f1eff0d7e7de8097c5a7d235bd9191832d4273481c5bdc896123b48bba."
+}

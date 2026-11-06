@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "norcom_marble:block/solid_neon_slate"
+  }
+}

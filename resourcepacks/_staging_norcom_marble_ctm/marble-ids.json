@@ -1,0 +1,226 @@
+{
+  "namespace": "norcom_marble",
+  "texture_size": 128,
+  "ctm_method": "ctm",
+  "connect": "tile",
+  "inner_seams": false,
+  "random_variants": false,
+  "pbr": "labPBR _n and _s",
+  "friends_pack_path": "resourcepacks/_staging_norcom_marble_ctm",
+  "zip": "resourcepacks/norcom_marble.zip",
+  "enable_when_dig_ready": "Add file/norcom_marble.zip after file/norcom-alacrity-candle-glass-fix.zip. Keep Alacrity and the candle overlay. Do not enable Patrix or continuity:glass_pane_culling_fix.",
+  "feed": "2.0.35 unchanged",
+  "families": [
+    {
+      "base": "veined_classic_white",
+      "kind": "veined",
+      "palette": "white",
+      "ids": [
+        "norcom_marble:veined_classic_white",
+        "norcom_marble:veined_classic_white_stairs",
+        "norcom_marble:veined_classic_white_slab",
+        "norcom_marble:veined_classic_white_wall",
+        "norcom_marble:veined_classic_white_fence",
+        "norcom_marble:veined_classic_white_fence_gate",
+        "norcom_marble:veined_classic_white_button",
+        "norcom_marble:veined_classic_white_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/veined_classic_white",
+      "ctm": "assets/norcom_marble/optifine/ctm/veined_classic_white.properties",
+      "pbr": [
+        "veined_classic_white_n.png",
+        "veined_classic_white_s.png"
+      ]
+    },
+    {
+      "base": "veined_norcom_blue",
+      "kind": "veined",
+      "palette": "blue",
+      "ids": [
+        "norcom_marble:veined_norcom_blue",
+        "norcom_marble:veined_norcom_blue_stairs",
+        "norcom_marble:veined_norcom_blue_slab",
+        "norcom_marble:veined_norcom_blue_wall",
+        "norcom_marble:veined_norcom_blue_fence",
+        "norcom_marble:veined_norcom_blue_fence_gate",
+        "norcom_marble:veined_norcom_blue_button",
+        "norcom_marble:veined_norcom_blue_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/veined_norcom_blue",
+      "ctm": "assets/norcom_marble/optifine/ctm/veined_norcom_blue.properties",
+      "pbr": [
+        "veined_norcom_blue_n.png",
+        "veined_norcom_blue_s.png"
+      ]
+    },
+    {
+      "base": "veined_neon_slate",
+      "kind": "veined",
+      "palette": "slate",
+      "ids": [
+        "norcom_marble:veined_neon_slate",
+        "norcom_marble:veined_neon_slate_stairs",
+        "norcom_marble:veined_neon_slate_slab",
+        "norcom_marble:veined_neon_slate_wall",
+        "norcom_marble:veined_neon_slate_fence",
+        "norcom_marble:veined_neon_slate_fence_gate",
+        "norcom_marble:veined_neon_slate_button",
+        "norcom_marble:veined_neon_slate_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/veined_neon_slate",
+      "ctm": "assets/norcom_marble/optifine/ctm/veined_neon_slate.properties",
+      "pbr": [
+        "veined_neon_slate_n.png",
+        "veined_neon_slate_s.png"
+      ]
+    },
+    {
+      "base": "solid_classic_white",
+      "kind": "solid",
+      "palette": "white",
+      "ids": [
+        "norcom_marble:solid_classic_white",
+        "norcom_marble:solid_classic_white_stairs",
+        "norcom_marble:solid_classic_white_slab",
+        "norcom_marble:solid_classic_white_wall",
+        "norcom_marble:solid_classic_white_fence",
+        "norcom_marble:solid_classic_white_fence_gate",
+        "norcom_marble:solid_classic_white_button",
+        "norcom_marble:solid_classic_white_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/solid_classic_white",
+      "ctm": "assets/norcom_marble/optifine/ctm/solid_classic_white.properties",
+      "pbr": [
+        "solid_classic_white_n.png",
+        "solid_classic_white_s.png"
+      ]
+    },
+    {
+      "base": "solid_norcom_blue",
+      "kind": "solid",
+      "palette": "blue",
+      "ids": [
+        "norcom_marble:solid_norcom_blue",
+        "norcom_marble:solid_norcom_blue_stairs",
+        "norcom_marble:solid_norcom_blue_slab",
+        "norcom_marble:solid_norcom_blue_wall",
+        "norcom_marble:solid_norcom_blue_fence",
+        "norcom_marble:solid_norcom_blue_fence_gate",
+        "norcom_marble:solid_norcom_blue_button",
+        "norcom_marble:solid_norcom_blue_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/solid_norcom_blue",
+      "ctm": "assets/norcom_marble/optifine/ctm/solid_norcom_blue.properties",
+      "pbr": [
+        "solid_norcom_blue_n.png",
+        "solid_norcom_blue_s.png"
+      ]
+    },
+    {
+      "base": "solid_neon_slate",
+      "kind": "solid",
+      "palette": "slate",
+      "ids": [
+        "norcom_marble:solid_neon_slate",
+        "norcom_marble:solid_neon_slate_stairs",
+        "norcom_marble:solid_neon_slate_slab",
+        "norcom_marble:solid_neon_slate_wall",
+        "norcom_marble:solid_neon_slate_fence",
+        "norcom_marble:solid_neon_slate_fence_gate",
+        "norcom_marble:solid_neon_slate_button",
+        "norcom_marble:solid_neon_slate_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/solid_neon_slate",
+      "ctm": "assets/norcom_marble/optifine/ctm/solid_neon_slate.properties",
+      "pbr": [
+        "solid_neon_slate_n.png",
+        "solid_neon_slate_s.png"
+      ]
+    },
+    {
+      "base": "soft_classic_white",
+      "kind": "soft",
+      "palette": "white",
+      "ids": [
+        "norcom_marble:soft_classic_white",
+        "norcom_marble:soft_classic_white_stairs",
+        "norcom_marble:soft_classic_white_slab",
+        "norcom_marble:soft_classic_white_wall",
+        "norcom_marble:soft_classic_white_fence",
+        "norcom_marble:soft_classic_white_fence_gate",
+        "norcom_marble:soft_classic_white_button",
+        "norcom_marble:soft_classic_white_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/soft_classic_white",
+      "ctm": "assets/norcom_marble/optifine/ctm/soft_classic_white.properties",
+      "pbr": [
+        "soft_classic_white_n.png",
+        "soft_classic_white_s.png"
+      ]
+    },
+    {
+      "base": "soft_norcom_blue",
+      "kind": "soft",
+      "palette": "blue",
+      "ids": [
+        "norcom_marble:soft_norcom_blue",
+        "norcom_marble:soft_norcom_blue_stairs",
+        "norcom_marble:soft_norcom_blue_slab",
+        "norcom_marble:soft_norcom_blue_wall",
+        "norcom_marble:soft_norcom_blue_fence",
+        "norcom_marble:soft_norcom_blue_fence_gate",
+        "norcom_marble:soft_norcom_blue_button",
+        "norcom_marble:soft_norcom_blue_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/soft_norcom_blue",
+      "ctm": "assets/norcom_marble/optifine/ctm/soft_norcom_blue.properties",
+      "pbr": [
+        "soft_norcom_blue_n.png",
+        "soft_norcom_blue_s.png"
+      ]
+    },
+    {
+      "base": "soft_neon_slate",
+      "kind": "soft",
+      "palette": "slate",
+      "ids": [
+        "norcom_marble:soft_neon_slate",
+        "norcom_marble:soft_neon_slate_stairs",
+        "norcom_marble:soft_neon_slate_slab",
+        "norcom_marble:soft_neon_slate_wall",
+        "norcom_marble:soft_neon_slate_fence",
+        "norcom_marble:soft_neon_slate_fence_gate",
+        "norcom_marble:soft_neon_slate_button",
+        "norcom_marble:soft_neon_slate_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/soft_neon_slate",
+      "ctm": "assets/norcom_marble/optifine/ctm/soft_neon_slate.properties",
+      "pbr": [
+        "soft_neon_slate_n.png",
+        "soft_neon_slate_s.png"
+      ]
+    },
+    {
+      "base": "veined_black_blue_glow",
+      "kind": "glow",
+      "palette": "black",
+      "ids": [
+        "norcom_marble:veined_black_blue_glow",
+        "norcom_marble:veined_black_blue_glow_stairs",
+        "norcom_marble:veined_black_blue_glow_slab",
+        "norcom_marble:veined_black_blue_glow_wall",
+        "norcom_marble:veined_black_blue_glow_fence",
+        "norcom_marble:veined_black_blue_glow_fence_gate",
+        "norcom_marble:veined_black_blue_glow_button",
+        "norcom_marble:veined_black_blue_glow_pressure_plate"
+      ],
+      "texture": "norcom_marble:block/veined_black_blue_glow",
+      "ctm": "assets/norcom_marble/optifine/ctm/veined_black_blue_glow.properties",
+      "pbr": [
+        "veined_black_blue_glow_n.png",
+        "veined_black_blue_glow_s.png"
+      ],
+      "emissive": "specular alpha on blue veins only; stone alpha 255 (labPBR ignores 255)"
+    }
+  ]
+}

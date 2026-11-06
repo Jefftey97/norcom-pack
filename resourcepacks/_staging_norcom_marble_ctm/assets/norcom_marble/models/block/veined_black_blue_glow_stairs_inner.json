@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/inner_stairs",
+  "textures": {
+    "bottom": "norcom_marble:block/veined_black_blue_glow",
+    "top": "norcom_marble:block/veined_black_blue_glow",
+    "side": "norcom_marble:block/veined_black_blue_glow"
+  }
+}

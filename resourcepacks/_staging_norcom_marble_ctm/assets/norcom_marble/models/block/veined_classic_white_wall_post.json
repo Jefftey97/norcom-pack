@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_wall_post",
+  "textures": {
+    "wall": "norcom_marble:block/veined_classic_white"
+  }
+}

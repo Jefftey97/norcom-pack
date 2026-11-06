@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/wall_inventory",
+  "textures": {
+    "wall": "norcom_marble:block/veined_black_blue_glow"
+  }
+}

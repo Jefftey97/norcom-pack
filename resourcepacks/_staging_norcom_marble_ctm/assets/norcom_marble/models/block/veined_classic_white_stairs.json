@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/stairs",
+  "textures": {
+    "bottom": "norcom_marble:block/veined_classic_white",
+    "top": "norcom_marble:block/veined_classic_white",
+    "side": "norcom_marble:block/veined_classic_white"
+  }
+}

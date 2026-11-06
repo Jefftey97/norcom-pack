@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "norcom_marble:block/soft_norcom_blue_slab"
+    },
+    "type=double": {
+      "model": "norcom_marble:block/soft_norcom_blue"
+    },
+    "type=top": {
+      "model": "norcom_marble:block/soft_norcom_blue_slab_top"
+    }
+  }
+}

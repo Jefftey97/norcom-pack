@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/button_inventory",
+  "textures": {
+    "texture": "norcom_marble:block/solid_neon_slate"
+  }
+}

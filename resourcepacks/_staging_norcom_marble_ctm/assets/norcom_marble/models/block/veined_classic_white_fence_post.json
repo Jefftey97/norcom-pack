@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/fence_post",
+  "textures": {
+    "texture": "norcom_marble:block/veined_classic_white"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/outer_stairs",
+  "textures": {
+    "bottom": "norcom_marble:block/soft_norcom_blue",
+    "top": "norcom_marble:block/soft_norcom_blue",
+    "side": "norcom_marble:block/soft_norcom_blue"
+  }
+}

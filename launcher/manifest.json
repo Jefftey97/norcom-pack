@@ -1,7 +1,7 @@
 {
   "version": "2.0.32",
   "minVersion": "2.0.0",
-  "sha256": "e716e45e4e4d1e5bd9192ddc418dd6059fdfa90eedef57584f9e133dbf1c7c3c",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/bbb1ac893736b43f9e9d1c771d9dfa2939b4be48/launcher/NorcomWpf-2.0.32.zip",
-  "notes": "Launcher 2.0.32. Play applies a newer launcher before launch. Every Play applies Alacrity plus the candle-glass overlay and does not enable glass pane culling. Close exits. Home SRV port 60313; host PC 127.0.0.1:25565. Exe SHA256 d5381830b4cbc6175279cbcb0459a4d36f3b3554471d816331de2dd3abba1966."
+  "sha256": "68802d3343889030e9343ef05593b00ac0e7b2bff88677abdceb4d0228c54233",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/a2cb4d3eb209272981b3fe13b6d91325587200e9/launcher/NorcomWpf-2.0.32.zip",
+  "notes": "Launcher 2.0.32. Play applies a newer launcher before launch. Every Play applies Alacrity plus the candle-glass overlay and does not enable glass pane culling. A 3070 stays on High and a short heap is raised when the PC can spare it. Close exits. Home SRV port 60313; host PC 127.0.0.1:25565. Exe SHA256 3b0b34769236d62a3e45bd60e5c7cf8975f635f8ccef50e2143692396acd41d8."
 }

@@ -1,0 +1,41 @@
+<UserControl x:Class="Norcom.Admin.Views.EconomyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Economy and quests" Style="{StaticResource PageTitle}"/>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+      <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource GhostButton}"/>
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Mods}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Style="{StaticResource Panel}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock FontWeight="SemiBold"><Run Text="{Binding Group, Mode=OneWay}"/> <Run Text="·"/> <Run Text="{Binding Title, Mode=OneWay}"/></TextBlock>
+                <TextBlock Text="{Binding Note}" Foreground="#93A4BD" Margin="0,4,0,8"/>
+                <ItemsControl ItemsSource="{Binding Fields}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="220"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                        <CheckBox Grid.Column="1" Content="" IsChecked="{Binding Flag}" Style="{StaticResource Pill}" Visibility="{Binding IsBool, Converter={StaticResource BoolVis}}"/>
+                        <TextBox Grid.Column="1" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsText, Converter={StaticResource BoolVis}}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Save" Command="{Binding DataContext.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource CyanButton}" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Norcom.Admin.Core</RootNamespace>
+    <Description>NORCOM Admin services. Not referenced by the friends launcher.</Description>
+  </PropertyGroup>
+</Project>

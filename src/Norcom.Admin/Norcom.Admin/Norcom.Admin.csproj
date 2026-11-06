@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>Assets\norcom-admin.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>Norcom.Admin</RootNamespace>
+    <AssemblyName>NorcomAdmin</AssemblyName>
+    <Product>NORCOM Admin</Product>
+    <Description>Jeffrey-only NORCOM ops desk. Never shipped in Install-NORCOM.</Description>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Norcom.Admin.Core\Norcom.Admin.Core.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\norcom-admin.ico" />
+  </ItemGroup>
+</Project>

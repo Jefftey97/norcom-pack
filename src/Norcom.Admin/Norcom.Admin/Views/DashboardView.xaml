@@ -1,0 +1,78 @@
+<UserControl x:Class="Norcom.Admin.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <Button Content="Start" Command="{Binding StartCommand}" Style="{StaticResource CyanButton}"/>
+      <Button Content="Stop" Command="{Binding StopCommand}" Style="{StaticResource PinkButton}"/>
+      <Button Content="Soft restart" Command="{Binding RestartCommand}" Style="{StaticResource GhostButton}"/>
+      <Button Content="Spark 60s" Command="{Binding SparkCommand}" Style="{StaticResource CyanButton}"/>
+      <Button Content="Backup" Command="{Binding BackupCommand}" Style="{StaticResource GhostButton}"/>
+      <Button Content="Folder" Command="{Binding OpenFolderCommand}" Style="{StaticResource GhostButton}"/>
+    </StackPanel>
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+      <StackPanel>
+        <TextBlock Text="Typed confirm" Style="{StaticResource Label}"/>
+        <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock Text="STOP, RESTART, CRASH, BACKUP. Backup Now refuses a live world. save-all flush runs only when RCON is up; if Java is still writing, Stop first. A second zip is skipped at 04:00–04:01 Denver, after a fresh auto zip, or while maintenance.flag covers that window." Foreground="#93A4BD" Margin="0,6,0,0" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        <Border Background="#2A1220" BorderBrush="#FF3DB8" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,8,0,0"
+                Visibility="{Binding FrozenNotice, Converter={StaticResource TextVis}}">
+          <TextBlock Text="{Binding FrozenNotice}" TextWrapping="Wrap"/>
+        </Border>
+      </StackPanel>
+    </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <ItemsControl ItemsSource="{Binding Metrics}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="4"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Margin="0,0,10,10" Padding="12" CornerRadius="14" Background="#10182A" BorderThickness="1">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="BorderBrush" Value="#1C3148"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Alert}" Value="True">
+                        <Setter Property="BorderBrush" Value="#FF3DB8"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <StackPanel>
+                  <TextBlock Text="{Binding Label}" Foreground="#93A4BD" FontSize="11"/>
+                  <TextBlock Text="{Binding Value}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,4"/>
+                  <TextBlock Text="{Binding Hint}" Foreground="#93A4BD" FontSize="11" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border Style="{StaticResource Panel}" Margin="0,4,10,0">
+          <StackPanel>
+            <TextBlock Text="Server folder" Style="{StaticResource Label}"/>
+            <TextBox Text="{Binding ServerPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <DockPanel>
+              <StackPanel Width="120" Margin="0,0,12,0">
+                <TextBlock Text="RCON port" Style="{StaticResource Label}"/>
+                <TextBox Text="{Binding RconPort, UpdateSourceTrigger=PropertyChanged}"/>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="RCON password (session only, never shown again)" Style="{StaticResource Label}"/>
+                <DockPanel>
+                  <Button DockPanel.Dock="Right" Content="Save" Command="{Binding SavePasswordCommand}" Style="{StaticResource GhostButton}" Margin="8,0,0,0"/>
+                  <PasswordBox x:Name="Secret" PasswordChanged="SecretChanged"/>
+                </DockPanel>
+              </StackPanel>
+            </DockPanel>
+            <TextBlock Text="RCON stays on 127.0.0.1. Spark polls tps, health show, gc, and ping. The Spark button starts a 60s profile and opens the URL." Foreground="#93A4BD" Margin="0,8,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

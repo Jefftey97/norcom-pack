@@ -1,0 +1,61 @@
+<UserControl x:Class="Norcom.Admin.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Settings" Style="{StaticResource PageTitle}"/>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+      <Button Content="Reload" Command="{Binding ReloadCommand}" Style="{StaticResource GhostButton}"/>
+      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource CyanButton}"/>
+    </StackPanel>
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource Panel}" Margin="0,12,0,0">
+      <StackPanel>
+        <TextBlock Text="Type TIME" Style="{StaticResource Label}"/>
+        <TextBox Text="{Binding ConfirmText, UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+      </StackPanel>
+    </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <UniformGrid Columns="2">
+          <StackPanel Margin="0,0,12,0">
+            <TextBlock Text="MOTD" Style="{StaticResource Label}"/><TextBox Text="{Binding Motd, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Difficulty" Style="{StaticResource Label}"/><TextBox Text="{Binding Difficulty, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Gamemode" Style="{StaticResource Label}"/><TextBox Text="{Binding Gamemode, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Max players" Style="{StaticResource Label}"/><TextBox Text="{Binding MaxPlayers, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="View distance" Style="{StaticResource Label}"/><TextBox Text="{Binding ViewDistance, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Simulation distance (unchanged)" Style="{StaticResource Label}"/>
+            <TextBox Text="{Binding SimulationDistance}" IsReadOnly="True" Margin="0,0,0,8"/>
+            <TextBlock Text="Spawn protection" Style="{StaticResource Label}"/><TextBox Text="{Binding SpawnProtection, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Level name" Style="{StaticResource Label}"/><TextBox Text="{Binding LevelName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+          </StackPanel>
+          <StackPanel>
+            <CheckBox Content="PvP" IsChecked="{Binding Pvp}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Whitelist" IsChecked="{Binding WhiteList}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Enforce whitelist" IsChecked="{Binding EnforceWhitelist}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Online mode" IsChecked="{Binding OnlineMode}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Allow flight" IsChecked="{Binding AllowFlight}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Keep inventory" IsChecked="{Binding KeepInventory}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Mob griefing" IsChecked="{Binding MobGriefing}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Fire tick" IsChecked="{Binding DoFireTick}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Weather cycle" IsChecked="{Binding DoWeatherCycle}" Style="{StaticResource Pill}"/>
+            <CheckBox Content="Daylight cycle" IsChecked="{Binding DoDaylightCycle}" Style="{StaticResource Pill}"/>
+            <TextBlock Text="Spawn radius" Style="{StaticResource Label}" Margin="0,8,0,4"/><TextBox Text="{Binding SpawnRadius, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Day ticks" Style="{StaticResource Label}"/><TextBox Text="{Binding DayTicks, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+            <TextBlock Text="Night ticks" Style="{StaticResource Label}"/><TextBox Text="{Binding NightTicks, UpdateSourceTrigger=PropertyChanged}"/>
+          </StackPanel>
+        </UniformGrid>
+        <TextBlock Text="Other server.properties keys. Passwords and simulation-distance stay out of this list." Style="{StaticResource Label}" Margin="0,12,0,4"/>
+        <ItemsControl ItemsSource="{Binding Extra}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <DockPanel Margin="0,0,0,6">
+                <TextBlock Text="{Binding Key}" Width="220" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"/>
+              </DockPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

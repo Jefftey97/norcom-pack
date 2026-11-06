@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-06T02:10:06-07:00",
+  "generated_at": "2026-11-06T02:39:45-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
@@ -278,8 +278,8 @@
     },
     {
       "name": "norcom-marble-1.0.0.jar",
-      "sha256": "dfb395650f1c2800eda56398034b0ca38e01e674fc25b6eec4deac971f7b5a3c",
-      "size": 1284228
+      "sha256": "47fe426d3c4edca916b605a6196bd32831f5b00c01c3e61d6e34410e5e82230d",
+      "size": 1318583
     },
     {
       "name": "pantryforblockheads-fabric-26.3-26.3.0.1.jar",
@@ -442,7 +442,7 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73",
+  "pin_sha256": "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",

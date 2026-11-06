@@ -23,7 +23,7 @@ public sealed class PackSyncService
 	{
 		meter.SetPhase("Reading pack", 0.02, 0.05);
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
-		await PinGate.EnforceAsync(_http, gameDir, doc, ct).ConfigureAwait(continueOnCapturedContext: false);
+		await PinGate.EnforceAsync(_http, gameDir, doc, ct, packUrl, null).ConfigureAwait(continueOnCapturedContext: false);
 		string value;
 		string text = (doc.Keys.TryGetValue("index.file", out value) ? value : "index.toml");
 		string indexHash = doc.Keys.GetValueOrDefault("index.hash") ?? "";

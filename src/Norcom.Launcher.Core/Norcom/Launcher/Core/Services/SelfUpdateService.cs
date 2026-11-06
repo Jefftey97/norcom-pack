@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Text;
 
@@ -137,6 +138,7 @@ public sealed class SelfUpdateService
 
 	public async Task<string> DownloadVerifiedAsync(LauncherManifest manifest, TransferMeter meter, CancellationToken ct)
 	{
+		await PinGate.EnforceFeedAsync(_http, NorcomPaths.GameDir, ct).ConfigureAwait(continueOnCapturedContext: false);
 		string text = Path.Combine(Path.GetTempPath(), "norcom-launcher-upd-" + Guid.NewGuid().ToString("N"));
 		Directory.CreateDirectory(text);
 		string zip = Path.Combine(text, "update.zip");

@@ -49,6 +49,33 @@ public class PinGateTests
 	}
 
 	[Fact]
+	public void PackSidecarPinIsCheckedBeforeTheMetaFiles()
+	{
+		IReadOnlyList<string> urls = PinGate.CandidateUrls("https://example.test/pack/pack.toml", "https://example.test/launcher/manifest.json");
+		Assert.Equal("https://example.test/pack/pin.json", urls[0]);
+		Assert.Contains("https://example.test/launcher/pin.json", urls);
+		Assert.Contains(PinGate.DefaultPinUrl, urls);
+	}
+
+	[Fact]
+	public async Task MissingPinRefusesWhenTheFlagIsOn()
+	{
+		string previous = Environment.GetEnvironmentVariable(PinGate.RequireVariable);
+		Environment.SetEnvironmentVariable(PinGate.RequireVariable, "1");
+		try
+		{
+			TomlLite.Doc pack = TomlLite.Parse(Pack);
+			using HttpClient http = new(new StubHandler(HttpStatusCode.NotFound, ""));
+			PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), pack, "https://example.test/pin.json", CancellationToken.None));
+			Assert.Equal("Pack doesn't match live server pin — wait for update", ex.Message);
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable(PinGate.RequireVariable, previous);
+		}
+	}
+
+	[Fact]
 	public async Task MissingPinWarnsAndContinues()
 	{
 		TomlLite.Doc pack = TomlLite.Parse(Pack);

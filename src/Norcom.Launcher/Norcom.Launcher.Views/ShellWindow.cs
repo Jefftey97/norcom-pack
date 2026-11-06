@@ -21,6 +21,8 @@ public class ShellWindow : Window, IComponentConnector
 {
 	private DispatcherTimer? _clock;
 
+	private DispatcherTimer? _gameWatch;
+
 	private DispatcherTimer? _glideFallback;
 
 	private TrayHost? _tray;
@@ -103,6 +105,16 @@ public class ShellWindow : Window, IComponentConnector
 			}
 		};
 		SyncClock();
+		PlayChrome.Install((Window)(object)this, Root, vm);
+		_gameWatch = new DispatcherTimer
+		{
+			Interval = TimeSpan.FromSeconds(1.0)
+		};
+		_gameWatch.Tick += delegate
+		{
+			vm.RefreshLaunchedGame();
+		};
+		_gameWatch.Start();
 	}
 
 	private void PaintNav()
@@ -241,6 +253,11 @@ public class ShellWindow : Window, IComponentConnector
 		if (clock != null)
 		{
 			clock.Stop();
+		}
+		DispatcherTimer? gameWatch = _gameWatch;
+		if (gameWatch != null)
+		{
+			gameWatch.Stop();
 		}
 		TryEndPeriod();
 		_tray?.Dispose();

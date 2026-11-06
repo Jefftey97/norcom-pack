@@ -57,7 +57,9 @@ public class ShellViewModel : ObservableObject
 
 	private string? _packDiscordText;
 
-	private int _pinBusy;
+	private readonly SemaphoreSlim _pinLock = new SemaphoreSlim(1, 1);
+
+	private int _pinFixQueued;
 
 	private string _pinStatus = "fetching";
 
@@ -1227,24 +1229,43 @@ public class ShellViewModel : ObservableObject
 
 	public async Task PollLivePinAsync(bool force)
 	{
-		if (Interlocked.CompareExchange(ref _pinBusy, 1, 0) != 0)
+		if (force)
 		{
-			return;
+			Interlocked.Exchange(ref _pinFixQueued, 1);
+			SetPinStatus("fetching", "Fixing the live server pin");
+		}
+		if (!await _pinLock.WaitAsync(0).ConfigureAwait(continueOnCapturedContext: true))
+		{
+			if (!force)
+			{
+				return;
+			}
+			await _pinLock.WaitAsync().ConfigureAwait(continueOnCapturedContext: true);
 		}
 		try
 		{
-			SetPinStatus("fetching", force ? "Fixing the live server pin" : "Checking the live server pin");
-			PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, force).ConfigureAwait(continueOnCapturedContext: true);
-			SetPinStatus(result.State, result.Detail);
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("pin poll " + ex.GetType().Name);
-			SetPinStatus("mismatch", "published pin could not be fetched");
+			bool again = true;
+			while (again)
+			{
+				bool forced = force || Interlocked.Exchange(ref _pinFixQueued, 0) == 1;
+				force = false;
+				SetPinStatus("fetching", forced ? "Fixing the live server pin" : "Checking the live server pin");
+				try
+				{
+					PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, forced, NorcomPaths.LauncherDir).ConfigureAwait(continueOnCapturedContext: true);
+					SetPinStatus(result.State, result.Detail);
+				}
+				catch (Exception ex)
+				{
+					LauncherLog.Write("pin poll " + ex.GetType().Name);
+					SetPinStatus("mismatch", forced ? "Fix could not heal the live server pin" : "published pin could not be fetched");
+				}
+				again = Volatile.Read(ref _pinFixQueued) == 1;
+			}
 		}
 		finally
 		{
-			Interlocked.Exchange(ref _pinBusy, 0);
+			_pinLock.Release();
 		}
 	}
 

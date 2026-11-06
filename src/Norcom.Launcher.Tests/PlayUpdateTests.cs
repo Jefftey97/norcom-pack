@@ -34,17 +34,17 @@ public class PlayUpdateTests
 		Directory.CreateDirectory(root);
 		string exe = Path.Combine(root, "NorcomLauncher.exe");
 		await File.WriteAllTextAsync(exe, "exe");
-		string zip = Path.Combine(root, "NorcomWpf-2.0.43.zip");
+		string zip = Path.Combine(root, "NorcomWpf-2.0.45.zip");
 		using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
 		{
 			archive.CreateEntryFromFile(exe, "NorcomLauncher.exe");
 			ZipArchiveEntry version = archive.CreateEntry("payload-version.txt");
 			using StreamWriter writer = new StreamWriter(version.Open());
-			writer.Write("2.0.43\n");
+			writer.Write("2.0.45\n");
 		}
 		string sha = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(zip))).ToLowerInvariant();
 		string manifestPath = Path.Combine(root, "manifest.json");
-		await File.WriteAllTextAsync(manifestPath, "{\"version\":\"2.0.43\",\"minVersion\":\"2.0.0\",\"sha256\":\"" + sha + "\",\"zipUrl\":\"" + zip.Replace("\\", "\\\\") + "\"}");
+		await File.WriteAllTextAsync(manifestPath, "{\"version\":\"2.0.45\",\"minVersion\":\"2.0.0\",\"sha256\":\"" + sha + "\",\"zipUrl\":\"" + zip.Replace("\\", "\\\\") + "\"}");
 		string? previousManifest = Environment.GetEnvironmentVariable(SelfUpdateService.ManifestOverrideVariable);
 		bool previousExit = PlayUpdateGate.ExitAfterSchedule;
 		Action<string, string, string>? previousScheduled = SelfUpdateService.PlayScheduled;
@@ -54,7 +54,7 @@ public class PlayUpdateTests
 		{
 			Environment.SetEnvironmentVariable(SelfUpdateService.ManifestOverrideVariable, manifestPath);
 			PlayUpdateGate.ExitAfterSchedule = false;
-			SelfUpdateService.ExeVersionOf = _ => "2.0.43";
+			SelfUpdateService.ExeVersionOf = _ => "2.0.45";
 			SelfUpdateService.PlayScheduled = (_, version, hash) => scheduled = version + " " + hash;
 			string hint = "{\"schema\":1,\"pin\":\"" + PinGate.LivePin + "\",\"mc\":\"26.3\",\"loader\":\"0.20.1\",\"minLauncher\":\"9.0.0\",\"repairAction\":\"resync-pack\",\"source\":\"admin\"}";
 			using HttpClient http = new(new HintAndPin(hint, SlimPin()));
@@ -66,7 +66,7 @@ public class PlayUpdateTests
 				File.WriteAllText(Path.Combine(game, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
 				return Task.CompletedTask;
 			}, CancellationToken.None);
-			Assert.Equal("2.0.43 " + sha, scheduled);
+			Assert.Equal("2.0.45 " + sha, scheduled);
 		}
 		finally
 		{

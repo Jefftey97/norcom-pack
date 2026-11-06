@@ -77,7 +77,7 @@
           <Button Content="Settings" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Settings}" Tag="{Binding IsSettings}"/>
           <Button Content="Backups" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Backups}" Tag="{Binding IsBackups}"/>
           <Button Content="Crashes" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Crashes}" Tag="{Binding IsCrashes}"/>
-          <Button Content="Economy" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Economy}" Tag="{Binding IsEconomy}"/>
+          <Button Content="Bank" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Economy}" Tag="{Binding IsEconomy}"/>
           <Button Content="Configs" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Configs}" Tag="{Binding IsConfigs}"/>
           <Button Content="Publish" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.Publish}" Tag="{Binding IsPublish}"/>
           <Button Content="Auto-fix" Style="{StaticResource NavButton}" Command="{Binding SelectPageCommand}" CommandParameter="{x:Static vm:AdminPage.AutoFix}" Tag="{Binding IsAutoFix}"/>
@@ -90,7 +90,7 @@
         <views:SettingsView DataContext="{Binding Settings}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Settings}"/>
         <views:BackupsView DataContext="{Binding Ops}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Backups}"/>
         <views:CrashesView DataContext="{Binding Ops}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Crashes}"/>
-        <views:EconomyView DataContext="{Binding Mods}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Economy}"/>
+        <views:EconomyView DataContext="{Binding}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Economy}"/>
         <views:ConfigsView DataContext="{Binding Configs}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Configs}"/>
         <views:PublishView DataContext="{Binding Publish}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Publish}"/>
         <views:AutoFixView DataContext="{Binding AutoFix}" Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=AutoFix}"/>

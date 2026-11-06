@@ -17,6 +17,7 @@ public partial class ShellViewModel : ObservableObject
         Ops = new OpsViewModel(_settings, redactor, Save);
         Settings = new SettingsViewModel(_settings, () => Ops.ServerPath, () => Ops.RconPort, () => Ops.PasswordForSession(), redactor, Save);
         Mods = new ServerModsViewModel(() => Ops.ServerPath, redactor);
+        Bank = new BankViewModel(() => Ops.ServerPath, () => Ops.RconPort, () => Ops.PasswordForSession(), redactor, new RconClient());
         Configs = new ConfigsViewModel(() => Ops.ServerPath, redactor);
         Publish = new PublishViewModel(_settings, redactor, Save, () => Ops.ServerPath);
         AutoFix = new AutoFixViewModel(_settings, () => Ops.ServerPath, ServerHasProcess, redactor, Save);
@@ -25,6 +26,7 @@ public partial class ShellViewModel : ObservableObject
             Settings.Load();
             Configs.Refresh();
             Mods.Refresh();
+            Bank.Refresh();
         };
     }
 
@@ -35,6 +37,7 @@ public partial class ShellViewModel : ObservableObject
             Ops.Activate();
             Settings.Load();
             Mods.Refresh();
+            Bank.Refresh();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -51,6 +54,8 @@ public partial class ShellViewModel : ObservableObject
     public SettingsViewModel Settings { get; }
 
     public ServerModsViewModel Mods { get; }
+
+    public BankViewModel Bank { get; }
 
     public ConfigsViewModel Configs { get; }
 
@@ -213,6 +218,7 @@ public partial class ShellViewModel : ObservableObject
         if (value == AdminPage.Economy)
         {
             Mods.Refresh();
+            Bank.Refresh();
         }
 
         if (value == AdminPage.Settings)

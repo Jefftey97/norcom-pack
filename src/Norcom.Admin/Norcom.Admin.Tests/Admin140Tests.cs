@@ -271,6 +271,38 @@ public class Admin140Tests
     }
 
     [Fact]
+    public void Bank_reads_wallets_and_refuses_a_bad_amount()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "norcom-admin-test-" + Guid.NewGuid().ToString("N"));
+        var eco = Path.Combine(root, "world_norcom", "data", "simpleeco");
+        Directory.CreateDirectory(eco);
+        Directory.CreateDirectory(Path.Combine(root, "config", "simpleeco"));
+        File.WriteAllText(Path.Combine(root, "server.properties"), "level-name=world_norcom\n");
+        File.WriteAllText(Path.Combine(root, "config", "simpleeco", "config.json"), "{\"currencyName\":\"NORCOM Coins\",\"currencySymbol\":\"C\",\"startingMoney\":50}");
+        File.WriteAllText(Path.Combine(eco, "economy.json"), "{\"balances\":{\"aaa\":12},\"bankBalances\":{\"bbb\":4},\"playerNames\":{\"aaa\":\"Steve\",\"bbb\":\"Alex\"}}");
+        var snapshot = NorcomBank.Read(root);
+        Assert.Equal("NORCOM Coins", snapshot.CurrencyName);
+        Assert.Equal("C", snapshot.CurrencySymbol);
+        Assert.Equal(2, snapshot.Accounts.Count);
+        Assert.Contains(snapshot.Accounts, account => account.Name == "Steve" && account.Wallet == 12 && account.Banked == 0);
+        Assert.Contains(snapshot.Accounts, account => account.Name == "Alex" && account.Wallet == 0 && account.Banked == 4);
+        Assert.False(NorcomBank.TryAmount("0", out _));
+        Assert.False(NorcomBank.TryAmount("-3", out _));
+        Assert.True(NorcomBank.TryAmount("50", out var amount));
+        Assert.Equal(50, amount);
+        Assert.Equal("eco set Steve 50", NorcomBank.SetCommand("Steve", 50));
+        Assert.Equal("eco remove Steve 50", NorcomBank.RemoveCommand("Steve", 50));
+        Assert.Equal("eco give Alex 50", NorcomBank.GiveCommand("Alex", 50));
+        Assert.Contains("no console deposit", NorcomBank.BankMenuOnly, StringComparison.OrdinalIgnoreCase);
+        var ledger = Path.Combine(root, "bank-ledger.jsonl");
+        BankLedger.Append(new BankLedgerRow("t", "tx1", "Steve", "set", 50, "", "ok"), ledger);
+        var rows = BankLedger.ReadLast(10, ledger);
+        Assert.Single(rows);
+        Assert.Equal("tx1", rows[0].TxId);
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
     public void Settings_upsert_rejects_simulation_distance_and_passwords()
     {
         Assert.Throws<InvalidOperationException>(() =>

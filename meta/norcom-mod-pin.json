@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-05T20:56:10-07:00",
+  "generated_at": "2026-11-06T01:56:19-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
-  "jar_count": 86,
+  "jar_count": 87,
   "jars": [
     {
       "name": "alexsmobs-2.2.4-fabric+26.3.jar",
@@ -277,6 +277,11 @@
       "size": 11406776
     },
     {
+      "name": "norcom-marble-1.0.0.jar",
+      "sha256": "e79b814cdd5ed72c14cc968a9bdb2cdb69c1dfe2481851824d6004402840f2ef",
+      "size": 137183
+    },
+    {
       "name": "pantryforblockheads-fabric-26.3-26.3.0.1.jar",
       "sha256": "3358c6314d06506433f0d3a30098c675635d004b83fe0a37be7e529ce7cae55f",
       "size": 600306
@@ -437,11 +442,11 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac",
+  "pin_sha256": "5aa575bd868624a3de52b2f92f242f0cfc86c72c5a0c4483bb08be9a4fbbf0b8",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",
-    "launcher_feed": "refuse only when a pin jar present in the client mods folder has a different sha256; ignore server-only jars and client-only jars",
-    "autofix": "any quarantine/restore under G:\\\\MinecraftServer\\\\mods MUST regenerate this pin and notify @server"
+    "launcher_feed": "refuse join/update if pin_sha256 mismatch for dual-sided mods",
+    "autofix": "any quarantine/restore under G:\\MinecraftServer\\mods MUST regenerate this pin and notify @server"
   }
 }

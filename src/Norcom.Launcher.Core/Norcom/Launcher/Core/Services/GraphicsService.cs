@@ -22,12 +22,13 @@ public sealed class GraphicsService
 		Directory.CreateDirectory(Path.Combine(gameDir, "shaderpacks"));
 		Dictionary<string, string> updates = GraphicsPack.ReadJsonMap(folder + "/options-patches.json");
 		string packs = GraphicsPack.ReadText(folder + "/resourcePacks.txt").Trim();
-		if (PacksConflict(packs))
+		if (PacksConflict(packs) || !packs.Contains("file/" + GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
 		{
 			packs = GraphicsPack.AlacrityPacks;
 		}
 		updates["resourcePacks"] = packs;
 		HealOverlay(gameDir);
+		HealMarble(gameDir);
 		QuarantineStackedPacks(gameDir);
 		string path = Path.Combine(gameDir, "options.txt");
 		string existing = (File.Exists(path) ? File.ReadAllText(path) : null);
@@ -118,7 +119,7 @@ public sealed class GraphicsService
 		foreach (string path in Directory.EnumerateFiles(directory))
 		{
 			string name = Path.GetFileName(path);
-			if (name.Equals("Alacrity.zip", StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase))
+			if (name.Equals("Alacrity.zip", StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase) || name.Equals(GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
 			{
 				continue;
 			}
@@ -184,6 +185,65 @@ public sealed class GraphicsService
 			}
 		}
 		throw new FileNotFoundException("Candle overlay was not embedded.");
+	}
+
+	public static void HealMarble(string gameDir)
+	{
+		string directory = Path.Combine(gameDir, "resourcepacks");
+		Directory.CreateDirectory(directory);
+		string dest = Path.Combine(directory, GraphicsPack.MarbleFile);
+		if (File.Exists(dest) && IsLiveMarbleFile(dest))
+		{
+			return;
+		}
+		Stream? stream = OpenMarbleOrNull();
+		if (stream == null)
+		{
+			LauncherLog.Write("marble embed is not the live pack");
+			return;
+		}
+		string temp = dest + ".heal";
+		using (stream)
+		{
+			using FileStream file = File.Create(temp);
+			stream.CopyTo(file);
+		}
+		if (!IsLiveMarbleFile(temp))
+		{
+			File.Delete(temp);
+			LauncherLog.Write("marble embed refused superseded pack");
+			return;
+		}
+		File.Move(temp, dest, overwrite: true);
+		LauncherLog.Write("marble healed");
+	}
+
+	private static bool IsLiveMarbleFile(string path)
+	{
+		FileInfo info = new FileInfo(path);
+		if (!info.Exists || info.Length != GraphicsPack.MarbleBytes)
+		{
+			return false;
+		}
+		return HexEquals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), GraphicsPack.MarbleSha256);
+	}
+
+	private static Stream? OpenMarbleOrNull()
+	{
+		string name = "Norcom.Launcher.Core.GraphicsPack." + GraphicsPack.MarbleFile;
+		Stream? stream = typeof(GraphicsPack).Assembly.GetManifestResourceStream(name);
+		if (stream != null)
+		{
+			return stream;
+		}
+		foreach (string resource in typeof(GraphicsPack).Assembly.GetManifestResourceNames())
+		{
+			if (resource.EndsWith(GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase))
+			{
+				return typeof(GraphicsPack).Assembly.GetManifestResourceStream(resource) ?? throw new FileNotFoundException(resource);
+			}
+		}
+		return null;
 	}
 
 	private static bool HexEquals(string actual, string expected)

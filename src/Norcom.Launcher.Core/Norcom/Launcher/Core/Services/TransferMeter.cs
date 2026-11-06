@@ -20,6 +20,19 @@ public sealed class TransferMeter
 
 	private readonly Queue<(long ticks, long bytes)> _window = new Queue<(long, long)>();
 
+	public void HandOff()
+	{
+		lock (_gate)
+		{
+			_label = "";
+			_base = 1.0;
+			_span = 0.0;
+			_received = 0L;
+			_total = null;
+			_window.Clear();
+		}
+	}
+
 	public void SetPhase(string label, double baseFraction, double span)
 	{
 		lock (_gate)

@@ -121,6 +121,92 @@ public class GraphicsWriterTests
 	}
 
 	[Fact]
+	public void RainStyleStaysAnEnumOnHighAndUltra()
+	{
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.zip.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.zip.txt"));
+		Assert.DoesNotContain("RAIN_STYLE=false", GraphicsPack.ReadText("high/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.DoesNotContain("RAIN_STYLE=false", GraphicsPack.ReadText("ultra/ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Equal("RAIN_STYLE=1\n", ShaderScale.Coerce("RAIN_STYLE=false\n", GraphicsTier.High));
+		Assert.Equal("RAIN_STYLE=2\n", ShaderScale.Coerce("RAIN_STYLE=2\n", GraphicsTier.Ultra));
+		string dir = NewGame();
+		new GraphicsService().Apply(dir, GraphicsTier.High);
+		string applied = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
+		Assert.Contains("RAIN_STYLE=1", applied);
+		Assert.DoesNotContain("RAIN_STYLE=false", applied);
+	}
+
+	[Fact]
+	public void MarblePackIsWrittenAfterTheCandleOverlay()
+	{
+		string dir = NewGame();
+		string packsDir = Path.Combine(dir, "resourcepacks");
+		Directory.CreateDirectory(packsDir);
+		File.WriteAllText(Path.Combine(packsDir, "Alacrity.zip"), "do-not-touch");
+		File.WriteAllBytes(Path.Combine(packsDir, GraphicsPack.MarbleFile), new byte[] { 1, 2, 3 });
+		new GraphicsService().Apply(dir, GraphicsTier.High);
+		Assert.Equal("do-not-touch", File.ReadAllText(Path.Combine(packsDir, "Alacrity.zip")));
+		string marble = Path.Combine(packsDir, GraphicsPack.MarbleFile);
+		string sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(marble))).ToLowerInvariant();
+		Assert.Equal(GraphicsPack.MarbleSha256, sha);
+		Assert.Equal(GraphicsPack.MarbleBytes, new FileInfo(marble).Length);
+		string packs = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
+		int alacrity = packs.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
+		int candle = packs.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);
+		int marbleAt = packs.IndexOf("file/" + GraphicsPack.MarbleFile, StringComparison.Ordinal);
+		Assert.True(alacrity >= 0 && alacrity < candle && candle < marbleAt);
+		Assert.DoesNotContain("Patrix", packs);
+		Assert.DoesNotContain(GraphicsPack.NeverEnable, packs);
+		Assert.False(File.Exists(Path.Combine(packsDir, "norcom-held", GraphicsPack.MarbleFile)));
+	}
+
+	[Fact]
+	public async Task SupersededMarbleDownloadIsNotWritten()
+	{
+		string dir = NewGame();
+		int hits = 0;
+		using HttpClient http = new HttpClient(new MarbleHandler(new byte[] { 1, 2, 3, 4 }, () => hits++));
+		await KnownVisualAssets.EnsureMarbleAsync(http, dir, new TransferMeter(), CancellationToken.None);
+		Assert.False(File.Exists(Path.Combine(dir, "resourcepacks", GraphicsPack.MarbleFile)));
+		Assert.Equal(1, hits);
+	}
+
+	[Fact]
+	public void HandOffDropsThePackReadyLabel()
+	{
+		TransferMeter meter = new TransferMeter();
+		meter.SetPhase("Pack ready", 0.92, 0.0);
+		meter.HandOff();
+		TransferSnapshot snap = meter.Snapshot();
+		Assert.Equal("", snap.Label);
+		Assert.Equal(1.0, snap.Fraction);
+	}
+
+	private sealed class MarbleHandler : HttpMessageHandler
+	{
+		private readonly byte[] _zip;
+		private readonly Action _hit;
+
+		public MarbleHandler(byte[] zip, Action hit)
+		{
+			_zip = zip;
+			_hit = hit;
+		}
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			_hit();
+			Assert.Equal(GraphicsPack.MarbleUrl, request.RequestUri?.AbsoluteUri);
+			return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+			{
+				Content = new ByteArrayContent(_zip)
+			});
+		}
+	}
+
+	[Fact]
 	public void CandleOverlayIsHealedBesideAlacrityAndCullingStaysOff()
 	{
 		string dir = NewGame();

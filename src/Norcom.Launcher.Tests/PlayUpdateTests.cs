@@ -78,6 +78,21 @@ public class PlayUpdateTests
 	}
 
 	[Fact]
+	public void StaleRejectionIsClearedAndAnAppliedStampStays()
+	{
+		string dir = Path.Combine(Path.GetTempPath(), "norcom-stale-" + Guid.NewGuid().ToString("n"));
+		Directory.CreateDirectory(dir);
+		File.WriteAllText(Path.Combine(dir, "update-status.txt"), "rejected payload-version\n");
+		File.WriteAllText(Path.Combine(dir, "update-applied.sha"), new string('a', 64) + "\n");
+		Assert.True(UpdateReport.ClearRejected(dir));
+		Assert.False(File.Exists(Path.Combine(dir, "update-status.txt")));
+		Assert.Equal(new string('a', 64), UpdateReport.ReadAppliedSha(dir));
+		File.WriteAllText(Path.Combine(dir, "update-status.txt"), "applied 2.0.36\n");
+		Assert.False(UpdateReport.ClearRejected(dir));
+		Assert.Equal("applied 2.0.36", File.ReadAllText(Path.Combine(dir, "update-status.txt")).Trim());
+	}
+
+	[Fact]
 	public void BeforePlayStillCleansObsoleteLauncherCopies()
 	{
 		string root = Path.Combine(Path.GetTempPath(), "norcom-playclean-" + Guid.NewGuid().ToString("n"));

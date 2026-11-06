@@ -16,7 +16,7 @@ public class PinGateTests
 		fabric = "0.20.1"
 		""";
 
-	private const string LivePin = "07983921b11ec8e8443bb307817c7b10c90c4388491c45d05da2a819108936ac";
+	private const string LivePin = "fb8252c337d61ace29bf49bd0a1b953c4c6f72146f9971aeb9b5ddcb6198bb73";
 
 	[Fact]
 	public void FriendsFetchSlimPinThenCompat()
@@ -28,15 +28,17 @@ public class PinGateTests
 	}
 
 	[Fact]
-	public async Task SlimPinMismatchRefuses()
+	public async Task AppliedPinIsReplacedWithoutARefusal()
 	{
 		string dir = NewDir();
 		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), "old-pin\n");
 		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", LivePin)));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains(LivePin, ex.Message);
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
 		Assert.Equal("old-pin", PinGate.ReadAppliedPin(dir));
+		Assert.True(PinGate.DeferAppliedWrite);
+		PinGate.AdoptPublished(dir);
+		Assert.Equal(LivePin, PinGate.ReadAppliedPin(dir));
+		Assert.Null(PinGate.LastWarning);
 	}
 
 	[Fact]
@@ -91,12 +93,31 @@ public class PinGateTests
 	}
 
 	[Fact]
-	public async Task WrongLivePinRefuses()
+	public async Task PublishedPinIsAcceptedWhenItDiffersFromTheBakedPin()
 	{
-		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", new string('a', 64))));
-		PinMismatchException ex = await Assert.ThrowsAsync<PinMismatchException>(() => PinGate.EnforceAsync(http, NewDir(), TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None));
-		Assert.StartsWith(PinGate.BlockCopy, ex.Message);
-		Assert.Contains(PinGate.LivePin, ex.Message);
+		string published = new string('a', 64);
+		string dir = NewDir();
+		using HttpClient http = new(new StubHandler(HttpStatusCode.OK, Slim("26.3", "0.20.1", published)));
+		await PinGate.EnforceAsync(http, dir, TomlLite.Parse(Pack), PinGate.ServerPinUrl, CancellationToken.None);
+		Assert.Equal(published, PinGate.ReadAppliedPin(dir));
+		Assert.NotEqual(PinGate.LivePin, published);
+	}
+
+	[Fact]
+	public void JarDiffNamesOnlyTheInstalledJarsThatDiffer()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "mods"));
+		byte[] bytes = Encoding.UTF8.GetBytes("local-jar");
+		File.WriteAllBytes(Path.Combine(dir, "mods", "fabric-api.jar"), bytes);
+		string actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+		string summary = PinGate.JarDiffSummary(dir, new[]
+		{
+			("fabric-api.jar", new string('b', 64), (long)bytes.Length),
+			("server-only.jar", new string('c', 64), 4L)
+		});
+		Assert.Contains("fabric-api.jar expected=" + new string('b', 64) + " actual=" + actual, summary);
+		Assert.DoesNotContain("server-only.jar", summary);
 	}
 
 	[Fact]

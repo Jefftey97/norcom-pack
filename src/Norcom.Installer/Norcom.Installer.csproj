@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Install-NORCOM</AssemblyName>
+    <RootNamespace>Norcom.Installer</RootNamespace>
+    <Version>2.0.37</Version>
+    <FileVersion>2.0.37.0</FileVersion>
+    <InformationalVersion>2.0.37</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Norcom.Launcher.Core\Norcom.Launcher.Core.csproj" />
+    <EmbeddedResource Include="$(LauncherExe)" Condition="'$(LauncherExe)' != ''" LogicalName="NorcomLauncher.exe" />
+  </ItemGroup>
+</Project>

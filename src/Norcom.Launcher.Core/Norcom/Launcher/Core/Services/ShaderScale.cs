@@ -73,6 +73,14 @@ public static class ShaderScale
 			}
 			return line;
 		}
+		if (key == "RAIN_STYLE")
+		{
+			if (value != "1" && value != "2")
+			{
+				return "RAIN_STYLE=1";
+			}
+			return line;
+		}
 		if (SliderDefaults.TryGetValue(key, out string fallback) && !IsNumber(value))
 		{
 			return key + "=" + fallback;

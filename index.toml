@@ -402,7 +402,7 @@ metafile = true
 
 [[files]]
 file = "mods/norcom-marble-1.0.0.pw.toml"
-hash = "03ed2d85765f6c39b51fbfe40414cb116a927d4606b51019560fb41761265877"
+hash = "0640653f4913e8906a1b98dd50e80813937c5e2815c8133868b8e3a488b82d21"
 metafile = true
 
 [[files]]
@@ -608,7 +608,7 @@ hash = "b967eff579d790eb7afb6fab7e7c0265f43bdd59de5488980d77099eb29e4885"
 
 [[files]]
 file = "resourcepacks/norcom_marble.pw.toml"
-hash = "88f73a1665c3439837569925941668a44111d550263925002bf81f879e90c612"
+hash = "65fa1439d25564a6ee1a5742288d7102174406d87a4ef959d7f05867d6bde104"
 metafile = true
 
 [[files]]

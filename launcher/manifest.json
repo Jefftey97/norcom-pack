@@ -1,7 +1,7 @@
 {
-  "version": "2.0.36",
+  "version": "2.0.37",
   "minVersion": "2.0.0",
-  "sha256": "803a3bab2cf42254b36cf3b95938000f383f837f76524c8f2c5b3473038f92b9",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8fc1ed63a815597d32e2dfe436260c600ff621c8/launcher/NorcomWpf-2.0.36.zip",
-  "notes": "Launcher 2.0.36. Play enables norcom_marble.zip after the Alacrity candle overlay and downloads that pack next to Alacrity. Continuity stays on. Patrix stays off. Iris still loads Complementary with numeric colortex scales from 2.0.35. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 8e3005d9fe22551bccfaafc11b3dc90e348133c1710b935838fa8c6bb6e2aecc."
+  "sha256": "1c58aab6f249764a16531545af371a86683d7c3795bf210d83f814365e316560",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/8c992c06a012445778f9bfc724b75271db8e5568/launcher/NorcomWpf-2.0.37.zip",
+  "notes": "Launcher 2.0.37. ProductVersion is 2.0.37 and FileVersion is 2.0.37.0. Play clears a stale rejected update stamp and keeps going. A published server pin replaces the applied pin after pack sync without a pin-mismatch refusal. RAIN_STYLE is 1. After Minecraft starts, Play leaves Pack ready. Play downloads norcom_marble.zip 80770a4a8735188b8b9ac5e2f0d1ca8247bd76b17b86edde659261b7b1c21db5 (3515313 bytes) and enables it after Alacrity and the candle overlay. It will not write the superseded e3ed6e06 or 368ffaaa packs. Continuity stays on. Patrix stays off. High keeps sun rays, shadow distance 112, Iris shadows at 7 chunks, Distant Horizons radius 160, and minimal particles. A 3070 stays on High and the 8192 MB heap plan is unchanged. Exe SHA256 265e123e7aecbc5bec35ce1856ba7b28e86d3924e5a59924d9f5ac925650531c. Install SHA256 a32b3adebf26b009b6651906a2251ed9f1818adb40816e31b9fdf1bbee095caa."
 }

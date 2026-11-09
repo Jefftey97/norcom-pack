@@ -59,7 +59,12 @@ public sealed class ActivationProcessTests:IDisposable
                 new ActivationCoordinator().RecoverInterrupted(store);
                 Assert.Equal("restored",store.Read().Outcome);
                 Assert.Null(store.Read().Pending);Assert.Null(store.Read().Active);
-                Assert.Contains(identity.PackageHash,store.Read().Quarantined);
+                if(phase=="prepared")
+                {
+                    Assert.DoesNotContain(identity.PackageHash,store.Read().Quarantined);
+                    Assert.Equal(identity,store.Read().DeferredRetry?.Candidate);
+                }
+                else Assert.Contains(identity.PackageHash,store.Read().Quarantined);
                 Assert.Equal(1,store.Read().Sequence);
             }
             await AssertChildExitedAsync();
@@ -78,6 +83,27 @@ public sealed class ActivationProcessTests:IDisposable
         Assert.Equal(identity,store.Read().Active);Assert.Null(store.Read().Pending);
         await WaitUntilAsync(()=>File.Exists(Path.Combine(root,"fixture-survived-disconnect.txt")),TimeSpan.FromSeconds(10));
         await AssertChildExitedAsync();
+    }
+    [Fact] public async Task ErrorAfterDurableCommitDoesNotStopOrRestoreTheHealthyCandidate()
+    {
+        var (store,identity,_)=PrepareFixture("healthy");using var held=store.Acquire();
+        var coordinator=new ActivationCoordinator((s,a,c)=>
+        {
+            s.Commit(a.Id,a.Candidate.ExecutableHash,c.Id,a.StartedUtcTicks!.Value);
+            throw new IOException("Injected caller error after durable commit");
+        });
+        var outcome=await coordinator.LaunchPendingAsync(store,TimeSpan.FromSeconds(30),CancellationToken.None);
+        Assert.Equal(ActivationOutcome.CommittedNotificationUncertain,outcome);Assert.Equal(identity,store.Read().Active);
+        Assert.Equal("healthy",store.Read().Outcome);Assert.Empty(store.Read().Quarantined);
+        await WaitUntilAsync(()=>File.Exists(Path.Combine(root,"fixture-committed.txt")),TimeSpan.FromSeconds(10));
+        await AssertChildExitedAsync();
+    }
+    [Fact] public void DefaultProductionPayloadDoesNotBecomeADisposableProfile()
+    {
+        var local=Path.Combine(Path.GetTempPath(),"normal-user-local");var installed=Path.Combine(local,"NORCOM","Launcher");
+        Assert.Null(ActivationCoordinator.ChildStateOverride(installed,null,local));
+        Assert.Equal(Path.GetDirectoryName(installed),ActivationCoordinator.ChildStateOverride(installed,"explicit-owner-profile",local));
+        Assert.Equal(Path.GetDirectoryName(root),ActivationCoordinator.ChildStateOverride(root,null,local));
     }
     private async Task AssertChildExitedAsync()
     {

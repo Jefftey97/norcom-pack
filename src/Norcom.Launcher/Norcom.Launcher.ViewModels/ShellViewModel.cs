@@ -1302,7 +1302,7 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(PinDetail));
 	}
 
-	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct)
+	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct, bool allowRetry = false)
 	{
 		if (IsBusy || BridgeRuntime.HandoffScheduled)
 		{
@@ -1319,7 +1319,7 @@ public class ShellViewModel : ObservableObject
 			{
 				StatusLine = text;
 				report(text, progress);
-			}, ct).ConfigureAwait(true);
+			}, ct, allowRetry).ConfigureAwait(true);
 		}
 		catch (Exception ex)
 		{
@@ -1340,6 +1340,11 @@ public class ShellViewModel : ObservableObject
 	private async Task PlayAsync()
 	{
 		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
 		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		IsBusy = true;
 		bool ownsPinLock = false;
@@ -1622,6 +1627,11 @@ public class ShellViewModel : ObservableObject
 	private async Task FixVisualsAsync()
 	{
 		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
 		if (IsBusy)
 		{
 			return;
@@ -1668,6 +1678,11 @@ public class ShellViewModel : ObservableObject
 	private async Task RepairAsync()
 	{
 		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
 		if (IsBusy)
 		{
 			return;
@@ -1706,7 +1721,7 @@ public class ShellViewModel : ObservableObject
 	{
 		if (await ApplyUpdateIfNeededAsync(delegate
 		{
-		}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true))
+		}, CancellationToken.None, allowRetry: true).ConfigureAwait(continueOnCapturedContext: true))
 		{
 			Application.Current.Shutdown();
 		}

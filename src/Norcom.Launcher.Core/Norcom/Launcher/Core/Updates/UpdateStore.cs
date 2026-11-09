@@ -10,11 +10,13 @@ using Norcom.Launcher.Core.Services;
 namespace Norcom.Launcher.Core.Updates;
 
 public sealed record PayloadIdentity(string PackageHash, string PayloadDigest, string Version, string ExecutableHash);
+public sealed record DeferredPayload(PayloadIdentity Candidate,bool PreviouslyHealthy);
+public enum RollbackReason { CandidateFailed, InterruptedBeforeLaunch, InvalidPayload }
 public sealed record LaunchAttempt(string Id, PayloadIdentity Candidate, PayloadIdentity? Previous, string Mode,
     string Phase, int? ProcessId = null, long? StartedUtcTicks = null,int? CoordinatorPid=null,long? CoordinatorStartedUtcTicks=null,bool Recovery=false);
 public sealed record UpdateState(int Schema, string InstallId, string BootstrapHash, long Sequence,
     string? AcceptedDigest, PayloadIdentity? Active, PayloadIdentity? Previous, LaunchAttempt? Pending,
-    string[] Quarantined, string Outcome);
+    string[] Quarantined, string Outcome,DeferredPayload? DeferredRetry=null);
 
 public sealed class UpdateStore
 {
@@ -59,9 +61,11 @@ public sealed class UpdateStore
             throw new InvalidDataException("Launcher recovery state is invalid; original files were kept.");
         if(state.Active!=null) ValidateIdentity(state.Active);
         if(state.Previous!=null) ValidateIdentity(state.Previous);
-        if((state.Sequence==0 && (state.Active!=null || state.Previous!=null || state.Pending!=null || state.Quarantined.Length!=0 || Directory.Exists(Path.Combine(Root,"app")))) ||
-            (state.Active!=null && (state.Active==state.Previous || state.Quarantined.Contains(state.Active.PackageHash))) ||
+        if(state.DeferredRetry!=null)ValidateIdentity(state.DeferredRetry.Candidate);
+        if((state.Sequence==0 && (state.Active!=null || state.Previous!=null || state.Pending!=null || state.DeferredRetry!=null || state.Quarantined.Length!=0 || Directory.Exists(Path.Combine(Root,"app")))) ||
+            (state.Active!=null && (state.Active.PackageHash==state.Previous?.PackageHash || state.Quarantined.Contains(state.Active.PackageHash))) ||
             (state.Previous!=null && state.Quarantined.Contains(state.Previous.PackageHash)) ||
+            (state.DeferredRetry!=null && (state.DeferredRetry.Candidate.PackageHash==state.Active?.PackageHash || state.Quarantined.Contains(state.DeferredRetry.Candidate.PackageHash))) ||
             !new[]{"ready","starting","healthy","restored"}.Contains(state.Outcome) ||
             ((state.Pending!=null)!=(state.Outcome=="starting")))
             throw new InvalidDataException("Launcher recovery state is inconsistent.");
@@ -69,13 +73,14 @@ public sealed class UpdateStore
         {
             ValidateIdentity(pending.Candidate);
             if(pending.Previous!=null)ValidateIdentity(pending.Previous);
-            if(!Guid.TryParseExact(pending.Id,"N",out _) || (pending.Mode!="update" && pending.Mode!="open") ||
+            if(!Guid.TryParseExact(pending.Id,"N",out _) || (pending.Mode!="update" && pending.Mode!="open" && pending.Mode!="retry") ||
                 (pending.Phase!="prepared" && pending.Phase!="launched") ||
                 (pending.Phase=="launched" && (pending.ProcessId is not >0 || pending.StartedUtcTicks is not >0)) ||
                 (pending.Phase=="prepared" && (pending.ProcessId!=null || pending.StartedUtcTicks!=null)) ||
                 ((pending.CoordinatorPid==null)!=(pending.CoordinatorStartedUtcTicks==null)) ||
                 (pending.CoordinatorPid!=null && (pending.CoordinatorPid<=0 || pending.CoordinatorStartedUtcTicks<=0)) ||
-                (pending.Mode=="update" && (pending.Previous!=state.Active || pending.Candidate.PackageHash==state.Active?.PackageHash)) ||
+                (pending.Mode!="open" && (pending.Previous!=state.Active || pending.Candidate.PackageHash==state.Active?.PackageHash)) ||
+                (pending.Mode=="retry" && (state.DeferredRetry?.PreviouslyHealthy!=true || pending.Candidate.PackageHash!=state.DeferredRetry.Candidate.PackageHash)) ||
                 (pending.Mode=="open" && (pending.Candidate!=state.Active || pending.Previous!=state.Previous)) ||
                 state.Quarantined.Contains(pending.Candidate.PackageHash))
                 throw new InvalidDataException("Launcher launch receipt is invalid.");
@@ -102,10 +107,20 @@ public sealed class UpdateStore
         var p=release.Payload;
         var identity=new PayloadIdentity(p.PackageSha256,release.PayloadDigest,p.Version,p.ExecutableSha256);
         var destination=Path.GetDirectoryName(PayloadPath(identity))!;
-        if(Directory.Exists(destination)){VerifyLocal(identity);return identity;}
+        if(Directory.Exists(destination))
+        {
+            ReleasePackage.ValidateArchive(release,package);
+            var exe=PayloadPath(identity);
+            if(new FileInfo(exe).Length!=p.ExecutableBytes || FileHash(exe)!=p.ExecutableSha256)
+                throw new InvalidDataException("Stored package bytes differ from the renewed signed release.");
+            var receipt=Path.Combine(destination,"release-"+identity.PayloadDigest+".json");
+            OwnedFiles.CheckAncestors(receipt);
+            if(!File.Exists(receipt))OwnedFiles.WriteNew(receipt,Encoding.UTF8.GetBytes(release.Envelope));
+            VerifyLocal(identity);return identity;
+        }
         var stage=Path.Combine(UpdateDirectory,"stage-"+Guid.NewGuid().ToString("N"));
         ReleasePackage.Extract(release,package,stage);
-        OwnedFiles.WriteNew(Path.Combine(stage,"release-envelope.json"),Encoding.UTF8.GetBytes(release.Envelope));
+        OwnedFiles.WriteNew(Path.Combine(stage,"release-"+identity.PayloadDigest+".json"),Encoding.UTF8.GetBytes(release.Envelope));
         OwnedFiles.CheckAncestors(destination);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         Directory.Move(stage,destination);
@@ -144,7 +159,8 @@ public sealed class UpdateStore
             state=state with{Previous=previous};
         }
         else VerifyPrevious(state,previous);
-        var attempt=new LaunchAttempt(Guid.NewGuid().ToString("N"),candidate,previous,reopening?"open":"update","prepared",Recovery:reopening && state.Outcome=="restored");
+        var mode=reopening?"open":state.DeferredRetry is {PreviouslyHealthy:true} retry && retry.Candidate.PackageHash==candidate.PackageHash?"retry":"update";
+        var attempt=new LaunchAttempt(Guid.NewGuid().ToString("N"),candidate,previous,mode,"prepared",Recovery:reopening && state.Outcome=="restored");
         Save(state with{Pending=attempt,Outcome="starting"});
         return attempt;
     }
@@ -168,17 +184,23 @@ public sealed class UpdateStore
             pending.ProcessId!=pid || pending.StartedUtcTicks!=startedTicks)
             throw new InvalidDataException("Launcher health acknowledgement does not match its launch.");
         VerifyLocal(pending.Candidate);
-        Save(state with{Active=pending.Candidate,Previous=pending.Previous,Pending=null,Outcome="healthy"});
+        Save(state with{Active=pending.Candidate,Previous=pending.Previous,Pending=null,Outcome="healthy",DeferredRetry=pending.Mode=="open"?state.DeferredRetry:null});
     }
-    public void Rollback(string attempt)
+    public void Rollback(string attempt,RollbackReason reason=RollbackReason.CandidateFailed)
     {
         Guard();var state=Read();var pending=Pending(state,attempt);
         var previous=SelectVerifiedFallback(state,pending.Previous);
-        var quarantine=state.Quarantined.Append(pending.Candidate.PackageHash).Distinct(StringComparer.Ordinal).ToArray();
+        var invalid=reason==RollbackReason.InvalidPayload;
+        try {VerifyLocal(pending.Candidate);}
+        catch(Exception ex) when(ex is InvalidDataException || ex is CryptographicException || ex is System.Text.Json.JsonException || ex is FileNotFoundException || ex is DirectoryNotFoundException)
+        {invalid=true;}
+        var quarantineCandidate=invalid || (reason==RollbackReason.CandidateFailed && pending.Mode=="update");
+        var quarantine=quarantineCandidate?state.Quarantined.Append(pending.Candidate.PackageHash).Distinct(StringComparer.Ordinal).ToArray():state.Quarantined;
         if(quarantine.Length>256)throw new InvalidDataException("Launcher recovery history needs owner attention.");
         // Executables are immutable. Switching the pointer restores the exact verified
         // prior payload; no auth, settings, saves or game files are copied or restored.
-        Save(state with{Active=previous,Previous=null,Pending=null,Quarantined=quarantine,Outcome="restored"});
+        var deferred=quarantineCandidate?null:new DeferredPayload(pending.Candidate,pending.Mode is "open" or "retry");
+        Save(state with{Active=previous,Previous=null,Pending=null,Quarantined=quarantine,Outcome="restored",DeferredRetry=deferred});
     }
     public void RecoverCommitted()
     {
@@ -187,7 +209,13 @@ public sealed class UpdateStore
         var previous=SelectVerifiedFallback(state,state.Previous);
         var quarantine=state.Quarantined.Append(state.Active.PackageHash).Distinct(StringComparer.Ordinal).ToArray();
         if(quarantine.Length>256)throw new InvalidDataException("Launcher recovery history needs owner attention.");
-        Save(state with{Active=previous,Previous=null,Quarantined=quarantine,Outcome="restored"});
+        Save(state with{Active=previous,Previous=null,Quarantined=quarantine,Outcome="restored",DeferredRetry=state.DeferredRetry?.Candidate.PackageHash==previous?.PackageHash?null:state.DeferredRetry});
+    }
+    public void AcknowledgeBootstrapRecovery()
+    {
+        Guard();var state=Read();
+        if(state.Pending!=null || state.Active!=null || state.Outcome!="restored")throw new InvalidOperationException("No bootstrap recovery notice is pending.");
+        Save(state with{Outcome="ready"});
     }
     private PayloadIdentity? SelectVerifiedFallback(UpdateState state,PayloadIdentity? previous)
     {
@@ -199,12 +227,14 @@ public sealed class UpdateStore
             VerifyPrevious(state,null);return null;
         }
     }
-    private VerifiedRelease VerifyLocal(PayloadIdentity identity)
+    internal VerifiedRelease VerifyLocal(PayloadIdentity identity)
     {
         var exe=PayloadPath(identity);
         var directory=Path.GetDirectoryName(exe)!;
-        var envelope=Path.Combine(directory,"release-envelope.json");
+        var envelope=Path.Combine(directory,"release-"+identity.PayloadDigest+".json");
+        if(!File.Exists(envelope))envelope=Path.Combine(directory,"release-envelope.json");
         OwnedFiles.CheckAncestors(envelope);
+        if(!File.Exists(envelope))throw new InvalidDataException("No signed receipt matches this stored launcher identity.");
         if(new FileInfo(envelope).Length>ReleaseVerifier.MaximumEnvelopeBytes)throw new InvalidDataException("Stored release envelope exceeds its limit.");
         var verified=_verifier.Verify(File.ReadAllText(envelope,Encoding.UTF8),DateTimeOffset.UtcNow,installing:false);
         if(verified.PayloadDigest!=identity.PayloadDigest || verified.Payload.PackageSha256!=identity.PackageHash ||

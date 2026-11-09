@@ -17,7 +17,10 @@ interface rebuild is a later release, not part of this bridge milestone.
 - A separate coordinator launches the candidate, verifies its exact process and
   startup acknowledgement, then atomically commits state. Failed attempts stop
   only the owned candidate and restore verified previous bytes or the bootstrap.
-  Failed packages remain quarantined and the accepted sequence is retained.
+  Invalid packages and failed first activations remain quarantined. A transient
+  reopen failure of a previously healthy payload, or interruption before launch,
+  restores the fallback and permits an explicit Check for updates retry. Startup
+  does not automatically loop that retry. The accepted sequence is retained.
 - The UI stays disabled until its startup is committed. An independent candidate
   watchdog exits if the coordinator dies before commit. Reopening inspects pending
   recovery before the single-instance UI check. Normal shutdown joins the listener
@@ -67,6 +70,30 @@ through that procedure. Do not describe a permanently frozen bootstrap as safe.
 Authenticode signing is not supplied by the release-envelope signature.
 
 ## Verification and limits
+
+### Follow-up to the 06dade9 source review
+
+Grok's P2 recovery classification is corrected before local installation. The
+follow-up also preserves uncertain game locks during Repair, avoids marking
+ordinary production successors as disposable profiles, clears bootstrap recovery
+notices only after the UI renders, and reads back durable state after a commit
+exception instead of claiming an unconfirmed rollback. Signed-envelope renewal
+keeps per-digest receipts and revalidates the full archive and immutable version
+stamp; changing sequence or expiry cannot relabel existing package bytes.
+
+Remaining nonblocking review notes are explicit: failed staging and retained
+payload folders have no automatic pruning; the Core legacy routing fallback is
+still present for old consumers but the real bridge installs its closed route
+before use; pipe identity is not independently queried from Windows (same-user
+attackers are outside this boundary); a concurrent open can time out after three
+seconds; an alternate-only damaged install needs owner repair; and a fresh signed
+channel envelope is needed at least every 30 days. The friend pin remains the
+published authority unless NORCOM_PIN_PATH is explicitly set. Main workstation
+parity, public feed migration and the editable 3.x UI are separate work.
+
+The current dependency audit covers direct and transitive packages for WPF, Core,
+Tests, UpdateFixture and ReleaseTool. It replaces the stale pre-final WPF audit;
+the unchanged legacy Installer is not part of this local bridge package.
 
 The Windows fixture project links the real SingleInstance implementation and
 uses disposable process identities. It is never distributed. Native activation,

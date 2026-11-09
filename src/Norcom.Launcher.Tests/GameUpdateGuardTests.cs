@@ -27,5 +27,12 @@ public sealed class GameUpdateGuardTests:IDisposable
         using var locked=new FileStream(path,FileMode.Open,FileAccess.ReadWrite,FileShare.None);
         Assert.True(GameUpdateGuard.IsBlocked(path));Assert.True(File.Exists(path));
     }
+    [Theory][InlineData("pid=bad")][InlineData("pid=2147483647\npid=1")][InlineData("")]
+    public void RepairCleanupPreservesUncertainGameLocks(string value)
+    {
+        var path=Path.Combine(root,"game.lock");File.WriteAllText(path,value);
+        Norcom.Launcher.Core.Services.StartupHeal.ClearLockIfDead(path);
+        Assert.True(File.Exists(path));Assert.Equal(value,File.ReadAllText(path));
+    }
     public void Dispose()=>Directory.Delete(root,true);
 }

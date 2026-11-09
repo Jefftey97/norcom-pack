@@ -14,6 +14,7 @@ public static class BridgeRuntime
 {
     private static readonly TaskCompletionSource<bool> Ready=new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static ActivationClient? _activation;
+    private static bool _acknowledgeBootstrapRecovery;
     public static string BootstrapPath=>Path.Combine(NorcomPaths.LauncherDir,"NorcomLauncher.exe");
     public static string RecoveryMessage {get;private set;}="";
     public static bool HandoffScheduled {get;private set;}
@@ -23,6 +24,11 @@ public static class BridgeRuntime
         try
         {
             if(_activation!=null)await _activation.ReadyAsync(CancellationToken.None).ConfigureAwait(true);
+            else if(_acknowledgeBootstrapRecovery)
+            {
+                var store=new UpdateStore(NorcomPaths.LauncherDir,ReleaseTrust.CreateVerifier());
+                using var lease=store.Acquire();store.AcknowledgeBootstrapRecovery();_acknowledgeBootstrapRecovery=false;
+            }
             Ready.TrySetResult(true);
         }
         catch {Ready.TrySetResult(false);throw;}
@@ -86,7 +92,7 @@ public static class BridgeRuntime
         {
             state=store.Read();
             if(state.Outcome=="restored")RecoveryMessage="The previous launcher was restored after an update could not start. Your settings and game files were kept.";
-            if(state.Active==null)return true;
+            if(state.Active==null){_acknowledgeBootstrapRecovery=state.Outcome=="restored";return true;}
             try {store.Prepare(state.Active,reopening:true);}
             catch(Exception ex) when(ex is IOException || ex is InvalidDataException || ex is System.Text.Json.JsonException || ex is UnauthorizedAccessException || ex is System.Security.Cryptography.CryptographicException)
             {
@@ -119,7 +125,7 @@ public static class BridgeRuntime
             {await Task.Delay(100).ConfigureAwait(false);}
         }
     }
-    public static async Task<bool> CheckAndScheduleAsync(Action<string,double>? report,CancellationToken ct)
+    public static async Task<bool> CheckAndScheduleAsync(Action<string,double>? report,CancellationToken ct,bool allowRetry=false)
     {
         if(QaGates.OfflineCheckRequested()){report?.Invoke("Offline verification mode: automatic update checks are paused.",1);return false;}
         if(!Ready.Task.IsCompletedSuccessfully || !Ready.Task.Result)return false;
@@ -136,6 +142,10 @@ public static class BridgeRuntime
         var release=await channel.FetchAsync(ct).ConfigureAwait(true);
         if(release==null){report?.Invoke("No signed launcher release is published yet.",1);return false;}
         store.Accept(release);
+        if(!allowRetry && store.Read().DeferredRetry?.Candidate.PackageHash==release.Payload.PackageSha256)
+        {
+            report?.Invoke("The last launcher attempt was interrupted. Use Check for updates when you want to retry.",1);return false;
+        }
         if(VersionCompare.Compare(release.Payload.Version,NorcomVersion.Current)<=0)
         {report?.Invoke("Launcher "+NorcomVersion.Current+" is up to date.",1);return false;}
         var package=Path.Combine(store.Root,"update","download-"+Guid.NewGuid().ToString("N")+".zip");
@@ -155,7 +165,7 @@ public static class BridgeRuntime
             store.RecordCoordinator(attempt.Id,started.Id,started.StartTime.ToUniversalTime().Ticks);
             HandoffScheduled=true;
         }
-        catch {store.Rollback(attempt.Id);throw;}
+        catch {store.Rollback(attempt.Id,RollbackReason.InterruptedBeforeLaunch);throw;}
         report?.Invoke("Restarting into the verified launcher",1);
         return true;
     }

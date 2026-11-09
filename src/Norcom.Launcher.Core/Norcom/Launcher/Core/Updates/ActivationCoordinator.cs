@@ -14,6 +14,15 @@ public enum ActivationOutcome { Committed, Restored, CommittedNotificationUncert
 
 public sealed class ActivationCoordinator
 {
+    private readonly Action<UpdateStore,LaunchAttempt,Process> _commit;
+    public ActivationCoordinator():this((store,attempt,child)=>store.Commit(attempt.Id,attempt.Candidate.ExecutableHash,child.Id,attempt.StartedUtcTicks!.Value)) { }
+    internal ActivationCoordinator(Action<UpdateStore,LaunchAttempt,Process> commit)=>_commit=commit;
+    internal static string? ChildStateOverride(string launcherRoot,string? inherited,string localAppData)
+    {
+        var canonical=Path.Combine(localAppData,"NORCOM","Launcher");
+        return string.IsNullOrWhiteSpace(inherited) && Path.GetFullPath(launcherRoot).Equals(Path.GetFullPath(canonical),StringComparison.OrdinalIgnoreCase)
+            ?null:Path.GetDirectoryName(launcherRoot);
+    }
     public async Task<ActivationOutcome> LaunchPendingAsync(UpdateStore store,TimeSpan startupBudget,CancellationToken ct)
     {
         var pending=store.Read().Pending??throw new InvalidOperationException("No prepared launcher activation.");
@@ -26,8 +35,10 @@ public sealed class ActivationCoordinator
         deadline.CancelAfter(startupBudget);
         Process? child=null;
         bool committed=false;
+        bool validatingImage=true;
         try
         {
+            store.VerifyLocal(pending.Candidate);
             // Reject non-Windows/incorrect-architecture bytes before CreateProcess:
             // Windows may show a blocking compatibility dialog for a malformed EXE.
             using(var executable=File.OpenRead(store.PayloadPath(pending.Candidate)))
@@ -38,9 +49,11 @@ public sealed class ActivationCoordinator
                     headers.PEHeader.AddressOfEntryPoint==0 || (headers.CoffHeader.Characteristics & Characteristics.Dll)!=0)
                     throw new InvalidDataException("The signed launcher payload is not a Windows x64 executable.");
             }
+            validatingImage=false;
             var info=new ProcessStartInfo(store.PayloadPath(pending.Candidate)){UseShellExecute=false,WorkingDirectory=store.Root,CreateNoWindow=true};
             info.ArgumentList.Add("--norcom-payload");info.ArgumentList.Add(pending.Id);info.ArgumentList.Add(pipeName);info.ArgumentList.Add(nonce);
-            info.Environment["NORCOM_STATE_DIR"]=Path.GetDirectoryName(store.Root)!;
+            var stateOverride=ChildStateOverride(store.Root,Environment.GetEnvironmentVariable("NORCOM_STATE_DIR"),NorcomPaths.LocalAppData);
+            if(stateOverride!=null)info.Environment["NORCOM_STATE_DIR"]=stateOverride;
             child=Process.Start(info)??throw new IOException("Launcher process was not created.");
             var started=child.StartTime.ToUniversalTime().Ticks;
             pending=store.RecordLaunched(pending.Id,child.Id,started);
@@ -50,16 +63,35 @@ public sealed class ActivationCoordinator
             await ActivationWire.WriteAsync(pipe,hello with{Stage="authorized"},deadline.Token).ConfigureAwait(false);
             var ready=await ActivationWire.ReadAsync(pipe,deadline.Token).ConfigureAwait(false);
             Validate(ready,"ready",pending,nonce,child,store);
-            store.Commit(pending.Id,pending.Candidate.ExecutableHash,child.Id,started);
+            _commit(store,pending,child);
             committed=true;
             await ActivationWire.WriteAsync(pipe,ready with{Stage="committed"},deadline.Token).ConfigureAwait(false);
             return ActivationOutcome.Committed;
         }
-        catch
+        catch(Exception failure)
         {
             // The child may already have received the final acknowledgement and enabled
             // actions. After durable commit, never kill it or start a fallback beside it.
             if(committed)return ActivationOutcome.CommittedNotificationUncertain;
+            UpdateState observed;
+            try {observed=store.Read();}
+            catch(Exception stateError){throw new IOException("The launcher update outcome could not be verified. Recovery files were kept.",stateError);}
+            if(observed.Pending==null && observed.Outcome=="healthy" && observed.Active==pending.Candidate && observed.Previous==pending.Previous)
+            {
+                // A durable write can succeed even when its caller reports an error.
+                // Prove that transition before deciding to stop or restore anything.
+                if(child!=null)
+                {
+                    try
+                    {
+                        using var acknowledge=new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        await ActivationWire.WriteAsync(pipe,new ActivationMessage("committed",pending.Id,nonce,pending.Candidate.ExecutableHash,child.Id,pending.StartedUtcTicks!.Value),acknowledge.Token).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
+                return ActivationOutcome.CommittedNotificationUncertain;
+            }
+            if(observed.Pending?.Id!=pending.Id)throw new IOException("The launcher activation outcome is uncertain; no restoration was reported.",failure);
             // This Process object retains the exact handle created here; never kill by name
             // or a re-resolved PID. If it cannot stop, do not claim rollback completed.
             if(child!=null && !child.HasExited)
@@ -67,7 +99,9 @@ public sealed class ActivationCoordinator
                 child.Kill(entireProcessTree:false);
                 if(!child.WaitForExit(10000))throw new IOException("The candidate did not stop; recovery is pending.");
             }
-            if(store.Read().Pending?.Id==pending.Id)store.Rollback(pending.Id);
+            var reason=validatingImage && (failure is BadImageFormatException || failure is InvalidDataException || failure is CryptographicException)
+                ?RollbackReason.InvalidPayload:RollbackReason.CandidateFailed;
+            store.Rollback(pending.Id,reason);
             return ActivationOutcome.Restored;
         }
         finally {child?.Dispose();}
@@ -102,6 +136,6 @@ public sealed class ActivationCoordinator
         }
         // Prepared but unrecorded children cannot receive authorization, and their
         // bounded pipe handshake exits before loading WPF or enabling any action.
-        store.Rollback(pending.Id);
+        store.Rollback(pending.Id,pending.Phase=="prepared"?RollbackReason.InterruptedBeforeLaunch:RollbackReason.CandidateFailed);
     }
 }

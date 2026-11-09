@@ -218,5 +218,57 @@ public sealed class UpdateStoreTests:IDisposable
         var p=Package(sequence,version,bytes);var identity=store.Stage(p.release,p.zip);var a=store.Prepare(identity);
         store.RecordLaunched(a.Id,1,2);store.Commit(a.Id,identity.ExecutableHash,1,2);return identity;
     }
+    [Fact] public void TransientReopenFailureCanBeExplicitlyRetriedWithoutPoisoningFallback()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var active=CommitPackage(store,2,"2.0.47","second");
+        var a=store.Prepare(active,reopening:true);store.RecordLaunched(a.Id,1,2);store.Rollback(a.Id);
+        Assert.Equal(first,store.Read().Active);Assert.DoesNotContain(active.PackageHash,store.Read().Quarantined);
+        Assert.Null(store.Read().Previous);Assert.Equal(active,store.Read().DeferredRetry?.Candidate);
+        Assert.True(store.Read().DeferredRetry?.PreviouslyHealthy);
+        a=store.Prepare(first,reopening:true);store.RecordLaunched(a.Id,1,2);store.Commit(a.Id,first.ExecutableHash,1,2);
+        Assert.NotNull(store.Read().DeferredRetry);
+        a=store.Prepare(active);Assert.Equal("retry",a.Mode);store.RecordLaunched(a.Id,1,2);store.Commit(a.Id,active.ExecutableHash,1,2);
+        Assert.Equal(active,store.Read().Active);Assert.Null(store.Read().DeferredRetry);
+    }
+    [Fact] public void UnlaunchedInterruptionIsRetryableButIsNotTreatedAsPreviouslyHealthy()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();var identity=store.Stage(p.release,p.zip);
+        var a=store.Prepare(identity);store.Rollback(a.Id,RollbackReason.InterruptedBeforeLaunch);
+        Assert.DoesNotContain(identity.PackageHash,store.Read().Quarantined);Assert.False(store.Read().DeferredRetry?.PreviouslyHealthy);
+        a=store.Prepare(identity);Assert.Equal("update",a.Mode);store.RecordLaunched(a.Id,1,2);store.Rollback(a.Id);
+        Assert.Contains(identity.PackageHash,store.Read().Quarantined);Assert.Null(store.Read().DeferredRetry);
+    }
+    [Fact] public void BootstrapRecoveryNoticeCanBeAcknowledgedWithoutResettingReplayState()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();var identity=store.Stage(p.release,p.zip);
+        var a=store.Prepare(identity);store.Rollback(a.Id);var before=store.Read();store.AcknowledgeBootstrapRecovery();var after=store.Read();
+        Assert.Equal("ready",after.Outcome);Assert.Equal(before.Sequence,after.Sequence);Assert.Equal(before.AcceptedDigest,after.AcceptedDigest);
+        Assert.Equal(before.Quarantined,after.Quarantined);Assert.Null(after.Active);
+    }
+    [Fact] public void RenewedSignedEnvelopeCanReuseExactPackageWithoutReplacingEarlierReceipt()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();var old=store.Stage(p.release,p.zip);
+        var renewedPayload=p.release.Payload with{Sequence=2};
+        var renewed=Verifier.Verify(SignedReleaseTests.Sign(key,JsonSerializer.Serialize(renewedPayload,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})),DateTimeOffset.UtcNow);
+        var current=store.Stage(renewed,p.zip);Assert.Equal(old.PackageHash,current.PackageHash);Assert.NotEqual(old.PayloadDigest,current.PayloadDigest);
+        Assert.Equal(p.release.PayloadDigest,store.VerifyLocal(old).PayloadDigest);Assert.Equal(renewed.PayloadDigest,store.VerifyLocal(current).PayloadDigest);
+        Assert.Equal(current,store.Prepare(current).Candidate);
+    }
+    [Theory][InlineData("version")][InlineData("package-size")][InlineData("exe-size")][InlineData("exe-hash")]
+    public void RenewalCannotChangeImmutablePackageClaims(string fault)
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();var old=store.Stage(p.release,p.zip);
+        var payload=p.release.Payload with{Sequence=2};
+        payload=fault switch{
+            "version"=>payload with{Version="2.0.47"},
+            "package-size"=>payload with{PackageBytes=payload.PackageBytes+1},
+            "exe-size"=>payload with{ExecutableBytes=payload.ExecutableBytes+1},
+            _=>payload with{ExecutableSha256=new string('a',64)}};
+        var renewed=Verifier.Verify(SignedReleaseTests.Sign(key,JsonSerializer.Serialize(payload,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})),DateTimeOffset.UtcNow);
+        Assert.Throws<InvalidDataException>(()=>store.Stage(renewed,p.zip));
+        Assert.Equal(old.PayloadDigest,store.VerifyLocal(old).PayloadDigest);
+        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(store.PayloadPath(old))!,"release-"+renewed.PayloadDigest+".json")));
+    }
     public void Dispose(){key.Dispose();Directory.Delete(root,true);}
 }

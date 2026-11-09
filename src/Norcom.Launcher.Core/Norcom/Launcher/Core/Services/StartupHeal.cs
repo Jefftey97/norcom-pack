@@ -73,42 +73,9 @@ public static class StartupHeal
 
 	public static void ClearLockIfDead(string lockPath)
 	{
-		if (!File.Exists(lockPath))
-		{
-			return;
-		}
-		try
-		{
-			string text = File.ReadAllText(lockPath);
-			int num = 0;
-			string[] array = text.Split('\n');
-			for (int i = 0; i < array.Length; i++)
-			{
-				string text2 = array[i].Trim();
-				if (text2.StartsWith("pid=", StringComparison.OrdinalIgnoreCase))
-				{
-					string text3 = text2;
-					if (int.TryParse(text3.Substring(4, text3.Length - 4).Trim(), out var result))
-					{
-						num = result;
-					}
-				}
-			}
-			if (num <= 0 || !IsAlive(num))
-			{
-				File.Delete(lockPath);
-			}
-		}
-		catch
-		{
-			try
-			{
-				File.Delete(lockPath);
-			}
-			catch
-			{
-			}
-		}
+		// Repair shares the updater's conservative interpretation. Unknown/locked/
+		// malformed state is retained, never treated as proof that a game stopped.
+		_ = Norcom.Launcher.Core.Updates.GameUpdateGuard.IsBlocked(lockPath);
 	}
 
 	public static bool IsAlive(int pid)

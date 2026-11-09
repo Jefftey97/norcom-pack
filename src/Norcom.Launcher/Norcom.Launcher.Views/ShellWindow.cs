@@ -48,15 +48,16 @@ public class ShellWindow : Window, IComponentConnector
 		InitializeComponent();
 	}
 
-	private void OnLoaded(object sender, RoutedEventArgs e)
+	private async void OnLoaded(object sender, RoutedEventArgs e)
 	{
 		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
 		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
 		//IL_00b5: Expected O, but got Unknown
+		if (!await BridgeRuntime.WaitForReadyAsync()) return;
 		_tray = new TrayHost((Window)(object)this);
 		if (!string.IsNullOrWhiteSpace(Environment.ProcessPath))
 		{
-			ShortcutRepair.EnsureKnownShortcuts(Environment.ProcessPath);
+			ShortcutRepair.EnsureKnownShortcuts(BridgeRuntime.BootstrapPath);
 		}
 		PlayGlide();
 		object dataContext = ((FrameworkElement)this).DataContext;
@@ -88,7 +89,7 @@ public class ShellWindow : Window, IComponentConnector
 		vm.InitializeAsync();
 		if (PlayUpdateGate.ConsumeResume())
 		{
-			vm.PlayCommand.ExecuteAsync((object)null);
+			vm.StatusLine = "Launcher updated. Press Play when you are ready to join.";
 		}
 		_clock = new DispatcherTimer
 		{

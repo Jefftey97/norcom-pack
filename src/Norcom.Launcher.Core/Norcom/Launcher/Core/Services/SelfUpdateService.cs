@@ -316,6 +316,8 @@ public sealed class SelfUpdateService
 
 	public async Task<bool> TrySchedulePlayUpdateAsync(CancellationToken ct)
 	{
+		if (Norcom.Launcher.Core.Updates.BridgeUpdateRouting.Schedule is {} signedSchedule)
+			return await signedSchedule(ct).ConfigureAwait(false);
 		LauncherManifest? manifest = await FetchManifestAsync(ct).ConfigureAwait(false);
 		if (manifest == null)
 		{

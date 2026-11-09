@@ -1,4 +1,5 @@
 using System;
+using Norcom.Launcher.Core.Updates;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,12 +25,12 @@ namespace Norcom.Launcher.ViewModels;
 
 public class ShellViewModel : ObservableObject
 {
-	private readonly HttpClient _http = new HttpClient
+	private readonly HttpClient _http = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : new HttpClient
 	{
 		Timeout = TimeSpan.FromMinutes(30.0)
 	};
 
-	private readonly HttpClient _crashHttp = new HttpClient(new HttpClientHandler
+	private readonly HttpClient _crashHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : new HttpClient(new HttpClientHandler
 	{
 		AllowAutoRedirect = false
 	})
@@ -37,7 +38,7 @@ public class ShellViewModel : ObservableObject
 		Timeout = TimeSpan.FromSeconds(12.0)
 	};
 
-	private readonly HttpClient _authHttp = MinecraftServicesAuth.CreateHttp();
+	private readonly HttpClient _authHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : MinecraftServicesAuth.CreateHttp();
 
 	private readonly GraphicsService _graphics = new GraphicsService();
 
@@ -218,6 +219,7 @@ public class ShellViewModel : ObservableObject
 	{
 		get
 		{
+			if (QaGates.OfflineCheckRequested()) return false;
 			if (!IsBusy)
 			{
 				return !GameRunning;
@@ -555,6 +557,7 @@ public class ShellViewModel : ObservableObject
 		[MemberNotNull("discordInvite")]
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<string>.Default.Equals(discordInvite, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.DiscordInvite);
@@ -696,6 +699,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<double>.Default.Equals(memoryMb, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.MemoryMb);
@@ -716,6 +720,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(launcherSounds, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.LauncherSounds);
@@ -736,6 +741,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(closeToTray, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.CloseToTray);
@@ -756,6 +762,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(reduceMotion, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.ReduceMotion);
@@ -776,6 +783,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(pauseWhilePlaying, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.PauseWhilePlaying);
@@ -1223,18 +1231,29 @@ public class ShellViewModel : ObservableObject
 
 	public async Task InitializeAsync()
 	{
+		if (QaGates.OfflineCheckRequested())
+		{
+			ServerHeadline = "Server status unknown";
+			Motd = "Offline verification profile. No server connection was attempted.";
+			SetPinStatus("unavailable", "Live pin checks are paused in this verification profile.");
+			return;
+		}
 		FlushCrashesAsync();
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
-	public async Task PollLivePinAsync(bool force)
+	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false);
+
+	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock)
 	{
+		if (QaGates.OfflineCheckRequested()) return;
+		if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
 		if (force)
 		{
 			Interlocked.Exchange(ref _pinFixQueued, 1);
 			SetPinStatus("fetching", "Fixing the live server pin");
 		}
-		if (!await _pinLock.WaitAsync(0).ConfigureAwait(continueOnCapturedContext: true))
+		if (!ownsPinLock && !await _pinLock.WaitAsync(0).ConfigureAwait(continueOnCapturedContext: true))
 		{
 			if (!force)
 			{
@@ -1244,6 +1263,7 @@ public class ShellViewModel : ObservableObject
 		}
 		try
 		{
+			if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
 			bool again = true;
 			while (again)
 			{
@@ -1265,7 +1285,7 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
-			_pinLock.Release();
+			if (!ownsPinLock) _pinLock.Release();
 		}
 	}
 
@@ -1284,92 +1304,30 @@ public class ShellViewModel : ObservableObject
 
 	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct)
 	{
-		_ = 1;
-		try
+		if (IsBusy || BridgeRuntime.HandoffScheduled)
 		{
-			UpdateReport.ClearRejected(NorcomPaths.LauncherDir);
-			report("Checking for a launcher update", 0.05);
-			using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-			timeout.CancelAfter(TimeSpan.FromSeconds(12.0));
-			SelfUpdateService updates = new SelfUpdateService(_http);
-			LauncherManifest manifest = await updates.FetchManifestAsync(timeout.Token).ConfigureAwait(continueOnCapturedContext: true);
-			if (manifest == null)
-			{
-				UpdateReport.Write(NorcomPaths.LauncherDir, "no-manifest");
-				report("No update manifest. Continuing.", 1.0);
-				return false;
-			}
-			bool fromAlt = LauncherInstall.IsAltInstall(Environment.ProcessPath, FriendInstaller.InstalledExePath);
-			string? primaryVersion = NorcomVersion.TryReadExeVersion(FriendInstaller.InstalledExePath);
-			if (UpdateReport.SkipApplied(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256, NorcomVersion.Current, manifest.Version, primaryVersion, fromAlt))
-			{
-				NoteUpdate("rejected already-applied");
-				report("rejected already-applied", 1.0);
-				return false;
-			}
-			if (SelfUpdateService.Decide(NorcomVersion.Current, manifest, updates.UsedPrivateManifest) == UpdateKind.None)
-			{
-				if (fromAlt && LauncherInstall.ShouldCopyRunningToPrimary(true, NorcomVersion.Current, primaryVersion, manifest.Version) && !string.IsNullOrWhiteSpace(Environment.ProcessPath))
-				{
-					report("Installing " + NorcomVersion.Current, 0.95);
-					LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
-					return true;
-				}
-				string text = (SelfUpdateService.IsAllowedPackageUrl(manifest.ZipUrl, updates.UsedPrivateManifest) ? "up-to-date" : "rejected not-https");
-				NoteUpdate(text);
-				report("Launcher " + NorcomVersion.Current + ". Published manifest is " + manifest.Version + ".", 1.0);
-				StatusLine = "Launcher " + NorcomVersion.Current + ". Published manifest is " + manifest.Version + ". " + text;
-				return false;
-			}
-			report("Downloading " + manifest.Version, 0.1);
-			TransferMeter meter = new TransferMeter();
-			string zipPath = await updates.DownloadVerifiedAsync(manifest, meter, ct).ConfigureAwait(continueOnCapturedContext: true);
-			if (SelfUpdateService.Inspect(zipPath) != UpdatePackageKind.NativeExe)
-			{
-				NoteUpdate("rejected legacy-package");
-				report("rejected legacy-package", 1.0);
-				return false;
-			}
-			string text2 = SelfUpdateService.FindNativeExe(zipPath);
-			if (text2 == null)
-			{
-				NoteUpdate("rejected missing-exe");
-				report("rejected missing-exe", 1.0);
-				return false;
-			}
-			string payloadVersion = SelfUpdateService.ReadPayloadVersion(text2);
-			string exeFileVersion = NorcomVersion.TryReadExeVersion(text2);
-			string text3 = UpdateReport.Rejection(NorcomVersion.Current, manifest.Version, payloadVersion, exeFileVersion, null, manifest.Sha256);
-			if (text3 != null)
-			{
-				NoteUpdate(text3);
-				report(text3, 1.0);
-				return false;
-			}
-			string processPath = Environment.ProcessPath;
-			if (string.IsNullOrWhiteSpace(processPath))
-			{
-				NoteUpdate("rejected missing-exe");
-				report("Cannot replace the running exe because its path is unknown.", 1.0);
-				return false;
-			}
-			report("Installing " + manifest.Version, 0.95);
-			SelfUpdateService.ScheduleReplace(text2, processPath, Environment.ProcessId, manifest.Version, manifest.Sha256);
-			return true;
-		}
-		catch (UpdateRejectedException ex)
-		{
-			NoteUpdate(ex.Token);
-			report(ex.Token, 1.0);
+			report("Finish the current launcher task before updating.", 1);
 			return false;
 		}
-		catch (Exception ex2)
+		IsBusy = true;
+		bool ownsPinLock = false;
+		try
 		{
-			NoteUpdate("failed " + ex2.GetType().Name);
-			StatusLine = "Update failed. " + Redactor.Clean(ex2.Message);
+			await _pinLock.WaitAsync(ct).ConfigureAwait(true);
+			ownsPinLock = true;
+			return await BridgeRuntime.CheckAndScheduleAsync((text, progress) =>
+			{
+				StatusLine = text;
+				report(text, progress);
+			}, ct).ConfigureAwait(true);
+		}
+		catch (Exception ex)
+		{
+			StatusLine = "Launcher update unavailable. " + Redactor.Clean(ex.Message);
 			report(StatusLine, 1.0);
 			return false;
 		}
+		finally { if (ownsPinLock) _pinLock.Release(); IsBusy = BridgeRuntime.HandoffScheduled; }
 	}
 
 	private void NoteUpdate(string token)
@@ -1381,14 +1339,20 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanPlay")]
 	private async Task PlayAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
+		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		IsBusy = true;
-		ProgressFraction = 0.02;
-		ProgressLabel = "Preparing NORCOM";
-		await PollLivePinAsync(force: true).ConfigureAwait(continueOnCapturedContext: true);
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		ProgressFraction = 0.02;
+		ProgressLabel = "Preparing NORCOM";
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
+			await PollLivePinCoreAsync(force: true, ownsPinLock: true).ConfigureAwait(true);
 			string java = await JavaRuntime.EnsureAsync(_http, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "java"))
 			{
@@ -1464,8 +1428,9 @@ public class ShellViewModel : ObservableObject
 		{
 			PrismPlay.GameObserved = null;
 			PrismPlay.GameProcessObserved = null;
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 			RefreshLaunchedGame();
 		}
 	}
@@ -1482,11 +1447,16 @@ public class ShellViewModel : ObservableObject
 			}
 			return;
 		}
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "The game status could not be confirmed. Launcher updates remain blocked.";
+			return;
+		}
 		if (pid != null)
 		{
 			_launchedGamePid = null;
 			_gameWatchUntilUtc = DateTime.MinValue;
-			LaunchedGame.Forget(NorcomPaths.GameLockPath);
+			// The conservative guard alone may clear a confirmed stale lock.
 			if (GameRunning)
 			{
 				GameRunning = false;
@@ -1637,6 +1607,7 @@ public class ShellViewModel : ObservableObject
 
 	private void ApplyResolved(GraphicsTier tier, bool auto, string why)
 	{
+		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		_graphics.Apply(NorcomPaths.GameDir, tier);
 		IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
 		_settings.GraphicsTier = tier;
@@ -1650,15 +1621,20 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private async Task FixVisualsAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;
 		}
 		IsBusy = true;
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
 			GraphicsTier tier = _settings.GraphicsTier;
 			if (_settings.GraphicsAuto)
 			{
@@ -1682,23 +1658,29 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 		}
 	}
 
 	[RelayCommand]
 	private async Task RepairAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;
 		}
 		IsBusy = true;
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
 			StartupHeal.ClearStale(NorcomPaths.LauncherDir, NorcomPaths.GameDir);
 			GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 			string line = await RepairRun.ExecuteAsync(meter, (CancellationToken token) => new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, token), (CancellationToken token) => JavaRuntime.EnsureAsync(_http, meter, token), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
@@ -1713,8 +1695,9 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 		}
 	}
 
@@ -1769,6 +1752,7 @@ public class ShellViewModel : ObservableObject
 
 	private Task RefreshServerAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return Task.CompletedTask;
 		HomeStatus homeStatus = HomeStatusClient.Read();
 		IsOnline = homeStatus.ShowOnline;
 		ServerHeadline = homeStatus.Headline;
@@ -1835,6 +1819,7 @@ public class ShellViewModel : ObservableObject
 
 	public void SetCrashWebhook(string? url)
 	{
+		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		_settings.CrashWebhookUrl = url?.Trim() ?? "";
 		_settings.Save(NorcomPaths.SettingsPath);
 		RefreshCrashChannelStatus();
@@ -1926,7 +1911,7 @@ public class ShellViewModel : ObservableObject
 
 	private bool CanSignIn()
 	{
-		return !IsBusy;
+		return !IsBusy && !QaGates.OfflineCheckRequested();
 	}
 
 	[RelayCommand(CanExecute = "CanCancelSignIn")]
@@ -1943,6 +1928,7 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanSignOut")]
 	private async Task SignOutAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;
@@ -1968,7 +1954,7 @@ public class ShellViewModel : ObservableObject
 
 	private bool CanSignOut()
 	{
-		return !IsBusy && (SignedIn
+		return !IsBusy && !QaGates.OfflineCheckRequested() && (SignedIn
 			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "session.bin"))
 			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "msal.bin"))
 			|| AccountStatus == AuthMessages.StorageUnavailable);
@@ -1976,6 +1962,7 @@ public class ShellViewModel : ObservableObject
 
 	private async Task RunSignInAsync(MicrosoftPrompt prompt)
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;

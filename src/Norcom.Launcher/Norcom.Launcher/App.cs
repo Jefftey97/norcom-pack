@@ -36,43 +36,10 @@ public class App : Application
 				Report(ex3, "unhandled");
 			}
 		};
-		try
-		{
-			StartupHeal.ClearStale(NorcomPaths.LauncherDir, NorcomPaths.GameDir);
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("Startup heal: " + ex.Message);
-		}
 		if (!_instance.Acquire())
 		{
 			((Application)this).Shutdown(0);
 			return;
-		}
-		if (LauncherInstall.ShouldPromoteAlt(Environment.ProcessPath, FriendInstaller.InstalledExePath))
-		{
-			try
-			{
-				LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
-				_instance.Dispose();
-				((Application)this).Shutdown(0);
-				return;
-			}
-			catch (Exception promoteEx)
-			{
-				LauncherLog.Write("alt promote " + promoteEx.GetType().Name);
-			}
-		}
-		else
-		{
-			try
-			{
-				LauncherInstall.TrySyncAlt(FriendInstaller.InstalledExePath);
-			}
-			catch (Exception syncEx)
-			{
-				LauncherLog.Write("alt sync " + syncEx.GetType().Name);
-			}
 		}
 		SplashWindow splash = new SplashWindow();
 		((Window)splash).Show();
@@ -80,25 +47,31 @@ public class App : Application
 		{
 		}, (DispatcherPriority)7);
 		ShellViewModel vm = new ShellViewModel();
-		bool restart = false;
-		try
-		{
-			restart = await vm.ApplyUpdateIfNeededAsync(splash.Report, CancellationToken.None);
-		}
-		catch (Exception ex2)
-		{
-			LauncherLog.Write("Startup update: " + ex2.Message);
-		}
-		if (restart)
-		{
-			((Window)splash).Close();
-			_instance.Dispose();
-			((Application)this).Shutdown(0);
-			return;
-		}
 		ShellWindow shellWindow = new ShellWindow();
+		if (QaGates.OfflineCheckRequested()) shellWindow.Title = "NORCOM Launcher — offline verification";
 		((FrameworkElement)shellWindow).DataContext = vm;
 		ShellWindow shellWindow2 = (ShellWindow)(object)(((Application)this).MainWindow = (Window)(object)shellWindow);
+		shellWindow2.IsEnabled = false;
+		bool readyHandled = false;
+		shellWindow2.ContentRendered += async (_, _) =>
+		{
+			if (readyHandled) return;
+			readyHandled = true;
+			try
+			{
+				await BridgeRuntime.MarkShellReadyAsync();
+				shellWindow2.IsEnabled = true;
+				if (!string.IsNullOrWhiteSpace(BridgeRuntime.RecoveryMessage))
+					vm.StatusLine = BridgeRuntime.RecoveryMessage;
+				else if (await vm.ApplyUpdateIfNeededAsync((_, _) => { }, CancellationToken.None))
+					Shutdown(0);
+			}
+			catch (Exception)
+			{
+				MessageBox.Show("The launcher could not confirm its startup. Reopen NORCOM to recover the previous version.", "NORCOM");
+				Shutdown(1);
+			}
+		};
 		((Window)shellWindow2).Show();
 		((Window)splash).Close();
 		((Window)shellWindow2).Activate();
@@ -118,6 +91,12 @@ public class App : Application
 
 	private static void Report(Exception ex, string source)
 	{
+		if (QaGates.OfflineCheckRequested())
+		{
+			LauncherLog.Write(source + ": " + ex.GetType().Name);
+			MessageBox.Show("Offline verification error: " + Redactor.Clean(ex.Message), "NORCOM Launcher");
+			return;
+		}
 		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
 		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
 		try
@@ -170,8 +149,17 @@ public class App : Application
 	[STAThread]
 	[DebuggerNonUserCode]
 	[GeneratedCode("PresentationBuildTasks", "8.0.33.0")]
-	public static void Main()
+	public static void Main(string[] args)
 	{
+		try
+		{
+			if (!BridgeRuntime.EnterAsync(args).GetAwaiter().GetResult()) return;
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show("NORCOM could not open safely. Your recovery files were kept.\n\n" + Redactor.Clean(ex.Message), "NORCOM Launcher");
+			return;
+		}
 		App app = new App();
 		app.InitializeComponent();
 		((Application)app).Run();

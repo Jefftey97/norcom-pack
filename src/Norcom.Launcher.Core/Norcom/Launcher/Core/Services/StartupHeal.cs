@@ -122,8 +122,23 @@ public static class StartupHeal
 		{
 			Directory.CreateDirectory(directoryName);
 		}
-		File.WriteAllText(lockPath, "pid=" + pid + "\nkind=game\nstarted=" + DateTimeOffset.UtcNow.ToString("o") + "\n");
+		long? ticks=null;
+        try{using var process=Process.GetProcessById(pid);ticks=process.StartTime.ToUniversalTime().Ticks;}catch{ }
+        File.WriteAllText(lockPath,"pid="+pid+"\nkind=game\nstarted="+DateTimeOffset.UtcNow.ToString("o")+"\n"+(ticks.HasValue?"processStartedUtcTicks="+ticks.Value+"\n":""));
 	}
+
+    public static long? ReadGameStartTicks(string path)
+    {
+        try
+        {
+            string value=null;
+            foreach(var row in File.ReadAllLines(path))
+                if(row.StartsWith("processStartedUtcTicks=",StringComparison.Ordinal))
+                {if(value!=null)return null;value=row.Substring("processStartedUtcTicks=".Length);}
+            return long.TryParse(value,out var ticks) && ticks>0?ticks:null;
+        }
+        catch{return null;}
+    }
 
 	public static bool GameLockAlive(string lockPath)
 	{
@@ -142,7 +157,9 @@ public static class StartupHeal
 					string text2 = text;
 					if (int.TryParse(text2.Substring(4, text2.Length - 4).Trim(), out var result))
 					{
-						return IsAlive(result);
+						var ticks=ReadGameStartTicks(lockPath);
+                            if(ticks.HasValue){using var process=Process.GetProcessById(result);return !process.HasExited && process.StartTime.ToUniversalTime().Ticks==ticks.Value;}
+                            return IsAlive(result);
 					}
 				}
 			}

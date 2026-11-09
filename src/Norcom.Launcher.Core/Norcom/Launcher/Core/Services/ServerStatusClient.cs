@@ -27,118 +27,46 @@ public static class ServerStatusClient
 		return memoryStream2.ToArray();
 	}
 
-	public static async Task<ServerStatus> PingAsync(string host, int port, int protocol, CancellationToken ct)
-	{
-		_ = 10;
-		try
-		{
-			TcpClient tcp = new TcpClient();
-			try
-			{
-				using (ct.Register(delegate
-				{
-					tcp.Dispose();
-				}))
-				{
-					Task connectTask = tcp.ConnectAsync(host, port);
-					if (await Task.WhenAny(connectTask, Task.Delay(2500, ct)).ConfigureAwait(continueOnCapturedContext: false) != connectTask || !tcp.Connected)
-					{
-						return new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), "Timed out reaching the server.");
-					}
-					await connectTask.ConfigureAwait(continueOnCapturedContext: false);
-					NetworkStream stream = tcp.GetStream();
-					ServerStatus result;
-					try
-					{
-						stream.ReadTimeout = 2500;
-						stream.WriteTimeout = 2500;
-						byte[] array = BuildHandshake(host, port, protocol);
-						await stream.WriteAsync(array, ct).ConfigureAwait(continueOnCapturedContext: false);
-						await stream.WriteAsync(new byte[2] { 1, 0 }, ct).ConfigureAwait(continueOnCapturedContext: false);
-						int length = await ReadVarIntAsync(stream, ct).ConfigureAwait(continueOnCapturedContext: false);
-						byte[] buf = new byte[length];
-						int read;
-						int num;
-						for (read = 0; read < length; read += num)
-						{
-							num = await stream.ReadAsync(buf.AsMemory(read, length - read), ct).ConfigureAwait(continueOnCapturedContext: false);
-							if (num <= 0)
-							{
-								break;
-							}
-						}
-						using MemoryStream payload = new MemoryStream(buf, 0, read);
-						await ReadVarIntAsync(payload, ct).ConfigureAwait(continueOnCapturedContext: false);
-						int num2 = await ReadVarIntAsync(payload, ct).ConfigureAwait(continueOnCapturedContext: false);
-						byte[] array2 = new byte[num2];
-						int count = payload.Read(array2, 0, num2);
-						string json = Encoding.UTF8.GetString(array2, 0, count);
-						Stopwatch sw = Stopwatch.StartNew();
-						await stream.WriteAsync(new byte[10] { 9, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, ct).ConfigureAwait(continueOnCapturedContext: false);
-						try
-						{
-							await ReadVarIntAsync(stream, ct).ConfigureAwait(continueOnCapturedContext: false);
-						}
-						catch
-						{
-						}
-						sw.Stop();
-						using JsonDocument jsonDocument = JsonDocument.Parse(json);
-						JsonElement rootElement = jsonDocument.RootElement;
-						JsonElement value;
-						JsonElement jsonElement = (rootElement.TryGetProperty("players", out value) ? value : default(JsonElement));
-						JsonElement value2;
-						int players = ((jsonElement.ValueKind == JsonValueKind.Object && jsonElement.TryGetProperty("online", out value2)) ? value2.GetInt32() : 0);
-						JsonElement value3;
-						int max = ((jsonElement.ValueKind == JsonValueKind.Object && jsonElement.TryGetProperty("max", out value3)) ? value3.GetInt32() : 0);
-						List<string> list = new List<string>();
-						if (jsonElement.ValueKind == JsonValueKind.Object && jsonElement.TryGetProperty("sample", out var value4) && value4.ValueKind == JsonValueKind.Array)
-						{
-							foreach (JsonElement item in value4.EnumerateArray())
-							{
-								if (item.TryGetProperty("name", out var value5))
-								{
-									string @string = value5.GetString();
-									if (@string != null)
-									{
-										list.Add(@string);
-									}
-								}
-							}
-						}
-						string motd = "";
-						if (rootElement.TryGetProperty("description", out var value6))
-						{
-							motd = Strip(Flatten(value6));
-						}
-						result = new ServerStatus(Online: true, players, max, motd, (int)sw.ElapsedMilliseconds, list, "");
-					}
-					finally
-					{
-						if (stream != null)
-						{
-							await stream.DisposeAsync();
-						}
-					}
-					return result;
-				}
-			}
-			finally
-			{
-				if (tcp != null)
-				{
-					((IDisposable)tcp).Dispose();
-				}
-			}
-			IL_09aa:
-			ServerStatus result2;
-			return result2;
-		}
-		catch (Exception ex)
-		{
-			return new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), ex.Message);
-		}
-	}
+    public static async Task<ServerStatus> PingAsync(string host,int port,int protocol,CancellationToken ct)
+    {
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);deadline.CancelAfter(TimeSpan.FromMilliseconds(2500));
+        var token=deadline.Token;
+        try
+        {
+            using var tcp=new TcpClient();await tcp.ConnectAsync(host,port,token).ConfigureAwait(false);
+            using var stream=tcp.GetStream();var watch=Stopwatch.StartNew();
+            await stream.WriteAsync(BuildHandshake(host,port,protocol),token).ConfigureAwait(false);
+            await stream.WriteAsync(new byte[]{1,0},token).ConfigureAwait(false);
+            var length=await ReadVarIntAsync(stream,token).ConfigureAwait(false);
+            if(length<2 || length>1048576)throw new InvalidDataException("Status frame size is invalid.");
+            var bytes=new byte[length];await stream.ReadExactlyAsync(bytes,token).ConfigureAwait(false);
+            using var packet=new MemoryStream(bytes,false);
+            if(await ReadVarIntAsync(packet,token).ConfigureAwait(false)!=0)throw new InvalidDataException("Unexpected status response.");
+            var textLength=await ReadVarIntAsync(packet,token).ConfigureAwait(false);
+            if(textLength<2 || textLength>packet.Length-packet.Position)throw new InvalidDataException("Status text size is invalid.");
+            var jsonBytes=new byte[textLength];await packet.ReadExactlyAsync(jsonBytes,token).ConfigureAwait(false);
+            using var doc=JsonDocument.Parse(new UTF8Encoding(false,true).GetString(jsonBytes),new JsonDocumentOptions{MaxDepth=32});
+            var root=doc.RootElement;var players=0;var max=0;var names=new List<string>();
+            if(root.TryGetProperty("players",out var population) && population.ValueKind==JsonValueKind.Object)
+            {
+                if(population.TryGetProperty("online",out var online) && !online.TryGetInt32(out players))throw new InvalidDataException("Invalid player count.");
+                if(population.TryGetProperty("max",out var capacity) && !capacity.TryGetInt32(out max))throw new InvalidDataException("Invalid capacity.");
+                if(players<0 || max<0)throw new InvalidDataException("Invalid player count.");
+                if(population.TryGetProperty("sample",out var sample) && sample.ValueKind==JsonValueKind.Array)
+                    foreach(var item in sample.EnumerateArray())
+                    {
+                        if(names.Count>=100)break;
+                        if(item.ValueKind==JsonValueKind.Object && item.TryGetProperty("name",out var name) && name.ValueKind==JsonValueKind.String)names.Add(name.GetString()??"");
+                    }
+            }
+            var motd=root.TryGetProperty("description",out var description)?Strip(Flatten(description)):"";
+            return new ServerStatus(true,players,max,motd,(int)watch.ElapsedMilliseconds,names,"");
+        }
+        catch(Exception ex)
+        {
+            return new ServerStatus(false,0,0,"",-1,Array.Empty<string>(),ex is OperationCanceledException?"Status check timed out.":"The server status could not be read.");
+        }
+    }
 
 	private static string Flatten(JsonElement el)
 	{
@@ -199,26 +127,15 @@ public static class ServerStatusClient
 		s.Write(bytes);
 	}
 
-	private static async Task<int> ReadVarIntAsync(Stream s, CancellationToken ct)
-	{
-		int num = 0;
-		int shift = 0;
-		do
-		{
-			byte[] buffer = new byte[1];
-			if (await s.ReadAsync(buffer, ct).ConfigureAwait(continueOnCapturedContext: false) <= 0)
-			{
-				throw new EndOfStreamException();
-			}
-			byte b = buffer[0];
-			num |= (b & 0x7F) << shift;
-			if ((b & 0x80) == 0)
-			{
-				return num;
-			}
-			shift += 7;
-		}
-		while (shift <= 35);
-		throw new InvalidDataException("varint");
-	}
+    private static async Task<int> ReadVarIntAsync(Stream stream,CancellationToken ct)
+    {
+        var result=0;var buffer=new byte[1];
+        for(var shift=0;shift<35;shift+=7)
+        {
+            await stream.ReadExactlyAsync(buffer,ct).ConfigureAwait(false);var b=buffer[0];
+            if(shift==28 && (b&0xf0)!=0)throw new InvalidDataException("Invalid status varint.");
+            result|=(b&0x7f)<<shift;if((b&0x80)==0)return result;
+        }
+        throw new InvalidDataException("Invalid status varint.");
+    }
 }

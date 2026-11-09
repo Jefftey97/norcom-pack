@@ -36,15 +36,16 @@ public static class LaunchedGame
 		}
 	}
 
-	public static bool TryStop(int pid)
+	public static bool TryStop(int pid,long? expectedStartedUtcTicks=null)
 	{
-		if (pid <= 0 || pid == Environment.ProcessId)
+		if (pid <= 0 || pid == Environment.ProcessId || expectedStartedUtcTicks is not >0)
 		{
 			return false;
 		}
 		try
 		{
 			using Process process = Process.GetProcessById(pid);
+            if(process.StartTime.ToUniversalTime().Ticks!=expectedStartedUtcTicks)return false;
 			if (process.HasExited)
 			{
 				return true;

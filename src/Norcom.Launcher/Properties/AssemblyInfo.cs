@@ -5,8 +5,8 @@ using System.Runtime.Versioning;
 
 [assembly: AssemblyCompany("NorcomLauncher")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("2.0.45.0")]
-[assembly: AssemblyInformationalVersion("2.0.45")]
+[assembly: AssemblyFileVersion("3.0.0.0")]
+[assembly: AssemblyInformationalVersion("3.0.0")]
 [assembly: AssemblyProduct("NorcomLauncher")]
 [assembly: AssemblyTitle("NorcomLauncher")]
 [assembly: TargetPlatform("Windows7.0")]

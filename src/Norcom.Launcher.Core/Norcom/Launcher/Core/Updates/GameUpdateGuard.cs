@@ -23,7 +23,13 @@ public static class GameUpdateGuard
             try
             {
                 using var process=Process.GetProcessById(pid);
-                if(!process.HasExited)return true; // Includes uncertain/reused PID: never stop it.
+                if(!process.HasExited)
+                {
+                    var stamps=original.Split('\n').Select(x=>x.Trim()).Where(x=>x.StartsWith("processStartedUtcTicks=",StringComparison.Ordinal)).ToArray();
+                    if(stamps.Length!=1 || !long.TryParse(stamps[0].Substring("processStartedUtcTicks=".Length),out var ticks) || ticks<=0)return true;
+                    if(process.StartTime.ToUniversalTime().Ticks==ticks)return true;
+                    // A verified different start time proves PID reuse; never stop it.
+                }
             }
             catch(ArgumentException) { }
             if(File.ReadAllText(path)!=original)return true;

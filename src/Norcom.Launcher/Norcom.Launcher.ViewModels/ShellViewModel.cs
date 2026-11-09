@@ -231,6 +231,10 @@ public class ShellViewModel : ObservableObject
 	public string PlayAccountText => AccountStatus;
 
 	public string PlayLabel => LaunchedGame.PlayCaption(GameRunning);
+    public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
+    public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
+    private int _statusRefreshing;
+    public string ServerCheckedAt {get;private set;}="Not checked yet";
 
 	public string PinStatus => _pinStatus;
 
@@ -1238,7 +1242,7 @@ public class ShellViewModel : ObservableObject
 			SetPinStatus("unavailable", "Live pin checks are paused in this verification profile.");
 			return;
 		}
-		FlushCrashesAsync();
+		// Queued reports remain local until the user explicitly sends diagnostics.
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
@@ -1246,7 +1250,7 @@ public class ShellViewModel : ObservableObject
 
 	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock)
 	{
-		if (QaGates.OfflineCheckRequested()) return;
+		if (QaGates.OfflineCheckRequested() || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath)) return;
 		if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
 		if (force)
 		{
@@ -1443,7 +1447,7 @@ public class ShellViewModel : ObservableObject
 	public void RefreshLaunchedGame()
 	{
 		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
-		if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
+		if (pid is int id && id > 0 && StartupHeal.ReadGamePid(NorcomPaths.GameLockPath)==id && StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
 		{
 			_launchedGamePid = id;
 			if (!GameRunning)
@@ -1486,13 +1490,15 @@ public class ShellViewModel : ObservableObject
 		{
 			_launchedGamePid = null;
 			GameRunning = false;
-			StatusLine = "Minecraft was stopped.";
+			StatusLine = "No verified game process is available to stop.";
 			return;
 		}
-		StatusLine = "Stopping Minecraft.";
+        var expectedTicks=StartupHeal.ReadGameStartTicks(NorcomPaths.GameLockPath);
+        if(expectedTicks is not >0){StatusLine="The recorded game process cannot be verified. Close Minecraft from its own window.";return;}
+        StatusLine = "Stopping Minecraft.";
 		Task.Run(delegate
 		{
-			bool stopped = LaunchedGame.TryStop(id);
+			bool stopped = LaunchedGame.TryStop(id,expectedTicks);
 			OnUi(delegate
 			{
 				FinishStop(id, stopped);
@@ -1502,6 +1508,7 @@ public class ShellViewModel : ObservableObject
 
 	private void FinishStop(int pid, bool stopped)
 	{
+        if(!stopped){StatusLine="Stop could not be confirmed. Close Minecraft from its own window.";return;}
 		if (!StartupHeal.IsAlive(pid))
 		{
 			if (_launchedGamePid == pid)
@@ -1526,7 +1533,7 @@ public class ShellViewModel : ObservableObject
 			{
 				ProgressLabel = "Ready";
 			}
-			StatusLine = "Minecraft was stopped.";
+			StatusLine = "No verified game process is available to stop.";
 		}
 		else
 		{
@@ -1540,7 +1547,7 @@ public class ShellViewModel : ObservableObject
 		try
 		{
 			int? pid = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir).TryGameProcessId(null);
-			if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
+			if (pid is int id && id > 0 && StartupHeal.ReadGamePid(NorcomPaths.GameLockPath)==id && StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
 			{
 				RememberLaunchedGame(id);
 			}
@@ -1610,18 +1617,20 @@ public class ShellViewModel : ObservableObject
 		ApplyResolved(tier, auto: true, why);
 	}
 
-	private void ApplyResolved(GraphicsTier tier, bool auto, string why)
-	{
-		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
-		_graphics.Apply(NorcomPaths.GameDir, tier);
-		IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
-		_settings.GraphicsTier = tier;
-		_settings.GraphicsAuto = auto;
-		_settings.Save(NorcomPaths.SettingsPath);
-		SelectedTier = tier;
-		AutoOn = auto;
-		StatusLine = (auto ? "Auto chose " : "") + GraphicsPresets.TierLabel(tier) + " applied. " + why + " Shader cache cleared (" + readOnlyList.Count + "). Keybinds and servers were left alone.";
-	}
+    private void ApplyResolved(GraphicsTier tier,bool auto,string why)
+    {
+        if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
+        if(!_pinLock.Wait(0)){StatusLine="Wait for the pack check to finish before changing graphics.";return;}
+        try
+        {
+            if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
+            _graphics.Apply(NorcomPaths.GameDir,tier);var removed=_graphics.ClearShaderCache(NorcomPaths.GameDir);
+            _settings.GraphicsTier=tier;_settings.GraphicsAuto=auto;_settings.Save(NorcomPaths.SettingsPath);
+            SelectedTier=tier;AutoOn=auto;StatusLine=GraphicsPresets.TierLabel(tier)+" applied. Shader cache cleared ("+removed.Count+").";
+        }
+        catch(Exception ex){StatusLine="Graphics could not be changed. "+Redactor.Clean(ex.Message);}
+        finally{_pinLock.Release();}
+    }
 
 	[RelayCommand]
 	private async Task FixVisualsAsync()
@@ -1765,17 +1774,19 @@ public class ShellViewModel : ObservableObject
 		MessageBox.Show((await DeliverCrashAsync(reportPath).ConfigureAwait(continueOnCapturedContext: true)).UserText, "NORCOM", (MessageBoxButton)0, (MessageBoxImage)64);
 	}
 
-	private Task RefreshServerAsync()
-	{
-		if (QaGates.OfflineCheckRequested()) return Task.CompletedTask;
-		HomeStatus homeStatus = HomeStatusClient.Read();
-		IsOnline = homeStatus.ShowOnline;
-		ServerHeadline = homeStatus.Headline;
-		PlayersText = homeStatus.PlayersText;
-		Motd = homeStatus.Detail;
-		LatencyText = homeStatus.Source;
-		return Task.CompletedTask;
-	}
+    private async Task RefreshServerAsync()
+    {
+        if(QaGates.OfflineCheckRequested() || Interlocked.Exchange(ref _statusRefreshing,1)!=0)return;
+        try
+        {
+            var result=await Task.Run(HomeStatusClient.Read);
+            IsOnline=result.ShowOnline;ServerHeadline=result.Headline;PlayersText=result.PlayersText;
+            Motd=result.Detail;LatencyText=result.Source;
+            ServerCheckedAt="Last check "+DateTime.Now.ToString("HH:mm:ss");OnPropertyChanged(nameof(ServerCheckedAt));
+        }
+        catch(Exception ex){IsOnline=false;ServerHeadline="Status unknown";Motd="The server could not be reached. Try Refresh status.";LauncherLog.Write("status "+ex.GetType().Name);}
+        finally{Interlocked.Exchange(ref _statusRefreshing,0);}
+    }
 
 	private async Task LoadNewsAsync()
 	{
@@ -1855,7 +1866,7 @@ public class ShellViewModel : ObservableObject
 
 	public void DeliverQueuedReport(string reportPath)
 	{
-		DeliverCrashAsync(reportPath);
+        StatusLine="A diagnostic report was saved locally. You can choose to send diagnostics from Settings.";
 	}
 
 	private string? CurrentWebhook()
@@ -2111,6 +2122,8 @@ public class ShellViewModel : ObservableObject
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]
 	private void OnIsBusyChanged(bool value)
 	{
+        OnPropertyChanged(nameof(PlayAvailability));
+        OnPropertyChanged(nameof(CanManageClient));
 		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInBrowserCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInDeviceCommand).NotifyCanExecuteChanged();
@@ -2122,6 +2135,8 @@ public class ShellViewModel : ObservableObject
 	{
 		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		OnPropertyChanged("PlayLabel");
+        OnPropertyChanged(nameof(PlayAvailability));
+        OnPropertyChanged(nameof(CanManageClient));
 		AnimationsPaused = value && PauseWhilePlaying;
 		if (value)
 		{

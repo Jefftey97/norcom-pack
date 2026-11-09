@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <StartupObject>Norcom.Launcher.Program</StartupObject>
     <TargetFramework>net10.0-windows</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWPF>true</UseWPF>
@@ -15,9 +16,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>2.0.45</Version>
-    <FileVersion>2.0.45.0</FileVersion>
-    <InformationalVersion>2.0.45</InformationalVersion>
+    <Version>3.0.0</Version>
+    <FileVersion>3.0.0.0</FileVersion>
+    <InformationalVersion>3.0.0</InformationalVersion>
     <AssemblyVersion>2.0.1.0</AssemblyVersion>
     <Product>NORCOM Launcher</Product>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -36,12 +37,7 @@
     <PackageReference Include="Microsoft.Identity.Client" Version="4.92.0" />
     <PackageReference Include="System.Management" Version="10.0.14" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- LoadComponent('/NorcomLauncher;V2.0.1.0;component/app.xaml') reads app.baml from this stream.
-         Loose EmbeddedResource baml is what made 2.0.37 throw 'Cannot locate resource app.xaml'.
-         These bytes match the known-good GUI assembly. Do not replace this with a decompiled loose embed. -->
-    <EmbeddedResource Include="NorcomLauncher.g.resources" LogicalName="NorcomLauncher.g.resources" />
-  </ItemGroup>
+  <ItemGroup><Resource Include="assets/norcom.ico" /></ItemGroup>
   <Target Name="StripMvvmGenerators" BeforeTargets="CoreCompile">
     <ItemGroup>
       <Analyzer Remove="@(Analyzer)" Condition="$([System.String]::Copy('%(Filename)').Contains('CommunityToolkit'))" />

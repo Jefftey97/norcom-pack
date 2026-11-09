@@ -39,6 +39,7 @@ public class ShellViewModel : ObservableObject
 	};
 
 	private readonly IGameProcessLookup _gameLookup;
+    private readonly Func<HttpClient,string,TransferMeter,CancellationToken,Task> _ensureVisualAssets;
     private readonly HttpClient _metadataHttp = QaGates.OfflineCheckRequested()?QaGates.OfflineClient():new HttpClient{Timeout=TimeSpan.FromSeconds(8),MaxResponseContentBufferSize=262144};
 
 	private readonly HttpClient _authHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : MinecraftServicesAuth.CreateHttp();
@@ -1199,8 +1200,9 @@ public class ShellViewModel : ObservableObject
 
 	public ShellViewModel():this(null){}
 
-    internal ShellViewModel(IGameProcessLookup gameLookup)
+    internal ShellViewModel(IGameProcessLookup gameLookup, Func<HttpClient,string,TransferMeter,CancellationToken,Task> ensureVisualAssets=null)
 	{
+        _ensureVisualAssets=ensureVisualAssets??KnownVisualAssets.EnsureAsync;
         _gameLookup=gameLookup??new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData),NorcomPaths.GameDir);
 		_http.DefaultRequestHeaders.UserAgent.ParseAdd(NorcomVersion.UserAgent);
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
@@ -1671,17 +1673,19 @@ public class ShellViewModel : ObservableObject
 				_settings.Save(NorcomPaths.SettingsPath);
 			}
 			string backup = _graphics.BackupAndReset(NorcomPaths.GameDir, tier);
-			await KnownVisualAssets.EnsureAsync(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+			await _ensureVisualAssets(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
 			SelectedTier = tier;
 			ProgressFraction = 1.0;
 			ProgressLabel = "Visuals repaired";
+			ProgressDetail = "";
 			StatusLine = "Reset to " + GraphicsPresets.TierLabel(tier) + ". Cache entries removed: " + readOnlyList.Count + ". Backup: " + backup;
 		}
 		catch (Exception ex)
 		{
 			StatusLine = "Fix Visuals stopped. " + Redactor.Clean(ex.Message);
 			ProgressLabel = "Fix Visuals didn't finish";
+			ProgressDetail = "";
 		}
 		finally
 		{
@@ -2055,7 +2059,7 @@ public class ShellViewModel : ObservableObject
 		_settings.Save(NorcomPaths.SettingsPath);
 	}
 
-	private void QueueProgress(TransferSnapshot shot)
+	private void QueueProgress(TransferSnapshot shot, CancellationTokenSource pump)
 	{
 		Application current = Application.Current;
 		if (current == null)
@@ -2064,6 +2068,7 @@ public class ShellViewModel : ObservableObject
 		}
 		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)delegate
 		{
+			if (!ReferenceEquals(_pump,pump) || pump.IsCancellationRequested) return;
 			ApplyProgress(shot);
 		}, Array.Empty<object>());
 	}
@@ -2095,6 +2100,7 @@ public class ShellViewModel : ObservableObject
 	private CancellationTokenSource StartPump(TransferMeter meter)
 	{
 		_pump?.Cancel();
+		_progressEpoch = 0;
 		CancellationTokenSource cts = new CancellationTokenSource();
 		_pump = cts;
 		Task.Run(async delegate
@@ -2103,7 +2109,7 @@ public class ShellViewModel : ObservableObject
 			{
 				while (!cts.IsCancellationRequested)
 				{
-					QueueProgress(meter.Snapshot());
+					QueueProgress(meter.Snapshot(),cts);
 					await Task.Delay(100, cts.Token).ConfigureAwait(continueOnCapturedContext: false);
 				}
 			}

@@ -68,8 +68,52 @@ public class DesktopContractTests
             var scaled=new SettingsView{DataContext=vm,LayoutTransform=new System.Windows.Media.ScaleTransform(2,2)};
             scaled.Measure(new Size(1180,800));scaled.Arrange(new Rect(0,0,1180,800));Pump();
             Assert.InRange(scaled.ActualWidth,100,600);
+            VerifyProgressCompletion();
             window.Close();app.Shutdown();
         });
+    }
+    private static void VerifyProgressCompletion()
+    {
+        const System.Reflection.BindingFlags flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        var type=typeof(ShellViewModel);
+        var queue=type.GetMethod("QueueProgress",flags)!;
+        var start=type.GetMethod("StartPump",flags)!;
+        var pump=type.GetField("_pump",flags)!;
+        var epoch=type.GetField("_progressEpoch",flags)!;
+        // Keep the real compiled command and graphics-reset path; replace only asset I/O.
+        var vm=new ShellViewModel(new ControlledGameLookup(),(_,_,meter,_)=>
+        {
+            meter.SetPhase("Checking Alacrity.zip",0.99,0.01);
+            return System.Threading.Tasks.Task.CompletedTask;
+        });
+        Environment.SetEnvironmentVariable("NORCOM_QA_OFFLINE","0");
+        try
+        {
+            vm.ProgressDetail="Checking Alacrity.zip";
+            var repair=vm.FixVisualsCommand.ExecuteAsync(null);
+            Assert.True(repair.IsCompleted,"Injected repair must be synchronous and offline");
+            repair.GetAwaiter().GetResult();Pump();
+            Assert.Equal("Visuals repaired",vm.ProgressLabel);Assert.Equal("",vm.ProgressDetail);Assert.False(vm.IsBusy);
+            var cancelled=new CancellationTokenSource();pump.SetValue(vm,cancelled);
+            queue.Invoke(vm,new object[]{new Norcom.Launcher.Core.Services.TransferSnapshot("Checking Alacrity.zip",0.99,0,null,0,null,10),cancelled});
+            cancelled.Cancel();vm.ProgressLabel="Visuals repaired";vm.ProgressDetail="";Pump();
+            Assert.Equal("Visuals repaired",vm.ProgressLabel);Assert.Equal("",vm.ProgressDetail);
+            // A queued callback from a replaced but uncancelled pump is also stale.
+            var previous=new CancellationTokenSource();pump.SetValue(vm,previous);
+            queue.Invoke(vm,new object[]{new Norcom.Launcher.Core.Services.TransferSnapshot("Old operation",0.99,0,null,0,null,10),previous});
+            var replacement=new CancellationTokenSource();pump.SetValue(vm,replacement);Pump();
+            Assert.Equal("Visuals repaired",vm.ProgressLabel);previous.Cancel();replacement.Cancel();
+            epoch.SetValue(vm,10L);
+            var meter=new Norcom.Launcher.Core.Services.TransferMeter();meter.SetPhase("New operation",0.1,0.1);
+            var fresh=(CancellationTokenSource)start.Invoke(vm,new object[]{meter})!;
+            queue.Invoke(vm,new object[]{meter.Snapshot(),fresh});Pump();fresh.Cancel();
+            Assert.Equal("New operation",vm.ProgressLabel);
+            var failed=new ShellViewModel(new ControlledGameLookup(),(_,_,_,_)=>throw new IOException("Test failure"));
+            failed.ProgressDetail="Checking Alacrity.zip";
+            failed.FixVisualsCommand.ExecuteAsync(null).GetAwaiter().GetResult();Pump();
+            Assert.Equal("Fix Visuals didn't finish",failed.ProgressLabel);Assert.Equal("",failed.ProgressDetail);Assert.False(failed.IsBusy);
+        }
+        finally{Environment.SetEnvironmentVariable("NORCOM_QA_OFFLINE","1");((CancellationTokenSource?)pump.GetValue(vm))?.Cancel();}
     }
     private sealed class ControlledGameLookup : Norcom.Launcher.Core.Services.IGameProcessLookup
     {

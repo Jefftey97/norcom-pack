@@ -16,7 +16,8 @@ public class DesktopContractTests
         OnSta(()=>
         {
             var app=new Norcom.Launcher.App();app.InitializeComponent();
-            var window=new ShellWindow();var vm=new ShellViewModel();window.DataContext=vm;
+            var lookup=new ControlledGameLookup();
+            var window=new ShellWindow();var vm=new ShellViewModel(lookup);window.DataContext=vm;
             window.Measure(new Size(1180,760));window.Arrange(new Rect(0,0,1180,760));Pump();
             var home=Assert.IsType<HomeView>(window.FindName("HomePanel"));
             var play=Assert.IsType<Button>(home.FindName("PlayAction"));
@@ -36,6 +37,13 @@ public class DesktopContractTests
             Assert.Empty(Directory.GetFiles(Norcom.Launcher.Core.NorcomPaths.GameDir,"*",SearchOption.AllDirectories));
             vm.ApplyTierCommand.Execute(Norcom.Launcher.Core.Models.GraphicsTier.Low);
             Assert.Empty(Directory.GetFiles(Norcom.Launcher.Core.NorcomPaths.GameDir,"*",SearchOption.AllDirectories));
+            using(var discovered=System.Diagnostics.Process.GetCurrentProcess())
+            {
+                lookup.Pid=discovered.Id;vm.IsBusy=true;vm.RefreshLaunchedGame();
+                Assert.True(vm.GameRunning);Assert.Equal(discovered.Id,Norcom.Launcher.Core.Services.StartupHeal.ReadGamePid(Norcom.Launcher.Core.NorcomPaths.GameLockPath));
+                Assert.Contains("processStartedUtcTicks=",File.ReadAllText(Norcom.Launcher.Core.NorcomPaths.GameLockPath));
+                File.Delete(Norcom.Launcher.Core.NorcomPaths.GameLockPath);lookup.Pid=null;vm.IsBusy=false;vm.GameRunning=false;
+            }
             using(var current=System.Diagnostics.Process.GetCurrentProcess())
             {
                 var gameLock=Norcom.Launcher.Core.NorcomPaths.GameLockPath;
@@ -56,6 +64,11 @@ public class DesktopContractTests
             Assert.InRange(scaled.ActualWidth,100,600);
             window.Close();app.Shutdown();
         });
+    }
+    private sealed class ControlledGameLookup : Norcom.Launcher.Core.Services.IGameProcessLookup
+    {
+        public int? Pid {get;set;}
+        public int? TryGameProcessId(int? parent)=>Pid;
     }
     private static void Pump()=>Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ContextIdle);
     private static void OnSta(Action action)

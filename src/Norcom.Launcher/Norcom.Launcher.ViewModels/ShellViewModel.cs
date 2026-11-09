@@ -38,6 +38,9 @@ public class ShellViewModel : ObservableObject
 		Timeout = TimeSpan.FromSeconds(12.0)
 	};
 
+	private readonly IGameProcessLookup _gameLookup;
+    private readonly HttpClient _metadataHttp = QaGates.OfflineCheckRequested()?QaGates.OfflineClient():new HttpClient{Timeout=TimeSpan.FromSeconds(8),MaxResponseContentBufferSize=262144};
+
 	private readonly HttpClient _authHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : MinecraftServicesAuth.CreateHttp();
 
 	private readonly GraphicsService _graphics = new GraphicsService();
@@ -1193,8 +1196,11 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 
-	public ShellViewModel()
+	public ShellViewModel():this(null){}
+
+    internal ShellViewModel(IGameProcessLookup gameLookup)
 	{
+        _gameLookup=gameLookup??new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData),NorcomPaths.GameDir);
 		_http.DefaultRequestHeaders.UserAgent.ParseAdd(NorcomVersion.UserAgent);
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
 		Directory.CreateDirectory(NorcomPaths.GameDir);
@@ -1546,8 +1552,8 @@ public class ShellViewModel : ObservableObject
 	{
 		try
 		{
-			int? pid = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir).TryGameProcessId(null);
-			if (pid is int id && id > 0 && StartupHeal.ReadGamePid(NorcomPaths.GameLockPath)==id && StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
+			int? pid = _gameLookup.TryGameProcessId(null);
+			if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
 			{
 				RememberLaunchedGame(id);
 			}
@@ -1905,7 +1911,7 @@ public class ShellViewModel : ObservableObject
 	{
 		try
 		{
-			return await _http.GetStringAsync(url).ConfigureAwait(continueOnCapturedContext: true);
+			return await _metadataHttp.GetStringAsync(url).ConfigureAwait(continueOnCapturedContext: true);
 		}
 		catch (Exception ex)
 		{

@@ -12,3 +12,5 @@ using System.Runtime.Versioning;
 [assembly: TargetPlatform("Windows7.0")]
 [assembly: SupportedOSPlatform("Windows7.0")]
 [assembly: AssemblyVersion("2.0.1.0")]
+
+[assembly: InternalsVisibleTo("Norcom.Launcher.UiTests")]

@@ -32,9 +32,6 @@ public partial class ShellWindow : Window
         _vm=vm;vm.PropertyChanged+=OnViewModelChanged;
         try
         {
-            ShortcutRepair.EnsureKnownShortcuts(BridgeRuntime.BootstrapPath);
-            await vm.InitializeAsync();
-            if(_closed)return;
             _gameWatch=new DispatcherTimer{Interval=TimeSpan.FromSeconds(1)};
             _gameWatch.Tick+=(_,_)=>vm.RefreshLaunchedGame();_gameWatch.Start();
             _poll=new DispatcherTimer{Interval=TimeSpan.FromMinutes(1)};
@@ -45,6 +42,9 @@ public partial class ShellWindow : Window
                 await vm.PollLivePinAsync(false);
             };
             _poll.Start();
+            try{ShortcutRepair.EnsureKnownShortcuts(BridgeRuntime.BootstrapPath);}catch(Exception ex){LauncherLog.Write("shortcut repair "+ex.GetType().Name);}
+            await vm.InitializeAsync();
+            if(_closed)return;
             await vm.PollLivePinAsync(false);
         }
         catch(Exception ex){LauncherLog.Write("desktop initialization "+ex.GetType().Name);vm.StatusLine="Some checks are unavailable. You can retry from Home.";}

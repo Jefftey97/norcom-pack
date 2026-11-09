@@ -71,7 +71,7 @@ public static class NorcomPaths
 
 	public static string MsaClientIdPath => Path.Combine(AuthDir, "client-id.txt");
 
-	public static string CrashOutbox => Path.Combine(LauncherDir, "outbox");
+	public static string CrashOutbox => Path.Combine(LauncherDir, "diagnostics-v3", "outbox");
 
 	public static string FabricVersionId => "fabric-loader-0.20.1-26.3";
 

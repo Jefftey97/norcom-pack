@@ -37,3 +37,10 @@ an inherited hydration bug that may reset nondefault toggle preferences if it
 is used after rollback. Auth/world bytes and unknown settings are retained. This
 legacy limitation requires reviewed bootstrap servicing before broad rollout;
 no claim that an unchanged550 binary can be fixed by a3.x source change is made.
+
+Consent across fallback:3.0 stores reports inLauncher/diagnostics-v3/outbox,
+separate from the legacyLauncher/outbox scanned by550. New private reports are
+therefore not enumerated/sent by that fallback. Explicit manual delivery still
+works; failed delivery asks the user to retry, never promises automatic retry.
+Existing legacy-queue reports are untouched and may still be sent by550; there
+is no automatic migration between queues.

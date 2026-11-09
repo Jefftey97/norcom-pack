@@ -1779,7 +1779,9 @@ public class ShellViewModel : ObservableObject
 	private async Task SendDiagnostic()
 	{
 		string reportPath = CrashReportService.Queue("manual", "Manual diagnostic from Settings", null);
-		MessageBox.Show((await DeliverCrashAsync(reportPath).ConfigureAwait(continueOnCapturedContext: true)).UserText, "NORCOM", (MessageBoxButton)0, (MessageBoxImage)64);
+		var delivery=await DeliverCrashAsync(reportPath).ConfigureAwait(true);
+        var text=delivery.Kind==CrashReportService.DeliveryKind.SendFailed?"The report stayed on this PC. Choose Send diagnostics in Settings to retry.":delivery.UserText;
+        MessageBox.Show(text,"NORCOM",MessageBoxButton.OK,MessageBoxImage.Information);
 	}
 
     private async Task RefreshServerAsync()

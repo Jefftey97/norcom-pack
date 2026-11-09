@@ -1968,11 +1968,10 @@ public class ShellViewModel : ObservableObject
 
 	private bool CanSignOut()
 	{
-		if (SignedIn)
-		{
-			return !IsBusy;
-		}
-		return false;
+		return !IsBusy && (SignedIn
+			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "session.bin"))
+			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "msal.bin"))
+			|| AccountStatus == AuthMessages.StorageUnavailable);
 	}
 
 	private async Task RunSignInAsync(MicrosoftPrompt prompt)
@@ -2147,6 +2146,7 @@ public class ShellViewModel : ObservableObject
 	private void OnAccountStatusChanged(string value)
 	{
 		OnPropertyChanged("PlayAccountText");
+		((IRelayCommand)SignOutCommand).NotifyCanExecuteChanged();
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

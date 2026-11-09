@@ -16,5 +16,6 @@ public enum AuthFailure
 	XboxChild,
 	XboxRejected,
 	InteractionRequired,
-	Rejected
+	Rejected,
+	StorageUnavailable
 }

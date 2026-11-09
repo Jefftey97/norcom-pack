@@ -40,7 +40,12 @@ public sealed class NorcomSignIn
 				Message = clientIdDecision.Message
 			};
 		}
-		(MinecraftSession, DateTimeOffset)? tuple = Load();
+		(MinecraftSession, DateTimeOffset)? tuple;
+		try { tuple = Load(); }
+		catch (AuthStoreUnavailableException)
+		{
+			return new AuthSnapshot { SignedIn = false, Message = AuthMessages.StorageUnavailable };
+		}
 		if (!tuple.HasValue)
 		{
 			return new AuthSnapshot
@@ -75,6 +80,12 @@ public sealed class NorcomSignIn
 		{
 			return AuthResult.Fail(clientIdDecision.Failure, clientIdDecision.Message);
 		}
+		try
+		{
+			_ = Load();
+			_ = _store.Read("msal.bin");
+		}
+		catch (AuthStoreUnavailableException) { return AuthResult.Fail(AuthFailure.StorageUnavailable); }
 		ForgetCacheIfClientChanged(clientIdDecision.ClientId);
 		File.WriteAllText(Path.Combine(_authDirectory, "bound-client.txt"), clientIdDecision.ClientId);
 		MicrosoftAccountResult microsoftAccountResult;
@@ -90,7 +101,6 @@ public sealed class NorcomSignIn
 		{
 			return AuthResult.Fail(microsoftAccountResult.Failure);
 		}
-		_store.Delete("session.bin");
 		return await FinishExchangeAsync(microsoftAccountResult.AccessToken, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 	}
 
@@ -101,7 +111,13 @@ public sealed class NorcomSignIn
 		{
 			return AuthResult.Fail(clientIdDecision.Failure, clientIdDecision.Message);
 		}
-		(MinecraftSession, DateTimeOffset)? tuple = Load();
+		(MinecraftSession, DateTimeOffset)? tuple;
+		try
+		{
+			tuple = Load();
+			_ = _store.Read("msal.bin");
+		}
+		catch (AuthStoreUnavailableException) { return AuthResult.Fail(AuthFailure.StorageUnavailable); }
 		if (tuple.HasValue && tuple.Value.Item2 > _clock().AddMinutes(5.0))
 		{
 			return AuthResult.Ok(tuple.Value.Item1);
@@ -117,10 +133,6 @@ public sealed class NorcomSignIn
 		}
 		if (microsoftAccountResult.Failure != 0 || string.IsNullOrEmpty(microsoftAccountResult.AccessToken))
 		{
-			if (microsoftAccountResult.Failure == AuthFailure.InteractionRequired)
-			{
-				_store.Delete("session.bin");
-			}
 			if (microsoftAccountResult.Failure == AuthFailure.InteractionRequired || microsoftAccountResult.Failure == AuthFailure.Rejected || microsoftAccountResult.Failure == AuthFailure.None)
 			{
 				return await SignInAsync(MicrosoftPrompt.SystemBrowser, null, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
@@ -201,9 +213,13 @@ public sealed class NorcomSignIn
 	private (MinecraftSession Session, DateTimeOffset Expires)? Load()
 	{
 		byte[] array = _store.Read("session.bin");
-		if (array == null || !SessionCodec.TryRead(array, out MinecraftSession session, out DateTimeOffset expires))
+		if (array == null)
 		{
 			return null;
+		}
+		if (!SessionCodec.TryRead(array, out MinecraftSession session, out DateTimeOffset expires))
+		{
+			throw new AuthStoreUnavailableException(new InvalidDataException("Saved session format is unavailable"));
 		}
 		return (session, expires);
 	}

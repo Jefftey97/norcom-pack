@@ -2,6 +2,7 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class AuthMessages
 {
+	public const string StorageUnavailable = "NORCOM cannot read your saved sign-in. Your saved files were kept. Close NORCOM and try again, or use Sign out to reset them.";
 	public const string NotConfigured = "NORCOM Microsoft sign-in is not configured. Add the NORCOM app id before signing in. Play was not started.";
 
 	public const string InvalidClientId = "The NORCOM app id is not a valid public client id. Play was not started.";
@@ -53,6 +54,7 @@ public static class AuthMessages
 	{
 		return failure switch
 		{
+			AuthFailure.StorageUnavailable => StorageUnavailable,
 			AuthFailure.NotConfigured => "NORCOM Microsoft sign-in is not configured. Add the NORCOM app id before signing in. Play was not started.", 
 			AuthFailure.InvalidClientId => "The NORCOM app id is not a valid public client id. Play was not started.", 
 			AuthFailure.Cancelled => "Sign-in was cancelled. Play was not started.", 

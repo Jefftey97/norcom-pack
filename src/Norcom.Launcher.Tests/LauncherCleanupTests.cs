@@ -6,7 +6,7 @@ namespace Norcom.Launcher.Tests;
 public class LauncherCleanupTests
 {
 	[Fact]
-	public void SuccessfulUpdateRemovesSupersededLauncherCopiesOnly()
+	public void OrdinaryCleanupPreservesRecoveryWhileRemovingObsoletePayloads()
 	{
 		string root = Path.Combine(Path.GetTempPath(), "norcom-clean-" + Guid.NewGuid().ToString("n"));
 		string home = Path.Combine(root, "NORCOM");
@@ -42,12 +42,12 @@ public class LauncherCleanupTests
 		Directory.CreateDirectory(run42);
 		File.WriteAllText(Path.Combine(run42, "NorcomLauncher.exe"), "desktop-test");
 		IReadOnlyList<string> removed = LauncherCleanup.RemoveObsolete(live, home, game, temp);
-		Assert.Contains(removed, path => path.Contains("self-update-2.0.29", StringComparison.OrdinalIgnoreCase));
-		Assert.Contains(removed, path => path.Contains("install-20260101", StringComparison.OrdinalIgnoreCase));
+		Assert.DoesNotContain(removed, path => path.Contains("self-update-2.0.29", StringComparison.OrdinalIgnoreCase));
+		Assert.DoesNotContain(removed, path => path.Contains("install-20260101", StringComparison.OrdinalIgnoreCase));
 		Assert.Contains(removed, path => path.EndsWith("NORCOM-Launcher.ps1", StringComparison.OrdinalIgnoreCase));
 		Assert.Contains(removed, path => path.Contains("norcom-launcher-upd-abc", StringComparison.OrdinalIgnoreCase));
-		Assert.False(Directory.Exists(previous));
-		Assert.False(Directory.Exists(retired));
+		Assert.Equal("old-exe", File.ReadAllText(Path.Combine(previous, "NorcomLauncher.previous.exe")));
+		Assert.Equal("legacy", File.ReadAllText(Path.Combine(retired, "files", "NORCOM Launcher.exe")));
 		Assert.False(Directory.Exists(Path.Combine(temp, "norcom-launcher-upd-abc")));
 		Assert.False(File.Exists(Path.Combine(temp, "norcom-apply-abc.cmd")));
 		Assert.False(File.Exists(Path.Combine(launcher, "NORCOM-Launcher.ps1")));

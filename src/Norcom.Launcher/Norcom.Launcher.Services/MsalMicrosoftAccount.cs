@@ -53,6 +53,10 @@ public sealed class MsalMicrosoftAccount : IMicrosoftAccount
 			}
 			return MicrosoftAccountResult.Ok(val2.AccessToken);
 		}
+		catch (AuthStoreUnavailableException)
+		{
+			return MicrosoftAccountResult.Fail(AuthFailure.StorageUnavailable);
+		}
 		catch (MsalUiRequiredException)
 		{
 			return MicrosoftAccountResult.Fail(AuthFailure.InteractionRequired);
@@ -109,20 +113,14 @@ public sealed class MsalMicrosoftAccount : IMicrosoftAccount
 			obj2 = (object)val;
 		}
 		IPublicClientApplication obj3 = ((BaseAbstractApplicationBuilder<PublicClientApplicationBuilder>)(object)obj).WithLogging((LogCallback)obj2, (LogLevel?)(LogLevel)0, (bool?)false, (bool?)false).Build();
+		ProtectedTokenCache cache = new ProtectedTokenCache(_store);
 		((IClientApplicationBase)obj3).UserTokenCache.SetBeforeAccess((TokenCacheCallback)delegate(TokenCacheNotificationArgs args)
 		{
-			byte[] array = _store.Read("msal.bin");
-			if (array != null && array.Length > 0)
-			{
-				args.TokenCache.DeserializeMsalV3(array, true);
-			}
+			cache.BeforeAccess(bytes => args.TokenCache.DeserializeMsalV3(bytes, true));
 		});
 		((IClientApplicationBase)obj3).UserTokenCache.SetAfterAccess((TokenCacheCallback)delegate(TokenCacheNotificationArgs args)
 		{
-			if (args.HasStateChanged)
-			{
-				_store.Write("msal.bin", args.TokenCache.SerializeMsalV3());
-			}
+			cache.AfterAccess(args.HasStateChanged, () => args.TokenCache.SerializeMsalV3());
 		});
 		return obj3;
 	}

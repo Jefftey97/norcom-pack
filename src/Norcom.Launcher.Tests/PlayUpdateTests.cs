@@ -93,7 +93,7 @@ public class PlayUpdateTests
 	}
 
 	[Fact]
-	public void BeforePlayStillCleansObsoleteLauncherCopies()
+	public void BeforePlayRetainsRecoveryAndProtectsCurrentAndAdminCopies()
 	{
 		string root = Path.Combine(Path.GetTempPath(), "norcom-playclean-" + Guid.NewGuid().ToString("n"));
 		string home = Path.Combine(root, "NORCOM");
@@ -107,7 +107,8 @@ public class PlayUpdateTests
 		Directory.CreateDirectory(admin);
 		File.WriteAllText(Path.Combine(admin, "NorcomLauncher.exe"), "admin");
 		LauncherCleanup.RemoveObsolete(live, home, Path.Combine(root, ".norcom"), Path.Combine(root, "temp"));
-		Assert.False(Directory.Exists(stale));
+		Assert.True(Directory.Exists(stale));
+		Assert.Equal("old", File.ReadAllText(Path.Combine(stale, "NorcomLauncher.previous.exe")));
 		Assert.Equal("live", File.ReadAllText(live));
 		Assert.Equal("admin", File.ReadAllText(Path.Combine(admin, "NorcomLauncher.exe")));
 	}

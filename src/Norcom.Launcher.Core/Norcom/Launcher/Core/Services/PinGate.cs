@@ -29,10 +29,6 @@ public static class PinGate
 
 	public const string CompatPinUrl = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/server-compat.json";
 
-	public const string HostFullPinPath = "G:\\MinecraftServer\\admin\\norcom-mod-pin.json";
-
-	public const string HostSlimPinPath = "G:\\MinecraftServer\\.norcom\\server-pin.json";
-
 	public const string AppliedPinFile = "norcom-applied-pin.txt";
 
 	public const string PrimaryAppliedPinFile = "applied-pin.json";
@@ -145,9 +141,12 @@ public static class PinGate
 		AcceptedPinJson = null;
 		PublishedPin = null;
 		DeferAppliedWrite = false;
-		string? full = ReadIfExists(Environment.GetEnvironmentVariable("NORCOM_PIN_PATH")) ?? ReadIfExists(HostFullPinPath);
-		string? slim = ReadIfExists(HostSlimPinPath);
-		string source = full != null ? HostFullPinPath : "";
+		// Friends use the published channel. An unrelated owner installation on
+		// the same PC must not silently replace it with a stale private pin.
+		string? overridePath = Environment.GetEnvironmentVariable("NORCOM_PIN_PATH");
+		string? full = ReadIfExists(overridePath);
+		string? slim = null;
+		string source = full != null ? overridePath! : "";
 		if (full == null && slim == null)
 		{
 			foreach (string pinUrl in CandidateUrls(packUrl, manifestUrl))

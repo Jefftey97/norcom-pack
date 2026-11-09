@@ -46,6 +46,7 @@ public class ShellViewModel : ObservableObject
 	private readonly GraphicsService _graphics = new GraphicsService();
 
 	private readonly LauncherSettings _settings;
+    private bool _loadingSettings=true;
 
 	private readonly NorcomSignIn _signIn;
 
@@ -1222,6 +1223,7 @@ public class ShellViewModel : ObservableObject
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
 		PlayAccount.Install(this);
+        _loadingSettings=false;
 	}
 
 	public void AdvanceClock()
@@ -2043,6 +2045,7 @@ public class ShellViewModel : ObservableObject
 
 	private void SaveToggles()
 	{
+        if(_loadingSettings)return;
 		_settings.LauncherSounds = LauncherSounds;
 		_settings.CloseToTray = CloseToTray;
 		_settings.ReduceMotion = ReduceMotion;
@@ -2154,7 +2157,7 @@ public class ShellViewModel : ObservableObject
 	private void OnDiscordInviteChanged(string value)
 	{
 		_settings.DiscordInviteUrl = value?.Trim() ?? "";
-		_settings.Save(NorcomPaths.SettingsPath);
+        if(!_loadingSettings)_settings.Save(NorcomPaths.SettingsPath);
 		ApplyDiscord(null);
 	}
 
@@ -2188,6 +2191,7 @@ public class ShellViewModel : ObservableObject
 	private void OnMemoryMbChanged(double value)
 	{
 		OnPropertyChanged("MemoryLabel");
+        if(_loadingSettings)return;
 		_settings.RamMb = (int)value;
 		_settings.Save(NorcomPaths.SettingsPath);
 	}

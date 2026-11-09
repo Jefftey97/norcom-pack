@@ -30,3 +30,10 @@ sends diagnostics. Real login/gameplay, another physical Win10/Win11 PC, actual
 OS200%DPI and long soak are not certified by the local/offline checks; the
 automated2x layout test is identified as simulated. Existing inherited compiler
 warnings and the bridge's documented maintenance/trust limitations remain.
+
+Preference hydration in3.0 does not write settings; byte-preservation and nondefault
+sound/motion/pause flags have a regression test. The unchanged550 fallback UI has
+an inherited hydration bug that may reset nondefault toggle preferences if it
+is used after rollback. Auth/world bytes and unknown settings are retained. This
+legacy limitation requires reviewed bootstrap servicing before broad rollout;
+no claim that an unchanged550 binary can be fixed by a3.x source change is made.

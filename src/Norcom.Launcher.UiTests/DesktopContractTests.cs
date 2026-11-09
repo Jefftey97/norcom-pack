@@ -16,8 +16,14 @@ public class DesktopContractTests
         OnSta(()=>
         {
             var app=new Norcom.Launcher.App();app.InitializeComponent();
+            var settingsPath=Norcom.Launcher.Core.NorcomPaths.SettingsPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+            File.WriteAllText(settingsPath,"""{"RamMb":5632,"LauncherSounds":true,"ReduceMotion":true,"AnimationsPausedWhilePlaying":false,"custom":{"keep":true}}""");
+            var originalSettings=File.ReadAllBytes(settingsPath);
             var lookup=new ControlledGameLookup();
             var window=new ShellWindow();var vm=new ShellViewModel(lookup);window.DataContext=vm;
+            Assert.Equal(originalSettings,File.ReadAllBytes(settingsPath));
+            Assert.True(vm.ReduceMotion);Assert.True(vm.LauncherSounds);Assert.False(vm.PauseWhilePlaying);
             window.Measure(new Size(1180,760));window.Arrange(new Rect(0,0,1180,760));Pump();
             var home=Assert.IsType<HomeView>(window.FindName("HomePanel"));
             var play=Assert.IsType<Button>(home.FindName("PlayAction"));

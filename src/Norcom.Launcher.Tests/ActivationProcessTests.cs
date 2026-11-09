@@ -160,5 +160,19 @@ public sealed class ActivationProcessTests:IDisposable
         return (store, identity, fixture!);
     }
     private static string Hash(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-    public void Dispose(){key.Dispose();Directory.Delete(Path.GetDirectoryName(Path.GetDirectoryName(root)!)!,true);}
+    public void Dispose()
+    {
+        key.Dispose();
+        var directory=Path.GetDirectoryName(Path.GetDirectoryName(root)!)!;
+        var until=Stopwatch.StartNew();
+        // Assertions above require the exact child to exit. Windows may retain
+        // its image mapping briefly afterward; retry cleanup without hiding failure.
+        while(true)
+        {
+            try{Directory.Delete(directory,true);return;}
+            catch(Exception ex) when((ex is IOException || ex is UnauthorizedAccessException) &&
+                ((ex.HResult & 0xffff) is 5 or 32) && until.Elapsed<TimeSpan.FromSeconds(5))
+            {Thread.Sleep(50);}
+        }
+    }
 }

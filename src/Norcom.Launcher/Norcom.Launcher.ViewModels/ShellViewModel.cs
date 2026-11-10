@@ -220,6 +220,8 @@ public class ShellViewModel : ObservableObject
 
 	public bool IsSettings => Page == LauncherPage.Settings;
 
+	public bool IsGraphics => Page == LauncherPage.Graphics;
+
 	public bool CanPlay
 	{
 		get
@@ -1390,6 +1392,18 @@ public class ShellViewModel : ObservableObject
 				StatusLine = "Stopped after the pack sync. Minecraft was not started.";
 				return;
 			}
+			try
+			{
+				string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+				if (!string.IsNullOrWhiteSpace(graphicsNote))
+				{
+					LauncherLog.Write(graphicsNote);
+				}
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("graphics profile " + ex.GetType().Name);
+			}
 			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb);
 			if (!prismPreparation.CanStart || prismPreparation.Executable == null)
 			{
@@ -2134,6 +2148,7 @@ public class ShellViewModel : ObservableObject
 	{
 		OnPropertyChanged("IsHome");
 		OnPropertyChanged("IsSettings");
+		OnPropertyChanged("IsGraphics");
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

@@ -9,7 +9,7 @@ Public friends Minecraft pack (Fabric, packwiz) and the NORCOM Launcher that upd
 - `launcher/manifest.json` — the feed older loaders already fetch. It points at the 2.0.45 bridge.
 - `launcher/channel-v1.json` — the signed friends channel used after the bridge. Do not edit its payload or signature in this repo.
 - `launcher/NorcomWpf-*.zip` — published packages, including rollback copies.
-- `src/Norcom.Launcher.Core` — update, pin, and SHA-256 logic. Targets net10.0 and keeps net8.0 as an extra target. Checked-in launcher projects are version 3.0.3. AssemblyVersion stays 2.0.1.0 on purpose for the 2.0.45 bridge. Newer builds are the zips under `launcher/`.
+- `src/Norcom.Launcher.Core` — update, pin, and SHA-256 logic. Targets net10.0 and keeps net8.0 as an extra target. Checked-in launcher projects are version 3.0.4. AssemblyVersion stays 2.0.1.0 on purpose for the 2.0.45 bridge. Newer builds are the zips under `launcher/`.
 - `src/Norcom.Launcher`, `src/Norcom.Installer`, `src/Norcom.Admin` — Windows WPF apps.
 - `src/Norcom.Launcher.Tests` and `src/Norcom.Admin/Norcom.Admin.Tests` — xUnit.
 - `tools/` — Windows smoke-swap scripts and marble-pack helpers.

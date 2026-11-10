@@ -47,7 +47,7 @@ public sealed class PackSyncService
 		{
 			throw new InvalidDataException("Pack index has no hash.");
 		}
-		await DownloadVerifiedAsync(url, indexPath, indexHash, indexFmt, "Pack index hash does not match pack.toml.", meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+		await DownloadVerifiedAsync(cacheDir, url, indexPath, indexHash, indexFmt, "Pack index hash does not match pack.toml.", meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		TomlLite.Doc index = TomlLite.Parse(await File.ReadAllTextAsync(indexPath, ct).ConfigureAwait(continueOnCapturedContext: false));
 		List<ManagedEntry> managed = new List<ManagedEntry>();
 		int total = Math.Max(1, index.Files.Count);
@@ -93,7 +93,7 @@ public sealed class PackSyncService
 					continue;
 				}
 				string url2 = root + "/" + rel;
-				await DownloadVerifiedAsync(url2, dest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+				await DownloadVerifiedAsync(gameDir, url2, dest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 				managed.Add(new ManagedEntry(destRel, preserve));
 			}
 			rel = null;
@@ -130,11 +130,6 @@ public sealed class PackSyncService
 		{
 			throw new InvalidDataException("Pack file has no hash: " + rel);
 		}
-		string tomlDir = Path.GetDirectoryName(tomlDest);
-		if (!string.IsNullOrEmpty(tomlDir))
-		{
-			Directory.CreateDirectory(tomlDir);
-		}
 		bool flag = true;
 		if (File.Exists(tomlDest))
 		{
@@ -142,7 +137,7 @@ public sealed class PackSyncService
 		}
 		if (flag)
 		{
-			await DownloadVerifiedAsync(root + "/" + rel, tomlDest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+			await DownloadVerifiedAsync(cacheDir, root + "/" + rel, tomlDest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		}
 		TomlLite.Doc doc = TomlLite.Parse(await File.ReadAllTextAsync(tomlDest, ct).ConfigureAwait(continueOnCapturedContext: false));
 		if ((doc.Keys.GetValueOrDefault("side") ?? "both").Equals("server", StringComparison.OrdinalIgnoreCase))
@@ -179,7 +174,7 @@ public sealed class PackSyncService
 			return new ManagedEntry(destRel, preserve);
 		}
 		meter.SetPhase("Downloading " + filename, meter.Snapshot().Fraction, 0.02);
-		await DownloadVerifiedAsync(url, dest, fileHash, fileFmt, "Hash mismatch for " + filename, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+		await DownloadVerifiedAsync(gameDir, url, dest, fileHash, fileFmt, "Hash mismatch for " + filename, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		return new ManagedEntry(destRel, preserve);
 	}
 
@@ -301,9 +296,9 @@ public sealed class PackSyncService
 			throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
 		}
 		string[] parts = text.Split('/');
-		foreach (string part in parts)
+			foreach (string part in parts)
 		{
-			if (part.Length == 0 || part == "." || part == ".." || part[part.Length - 1] == ' ' || part[part.Length - 1] == '.')
+			if (part.Length == 0 || part == "." || part == ".." || part[part.Length - 1] == ' ' || part[part.Length - 1] == '.' || IsReservedDeviceName(part))
 			{
 				throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
 			}
@@ -321,11 +316,14 @@ public sealed class PackSyncService
 		{
 			throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
 		}
+		// Existing symlinks and junctions are not visible to the string check above.
+		RejectReparseEscape(root, full, createMissingParents: false);
 		return full;
 	}
 
 	// Case-insensitive, and the directory prefix includes the separator so
-	// C:\game does not accept C:\game2. Both paths are fully resolved first.
+	// C:\game does not accept C:\game2. GetFullPath does not resolve reparse points;
+	// RejectReparseEscape does that before anything is written.
 	public static bool IsInsideDirectory(string directoryPath, string candidatePath)
 	{
 		string root = Path.GetFullPath(directoryPath);
@@ -334,7 +332,7 @@ public sealed class PackSyncService
 		return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 	}
 
-	private async Task DownloadVerifiedAsync(string url, string dest, string hash, string format, string mismatchMessage, TransferMeter meter, CancellationToken ct)
+	private async Task DownloadVerifiedAsync(string baseDir, string url, string dest, string hash, string format, string mismatchMessage, TransferMeter meter, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(hash))
 		{
@@ -344,16 +342,19 @@ public sealed class PackSyncService
 		bool placed = false;
 		try
 		{
-			await HttpDownload.DownloadAsync(_http, url, temp, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+			await HttpDownload.DownloadAsync(_http, url, temp, meter, ct, delegate
+			{
+				// Re-check immediately before the parent is created, the .part file is opened, and the partial is moved.
+				RejectReparseEscape(baseDir, temp, createMissingParents: true);
+				RejectReparseEscape(baseDir, temp + ".part", createMissingParents: false);
+			}).ConfigureAwait(continueOnCapturedContext: false);
+			RejectReparseEscape(baseDir, temp, createMissingParents: false);
 			if (!Hashing.EqualsHex(await Hashing.FileHexAsync(temp, format, ct).ConfigureAwait(continueOnCapturedContext: false), hash))
 			{
 				throw new InvalidDataException(mismatchMessage);
 			}
-			string parent = Path.GetDirectoryName(dest);
-			if (!string.IsNullOrEmpty(parent))
-			{
-				Directory.CreateDirectory(parent);
-			}
+			RejectReparseEscape(baseDir, dest, createMissingParents: true);
+			RejectReparseEscape(baseDir, temp, createMissingParents: false);
 			File.Move(temp, dest, overwrite: true);
 			placed = true;
 		}
@@ -361,20 +362,138 @@ public sealed class PackSyncService
 		{
 			if (!placed)
 			{
-				DeleteQuiet(temp);
-				DeleteQuiet(temp + ".part");
+				DeleteQuiet(baseDir, temp);
+				DeleteQuiet(baseDir, temp + ".part");
 			}
 		}
 	}
 
-	private static void DeleteQuiet(string path)
+	// baseDir may itself be a junction. Friends sometimes relocate the game folder that way, and writes through that root are the relocated folder.
+	// Every existing component below baseDir, including the destination file, must be a real directory or a real file. Missing parents are created one level at a time and checked again.
+	// A symlink or junction at the destination is refused. It is not deleted and it is not followed.
+	private static void RejectReparseEscape(string baseDir, string dest, bool createMissingParents)
+	{
+		string root = Path.GetFullPath(baseDir);
+		string full = Path.GetFullPath(dest);
+		if (!IsInsideDirectory(root, full))
+		{
+			throw new InvalidDataException("Pack file path leaves the game folder: " + dest);
+		}
+		string relative = Path.GetRelativePath(root, full);
+		if (relative.Length == 0 || relative == "." || relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+		{
+			throw new InvalidDataException("Pack file path leaves the game folder: " + dest);
+		}
+		string[] parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+		string current = root;
+		for (int i = 0; i < parts.Length; i++)
+		{
+			if (parts[i].Length == 0 || parts[i] == "." || parts[i] == "..")
+			{
+				throw new InvalidDataException("Pack file path leaves the game folder: " + dest);
+			}
+			current = Path.Combine(current, parts[i]);
+			bool leaf = i == parts.Length - 1;
+			if (!EntryExists(current))
+			{
+				if (leaf || !createMissingParents)
+				{
+					return;
+				}
+				Directory.CreateDirectory(current);
+			}
+			if (IsReparsePoint(current))
+			{
+				throw new InvalidDataException("Pack file path leaves the game folder: " + dest);
+			}
+			if (!leaf && (File.GetAttributes(current) & FileAttributes.Directory) == 0)
+			{
+				throw new InvalidDataException("Pack file path leaves the game folder: " + dest);
+			}
+		}
+	}
+
+	// Windows opens these names, with or without an extension, as devices rather than as files in the folder.
+	// The current pack has none of them. auxiliary.jar and comet.jar are ordinary names and stay allowed.
+	private static bool IsReservedDeviceName(string segment)
+	{
+		int dot = segment.IndexOf('.');
+		string name = dot >= 0 ? segment.Substring(0, dot) : segment;
+		if (name.Equals("CON", StringComparison.OrdinalIgnoreCase) || name.Equals("PRN", StringComparison.OrdinalIgnoreCase) || name.Equals("AUX", StringComparison.OrdinalIgnoreCase) || name.Equals("NUL", StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		if (name.Length != 4)
+		{
+			return false;
+		}
+		if (!name.StartsWith("COM", StringComparison.OrdinalIgnoreCase) && !name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		char digit = name[3];
+		return digit >= '1' && digit <= '9';
+	}
+
+	private static bool EntryExists(string path)
 	{
 		try
 		{
-			if (File.Exists(path))
+			File.GetAttributes(path);
+			return true;
+		}
+		catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+		{
+			return false;
+		}
+	}
+
+	private static bool IsReparsePoint(string path)
+	{
+		FileAttributes attributes;
+		try
+		{
+			attributes = File.GetAttributes(path);
+		}
+		catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+		{
+			return false;
+		}
+		if ((attributes & FileAttributes.ReparsePoint) != 0)
+		{
+			return true;
+		}
+		FileSystemInfo link = null;
+		try
+		{
+			link = File.ResolveLinkTarget(path, returnFinalTarget: false);
+		}
+		catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException)
+		{
+			link = null;
+		}
+		if (link != null)
+		{
+			return true;
+		}
+		return !string.IsNullOrEmpty(new FileInfo(path).LinkTarget);
+	}
+
+	private static void DeleteQuiet(string baseDir, string path)
+	{
+		try
+		{
+			// A link below the folder root is left alone. Deleting it can follow the link, and the root junction itself is allowed.
+			RejectReparseEscape(baseDir, path, createMissingParents: false);
+			if (!EntryExists(path) || IsReparsePoint(path))
 			{
-				File.Delete(path);
+				return;
 			}
+			if ((File.GetAttributes(path) & FileAttributes.Directory) != 0)
+			{
+				return;
+			}
+			File.Delete(path);
 		}
 		catch (Exception ex)
 		{

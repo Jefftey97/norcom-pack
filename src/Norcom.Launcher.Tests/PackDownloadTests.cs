@@ -108,6 +108,73 @@ public class PackDownloadTests
 	}
 
 	[Fact]
+	public async Task DirectorySymlinkInsideTheGameFolderWritesNothingOutside()
+	{
+		using var host = new Host();
+		string outside = Path.Combine(host.Root, "outside");
+		Directory.CreateDirectory(outside);
+		Directory.CreateSymbolicLink(Path.Combine(host.Game, "mods"), outside);
+		host.IndexFile("mods/nested/evil.jar", Encoding.UTF8.GetBytes("evil"));
+		await Assert.ThrowsAsync<PinMismatchException>(() => host.Sync());
+		Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
+		Assert.NotNull(Directory.ResolveLinkTarget(Path.Combine(host.Game, "mods"), returnFinalTarget: false));
+	}
+
+	[Fact]
+	public async Task FileSymlinkAtTheDestinationIsNotFollowed()
+	{
+		using var host = new Host();
+		string outside = Path.Combine(host.Root, "outside.txt");
+		await File.WriteAllTextAsync(outside, "secret");
+		Directory.CreateDirectory(Path.Combine(host.Game, "config"));
+		string link = Path.Combine(host.Game, "config", "keep.txt");
+		File.CreateSymbolicLink(link, outside);
+		host.IndexFile("config/keep.txt", Encoding.UTF8.GetBytes("replaced"));
+		await Assert.ThrowsAsync<PinMismatchException>(() => host.Sync());
+		Assert.Equal("secret", await File.ReadAllTextAsync(outside));
+		Assert.NotNull(File.ResolveLinkTarget(link, returnFinalTarget: false));
+	}
+
+	[Fact]
+	public async Task IndexSymlinkIsNotReplacedOrFollowed()
+	{
+		using var host = new Host();
+		string outside = Path.Combine(host.Root, "index-target");
+		await File.WriteAllTextAsync(outside, "secret-index");
+		File.CreateSymbolicLink(Path.Combine(host.Cache, "index.toml"), outside);
+		host.IndexFile("config/keep.txt", Encoding.UTF8.GetBytes("body"));
+		await Assert.ThrowsAsync<PinMismatchException>(() => host.Sync());
+		Assert.Equal("secret-index", await File.ReadAllTextAsync(outside));
+		Assert.NotNull(File.ResolveLinkTarget(Path.Combine(host.Cache, "index.toml"), returnFinalTarget: false));
+		Assert.False(File.Exists(Path.Combine(host.Game, "config", "keep.txt")));
+	}
+
+	[Fact]
+	public async Task NestedPackPathIsCreatedOneLevelAtATime()
+	{
+		using var host = new Host();
+		byte[] body = Encoding.UTF8.GetBytes("nested");
+		host.IndexFile("config/norcom/client.json", body);
+		await host.Sync();
+		Assert.Equal(body, await File.ReadAllBytesAsync(Path.Combine(host.Game, "config", "norcom", "client.json")));
+	}
+
+	[Fact]
+	public async Task GameRootJunctionStillReceivesANormalFile()
+	{
+		using var host = new Host();
+		string real = Path.Combine(host.Root, "real-game");
+		Directory.CreateDirectory(real);
+		Directory.Delete(host.Game);
+		Directory.CreateSymbolicLink(host.Game, real);
+		byte[] body = Encoding.UTF8.GetBytes("through-root");
+		host.IndexFile("config/keep.txt", body);
+		await host.Sync();
+		Assert.Equal(body, await File.ReadAllBytesAsync(Path.Combine(real, "config", "keep.txt")));
+		Assert.NotNull(Directory.ResolveLinkTarget(host.Game, returnFinalTarget: false));
+	}
+
+	[Fact]
 	public async Task PreserveKeepsAnExistingFileWhenTheIndexHasNoHash()
 	{
 		using var host = new Host();

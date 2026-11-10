@@ -21,6 +21,10 @@ public partial class HomeView : UserControl
     {
         if(DataContext is ShellViewModel vm && MessageBox.Show("Close the Minecraft game started by NORCOM? Save your world first.","Stop game",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)vm.StopLaunchedGame();
     }
+    private void ZomboidPasswordChanged(object sender,RoutedEventArgs e)
+    {
+        if(DataContext is ShellViewModel vm && sender is PasswordBox box)vm.SetPendingZomboidPassword(box.Password);
+    }
     private async void CheckPackClick(object sender,RoutedEventArgs e)
     {
         if(DataContext is not ShellViewModel vm)return;

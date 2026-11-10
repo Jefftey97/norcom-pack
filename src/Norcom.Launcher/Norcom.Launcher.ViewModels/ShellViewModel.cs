@@ -48,6 +48,8 @@ public class ShellViewModel : ObservableObject
 
 	private readonly LauncherSettings _settings;
     private bool _loadingSettings=true;
+	private bool _syncingRam;
+	private MachineSpecs _specs = new MachineSpecs();
 
 	private readonly NorcomSignIn _signIn;
 
@@ -283,6 +285,25 @@ public class ShellViewModel : ObservableObject
 	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
+	private RamBudget GameBudget(int requested) => RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, requested);
+	public int RamFloorMb => GameBudget(0).FloorMb;
+	public int RamSafeMaxMb => GameBudget(0).SafeMaxMb;
+	public int RamTotalMb => GameBudget(0).TotalMb;
+	public string RamScaleCaption => GameBudget((int)MemoryMb).Caption;
+	public string RamWarning => GameBudget((int)MemoryMb).Warning;
+	public string SpecGpu => string.IsNullOrWhiteSpace(_specs.GpuName) ? "GPU: not detected on this PC" : "GPU: " + _specs.GpuName.Trim();
+	public string SpecVram => _specs.VramBytes > 0 ? "Video memory: " + RamBudget.FormatBytes(_specs.VramBytes) : "Video memory: not detected on this PC";
+	public string SpecRam => _specs.RamBytes > 0 ? "Memory: " + RamBudget.FormatBytes(_specs.RamBytes) + (_specs.FreeRamBytes > 0 ? " (" + RamBudget.FormatBytes(_specs.FreeRamBytes) + " free)" : "") : "Memory: not detected on this PC";
+	public string SpecCpu => string.IsNullOrWhiteSpace(_specs.CpuName) ? "CPU: not detected on this PC" : "CPU: " + _specs.CpuName.Trim();
+	public string SpecCores
+	{
+		get
+		{
+			int threads = _specs.LogicalCores;
+			int cores = _specs.PhysicalCores > 0 ? _specs.PhysicalCores : threads;
+			return threads > 0 ? "Cores: " + cores.ToString(System.Globalization.CultureInfo.InvariantCulture) + " cores, " + threads.ToString(System.Globalization.CultureInfo.InvariantCulture) + " threads" : "Cores: not detected on this PC";
+		}
+	}
 
 	public string TierSummary
 	{
@@ -1245,7 +1266,16 @@ public class ShellViewModel : ObservableObject
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
 		Directory.CreateDirectory(NorcomPaths.GameDir);
 		Directory.CreateDirectory(NorcomPaths.LauncherDir);
-		MemoryMb = _settings.RamMb;
+		try
+		{
+			_specs = MachineSpecsProbe.Read();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+			_specs = new MachineSpecs();
+		}
+		ShowGameMemory();
 		SelectedTier = _settings.GraphicsTier;
 		AutoOn = _settings.GraphicsAuto;
 		LauncherSounds = _settings.LauncherSounds;
@@ -1531,7 +1561,7 @@ public class ShellViewModel : ObservableObject
 			}
 			ProgressLabel = "Syncing Project Zomboid";
 			string localPassword = RememberZomboidPassword();
-			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword).ConfigureAwait(continueOnCapturedContext: true);
+			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, (int)MemoryMb).ConfigureAwait(continueOnCapturedContext: true);
 			RefreshGamePicker();
 			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
 			{
@@ -1591,6 +1621,26 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(PlayLabel));
 		OnPropertyChanged(nameof(PlayAvailability));
 		OnPropertyChanged(nameof(GamePickerDetail));
+		ShowGameMemory();
+	}
+
+	private void ShowGameMemory()
+	{
+		int requested = IsZomboid ? (_settings.ZomboidRamSpecified ? _settings.ZomboidRamMb : 0) : (_settings.RamSpecified ? _settings.RamMb : 0);
+		_syncingRam = true;
+		MemoryMb = GameBudget(requested).ChosenMb;
+		_syncingRam = false;
+		NotifyRam();
+	}
+
+	private void NotifyRam()
+	{
+		OnPropertyChanged(nameof(MemoryLabel));
+		OnPropertyChanged(nameof(RamFloorMb));
+		OnPropertyChanged(nameof(RamSafeMaxMb));
+		OnPropertyChanged(nameof(RamTotalMb));
+		OnPropertyChanged(nameof(RamScaleCaption));
+		OnPropertyChanged(nameof(RamWarning));
 	}
 
 	private void RefreshGamePicker()
@@ -2388,9 +2438,26 @@ public class ShellViewModel : ObservableObject
 	private void OnMemoryMbChanged(double value)
 	{
 		OnPropertyChanged("MemoryLabel");
-        if(_loadingSettings)return;
-		_settings.RamMb = (int)value;
+        if(_loadingSettings || _syncingRam)return;
+		RamBudget budget = GameBudget((int)value);
+		if (budget.ChosenMb != (int)value)
+		{
+			_syncingRam = true;
+			MemoryMb = budget.ChosenMb;
+			_syncingRam = false;
+		}
+		if (IsZomboid)
+		{
+			_settings.ZomboidRamMb = budget.ChosenMb;
+			_settings.ZomboidRamSpecified = true;
+		}
+		else
+		{
+			_settings.RamMb = budget.ChosenMb;
+			_settings.RamSpecified = true;
+		}
 		_settings.Save(NorcomPaths.SettingsPath);
+		NotifyRam();
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

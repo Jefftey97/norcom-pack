@@ -9,14 +9,20 @@ namespace Norcom.Launcher.Core.Models;
 
 public sealed class LauncherSettings
 {
-	private static readonly string[] KnownKeys = new string[28]
+	private static readonly string[] KnownKeys = new string[30]
 	{
-		"RamMb", "ramMb", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
+		"RamMb", "ramMb", "ZomboidRamMb", "zomboidRamMb", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
 		"ReduceMotion", "reduceMotion", "AnimationsPausedWhilePlaying", "animationsPausedWhilePlaying", "PlayerName", "playerName", "UseLocalName", "useLocalName", "DiscordInviteUrl", "discordInviteUrl",
 		"CrashWebhookUrl", "crashWebhookUrl", "WindowW", "windowW", "WindowH", "windowH", "LastNewsPackVersion", "lastNewsPackVersion"
 	};
 
 	public int RamMb { get; set; } = 8192;
+
+	public bool RamSpecified { get; set; }
+
+	public int ZomboidRamMb { get; set; }
+
+	public bool ZomboidRamSpecified { get; set; }
 
 
 	public GraphicsTier GraphicsTier { get; set; } = GraphicsTier.High;
@@ -68,9 +74,14 @@ public sealed class LauncherSettings
 			{
 				return new LauncherSettings();
 			}
+			int? savedRam = ReadInt(jsonObject, "RamMb", "ramMb");
+			int? savedZomboidRam = ReadInt(jsonObject, "ZomboidRamMb", "zomboidRamMb");
 			LauncherSettings launcherSettings = new LauncherSettings
 			{
-				RamMb = Math.Clamp(ReadInt(jsonObject, "RamMb", "ramMb").GetValueOrDefault(8192), 2048, 16384),
+				RamMb = savedRam.GetValueOrDefault(8192),
+				RamSpecified = savedRam.HasValue,
+				ZomboidRamMb = savedZomboidRam.GetValueOrDefault(),
+				ZomboidRamSpecified = savedZomboidRam.HasValue,
 				GraphicsTier = ReadTier(jsonObject).GetValueOrDefault(GraphicsTier.High),
 				GraphicsAuto = ReadBool(jsonObject, "GraphicsAuto", "graphicsAuto").GetValueOrDefault(),
 				LauncherSounds = ReadBool(jsonObject, "LauncherSounds", "launcherSounds").GetValueOrDefault(),
@@ -110,7 +121,6 @@ public sealed class LauncherSettings
 		{
 			Directory.CreateDirectory(directoryName);
 		}
-		RamMb = Math.Clamp(RamMb, 2048, 16384);
 		JsonObject jsonObject = new JsonObject();
 		foreach (KeyValuePair<string, JsonNode> item in Extra)
 		{
@@ -119,7 +129,14 @@ public sealed class LauncherSettings
 				jsonObject[item.Key] = item.Value.DeepClone();
 			}
 		}
-		jsonObject["RamMb"] = RamMb;
+		if (RamSpecified)
+		{
+			jsonObject["RamMb"] = RamMb;
+		}
+		if (ZomboidRamSpecified)
+		{
+			jsonObject["ZomboidRamMb"] = ZomboidRamMb;
+		}
 		jsonObject["GraphicsTier"] = GraphicsTier.ToString();
 		jsonObject["GraphicsAuto"] = GraphicsAuto;
 		jsonObject["LauncherSounds"] = LauncherSounds;

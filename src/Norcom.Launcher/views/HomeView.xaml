@@ -24,6 +24,7 @@
     <WrapPanel><Button Content="Refresh status" Command="{Binding RefreshServerCommand}" Margin="0,0,8,8"/><Button Content="Discord" Command="{Binding OpenDiscordCommand}" IsEnabled="{Binding DiscordEnabled}" Margin="0,0,0,8"/></WrapPanel>
    </StackPanel></Border>
   </Grid>
+  <local:RamCard/>
   <Border Style="{StaticResource Card}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="CLIENT PACK" Style="{StaticResource Eyebrow}" Margin="0,0,0,8"/><TextBlock Text="{Binding ClientPackDetail}" Style="{StaticResource Muted}" TextWrapping="Wrap"/></StackPanel><Button Grid.Column="1" Content="Check pack" IsEnabled="{Binding CanManageClient}" Click="CheckPackClick" Margin="16,0,0,0" VerticalAlignment="Center"/></Grid></Border>
   <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="ACCOUNT" Style="{StaticResource Eyebrow}"/><TextBlock Text="{Binding AccountTitle}" Style="{StaticResource SectionTitle}"/><TextBlock Text="{Binding AccountBody}" Style="{StaticResource Muted}" TextWrapping="Wrap"/><TextBlock Text="{Binding AccountFine}" Style="{StaticResource Muted}" FontSize="12" Margin="0,8,0,12" TextWrapping="Wrap"/><Button Content="{Binding AccountAction}" Command="{Binding OpenAccountActionCommand}" HorizontalAlignment="Left"/></StackPanel></Border>
   <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="LATEST FROM NORCOM" Style="{StaticResource Eyebrow}"/><TextBlock Text="{Binding NewsText}" Style="{StaticResource Muted}"/></StackPanel></Border>

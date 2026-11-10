@@ -33,7 +33,8 @@ public static class PrismInstance
 	public static void WriteConfig(string path, string javaPath, int ramMb)
 	{
 		string value = javaPath.Replace('\\', '/');
-		int num = Math.Clamp(ramMb / 4, 512, ramMb);
+		int heap = Math.Max(512, ramMb);
+		string heapText = heap.ToString(System.Globalization.CultureInfo.InvariantCulture);
 		Dictionary<string, string> dictionary = new Dictionary<string, string>(StringComparer.Ordinal)
 		{
 			["ConfigVersion"] = "1.3",
@@ -43,8 +44,8 @@ public static class PrismInstance
 			["JavaPath"] = value,
 			["AutomaticJava"] = "false",
 			["OverrideMemory"] = "true",
-			["MinMemAlloc"] = num.ToString(),
-			["MaxMemAlloc"] = Math.Clamp(ramMb, 2048, 16384).ToString()
+			["MinMemAlloc"] = heapText,
+			["MaxMemAlloc"] = heapText
 		};
 		List<string> list = new List<string>();
 		if (File.Exists(path))

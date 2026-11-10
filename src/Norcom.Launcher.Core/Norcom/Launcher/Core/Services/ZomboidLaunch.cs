@@ -31,7 +31,7 @@ public static class ZomboidLaunch
 		return Prepare(sources, userProfile, launcherHome, minecraftLockPath, null);
 	}
 
-	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, string localPassword = "")
+	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, string localPassword = "", int ramMb = 0)
 	{
 		SteamGameLocation install = SteamLibrary.FindZomboid(sources);
 		if (!install.Found)
@@ -65,7 +65,20 @@ public static class ZomboidLaunch
 		{
 			note = "Zomboid graphics were not applied (" + ex.GetType().Name + ").";
 		}
-		string url = ZomboidFeed.SteamUrl(feed, localPassword, out string passwordNote);
+		string memoryNote = "";
+		if (ramMb >= 512)
+		{
+			try
+			{
+				ZomboidMemory.Apply(zomboidRoot, install.GamePath, ramMb);
+				memoryNote = "Memory for Project Zomboid is " + ramMb.ToString(System.Globalization.CultureInfo.InvariantCulture) + " MB, saved in your Zomboid folder.";
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+			{
+				memoryNote = "Project Zomboid memory was not saved (" + ex.GetType().Name + ").";
+			}
+		}
+		string url = ZomboidMemory.WithHeap(ZomboidFeed.SteamUrl(feed, localPassword, out string passwordNote), ramMb);
 		string workshop = ZomboidFeed.WorkshopNotice(launcherHome, install.LibraryPath, feed.Workshop);
 		string message = "Opening Project Zomboid in Steam. Workshop items are subscribed in Steam.";
 		if (workshop.Length > 0)
@@ -75,6 +88,10 @@ public static class ZomboidLaunch
 		if (passwordNote.Length > 0)
 		{
 			message += " " + passwordNote;
+		}
+		if (memoryNote.Length > 0)
+		{
+			message += " " + memoryNote;
 		}
 		return new ZomboidLaunchPlan
 		{
@@ -87,9 +104,9 @@ public static class ZomboidLaunch
 		};
 	}
 
-	public static async Task<ZomboidLaunchPlan> PrepareAsync(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, HttpClient http, CancellationToken ct, string localPassword = "")
+	public static async Task<ZomboidLaunchPlan> PrepareAsync(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, HttpClient http, CancellationToken ct, string localPassword = "", int ramMb = 0)
 	{
-		ZomboidLaunchPlan plan = Prepare(sources, userProfile, launcherHome, minecraftLockPath, feedJson, localPassword);
+		ZomboidLaunchPlan plan = Prepare(sources, userProfile, launcherHome, minecraftLockPath, feedJson, localPassword, ramMb);
 		if (!plan.CanStart || http == null)
 		{
 			return plan;

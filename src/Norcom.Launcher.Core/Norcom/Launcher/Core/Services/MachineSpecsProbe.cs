@@ -10,11 +10,17 @@ public sealed class MachineSpecs
 
 	public long VramBytes { get; init; }
 
+	public string CpuName { get; init; } = "";
+
+	public int PhysicalCores { get; init; }
+
 	public int LogicalCores { get; init; }
 
 	public int CpuMhz { get; init; }
 
 	public long RamBytes { get; init; }
+
+	public long FreeRamBytes { get; init; }
 
 	public int DisplayWidth { get; init; }
 
@@ -57,12 +63,25 @@ public static class MachineSpecsProbe
 		int width = 0;
 		int height = 0;
 		int refresh = 0;
+		(long ramBytes, long freeBytes) = HostMemory.Read();
+		CpuInfo cpu = HostCpu.Read();
+		if (cpu.Threads > 0)
+		{
+			cores = cpu.Threads;
+		}
+		mhz = cpu.Mhz;
+		ram = ramBytes;
 		if (!OperatingSystem.IsWindows())
 		{
-			gaps.Add("GPU, VRAM, memory, and the display are read with DXGI and WMI on Windows.");
+			gaps.Add("GPU and video memory are read with DXGI and WMI on Windows.");
 			return new MachineSpecs
 			{
+				CpuName = cpu.Name,
+				PhysicalCores = cpu.Cores,
 				LogicalCores = cores,
+				CpuMhz = mhz,
+				RamBytes = ram,
+				FreeRamBytes = freeBytes,
 				Gaps = gaps
 			};
 		}
@@ -78,38 +97,13 @@ public static class MachineSpecsProbe
 		{
 			gaps.Add("DXGI was not readable (" + ex.GetType().Name + ").");
 		}
-		try
+		if (cpu.Name.Length == 0)
 		{
-			List<Dictionary<string, object?>>? processors = WmiQuery.Rows("SELECT NumberOfLogicalProcessors, MaxClockSpeed FROM Win32_Processor", "NumberOfLogicalProcessors", "MaxClockSpeed");
-			if (processors == null || processors.Count == 0)
-			{
-				gaps.Add("CPU details were not readable.");
-			}
-			else
-			{
-				int reportedCores = (int)WmiQuery.Number(processors[0], "NumberOfLogicalProcessors");
-				if (reportedCores > 0)
-				{
-					cores = reportedCores;
-				}
-				mhz = (int)WmiQuery.Number(processors[0], "MaxClockSpeed");
-			}
+			gaps.Add("CPU details were not readable.");
 		}
-		catch (Exception ex)
+		if (ram <= 0)
 		{
-			gaps.Add("CPU details were not readable (" + ex.GetType().Name + ").");
-		}
-		try
-		{
-			ram = HardwareProbe.TryHostRamBytes();
-			if (ram <= 0)
-			{
-				gaps.Add("Installed memory was not readable.");
-			}
-		}
-		catch (Exception ex)
-		{
-			gaps.Add("Installed memory was not readable (" + ex.GetType().Name + ").");
+			gaps.Add("Installed memory was not readable.");
 		}
 		try
 		{
@@ -165,9 +159,12 @@ public static class MachineSpecsProbe
 		{
 			GpuName = gpu,
 			VramBytes = vram,
+			CpuName = cpu.Name,
+			PhysicalCores = cpu.Cores,
 			LogicalCores = cores,
 			CpuMhz = mhz,
 			RamBytes = ram,
+			FreeRamBytes = freeBytes,
 			DisplayWidth = width,
 			DisplayHeight = height,
 			RefreshHz = refresh,

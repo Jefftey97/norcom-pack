@@ -151,6 +151,18 @@ public class ZomboidLaunchTests
 	}
 
 	[Fact]
+	public void PreparePassesHeapOnTheSteamUrlAndWritesTheUserOverride()
+	{
+		string user = NewDir();
+		ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(FoundSteam(), user, NewDir(), "", "{\"connect\":{\"host\":\"play.example.com\",\"port\":16261}}", "", 4096);
+		Assert.True(plan.CanStart);
+		Assert.Contains("+connect%20play.example.com:16261", plan.Url, StringComparison.Ordinal);
+		Assert.Contains("-Xmx4096m", plan.Url, StringComparison.Ordinal);
+		Assert.Contains("-Xmx4096m", File.ReadAllText(Path.Combine(user, "Zomboid", ZomboidMemory.FileName)), StringComparison.Ordinal);
+		Assert.DoesNotContain("password", plan.Url, StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
 	public void ChosenGameRoundTrip()
 	{
 		string home = NewDir();

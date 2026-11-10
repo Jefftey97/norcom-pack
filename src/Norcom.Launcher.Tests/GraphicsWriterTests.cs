@@ -301,13 +301,13 @@ public class GraphicsWriterTests
 	}
 
 	[Fact]
-	public void PlayRaisesTheHeapThatOomedAt5632()
+	public void PlayKeepsTheChosenHeapInsideTheSafeReserve()
 	{
 		long sixteen = 16L * GraphicsAuto.Gib;
-		Assert.Equal(8192, MemoryPlan.ForPlay(5632, sixteen, "NVIDIA GeForce RTX 3070"));
-		Assert.Equal(8192, MemoryPlan.ForPlay(6144, sixteen, "NVIDIA GeForce RTX 3070"));
+		Assert.Equal(5632, MemoryPlan.ForPlay(5632, sixteen, "NVIDIA GeForce RTX 3070"));
+		Assert.Equal(12288, MemoryPlan.ForPlay(20000, sixteen, "NVIDIA GeForce RTX 4070"));
 		Assert.Equal(4096, MemoryPlan.ForPlay(5632, 8L * GraphicsAuto.Gib, "NVIDIA GeForce RTX 3070"));
-		Assert.Equal(10240, MemoryPlan.ForPlay(12288, 32L * GraphicsAuto.Gib, "NVIDIA GeForce RTX 4070"));
+		Assert.Equal(12288, MemoryPlan.ForPlay(12288, 32L * GraphicsAuto.Gib, "NVIDIA GeForce RTX 4070"));
 	}
 
 	[Fact]

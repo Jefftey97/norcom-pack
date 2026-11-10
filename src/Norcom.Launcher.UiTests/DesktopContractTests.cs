@@ -57,9 +57,11 @@ public class DesktopContractTests
                 vm.RefreshLaunchedGame();
                 Assert.False(vm.GameRunning);Assert.False(File.Exists(gameLock));Assert.False(current.HasExited);
             }
-            var memory=Assert.IsType<Slider>(settings.FindName("MemoryControl"));
-            Assert.Equal(2048,memory.Minimum);Assert.Equal(16384,memory.Maximum);
-            memory.Value=7168;Pump();Assert.Equal(7168,vm.MemoryMb);
+            var card=Assert.IsType<RamCard>(settings.FindName("MemoryCard"));
+            var memory=Assert.IsType<Slider>(card.FindName("MemoryControl"));
+            Assert.Equal(vm.RamFloorMb,memory.Minimum);Assert.Equal(vm.RamSafeMaxMb,memory.Maximum);
+            double pick=Math.Min(7168,memory.Maximum);if(pick<memory.Minimum)pick=memory.Minimum;
+            memory.Value=pick;Pump();Assert.Equal(pick,vm.MemoryMb);
             var motion=Assert.IsType<CheckBox>(settings.FindName("ReduceMotionControl"));
             var desired=!vm.ReduceMotion;motion.IsChecked=desired;Pump();Assert.Equal(desired,vm.ReduceMotion);
             var repair=Assert.IsType<Button>(settings.FindName("RepairAction"));Assert.Same(vm.RepairCommand,repair.Command);

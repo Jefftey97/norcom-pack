@@ -30,21 +30,82 @@ public static class PrismGameSignals
 			|| file.Equals("java", StringComparison.OrdinalIgnoreCase);
 	}
 
-	public static bool CommandLineIsGame(string? processName, string? commandLine, string? instanceHint)
+	public static bool CommandLineIsGame(string? processName, string? commandLine, string? instanceHint, string? gameDir = null)
 	{
 		if (!IsJavaProcess(processName) || string.IsNullOrWhiteSpace(commandLine))
 		{
 			return false;
 		}
-		if (commandLine.Contains("minecraft", StringComparison.OrdinalIgnoreCase))
+		if (!HasClientMain(commandLine) || IsMinecraftServerCommand(commandLine))
+		{
+			return false;
+		}
+		return ContainsPath(commandLine, instanceHint) || ContainsPath(commandLine, gameDir);
+	}
+
+	public static bool HasClientMain(string? commandLine)
+	{
+		if (string.IsNullOrWhiteSpace(commandLine))
+		{
+			return false;
+		}
+		return commandLine.Contains("net.fabricmc.loader.impl.launch.knot.KnotClient", StringComparison.Ordinal)
+			|| commandLine.Contains("net.minecraft.client.main.Main", StringComparison.Ordinal);
+	}
+
+	public static bool IsMinecraftServerCommand(string? commandLine)
+	{
+		if (string.IsNullOrWhiteSpace(commandLine))
+		{
+			return false;
+		}
+		return commandLine.Contains("fabric-server-launch", StringComparison.OrdinalIgnoreCase)
+			|| commandLine.Contains("nogui", StringComparison.OrdinalIgnoreCase)
+			|| commandLine.Contains("net.minecraft.server.Main", StringComparison.Ordinal)
+			|| commandLine.Contains("server.jar", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsZomboidClient(string? processName, string? commandLine)
+	{
+		string file = Path.GetFileName(processName ?? "");
+		string line = commandLine ?? "";
+		if (IsZomboidServer(file, line))
+		{
+			return false;
+		}
+		if (file.Equals("ProjectZomboid64.exe", StringComparison.OrdinalIgnoreCase) || file.Equals("ProjectZomboid64", StringComparison.OrdinalIgnoreCase))
 		{
 			return true;
 		}
-		if (commandLine.Contains("NORCOM", StringComparison.OrdinalIgnoreCase))
+		return IsJavaProcess(processName) && line.Contains("ProjectZomboid64", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsZomboidServer(string? processName, string? commandLine)
+	{
+		string file = Path.GetFileName(processName ?? "");
+		string line = commandLine ?? "";
+		if (file.Contains("ProjectZomboidServer", StringComparison.OrdinalIgnoreCase) || line.Contains("ProjectZomboidServer", StringComparison.OrdinalIgnoreCase))
 		{
 			return true;
 		}
-		return !string.IsNullOrWhiteSpace(instanceHint) && commandLine.Contains(instanceHint, StringComparison.OrdinalIgnoreCase);
+		return line.Contains("zombie.network.GameServer", StringComparison.Ordinal) || line.Contains("StartServer", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool ShouldForgetLockedProcess(string? processName, string? commandLine)
+	{
+		if (string.IsNullOrWhiteSpace(processName) && string.IsNullOrWhiteSpace(commandLine))
+		{
+			return false;
+		}
+		if (IsZomboidClient(processName, commandLine))
+		{
+			return false;
+		}
+		if (IsJavaProcess(processName) && HasClientMain(commandLine) && !IsMinecraftServerCommand(commandLine))
+		{
+			return false;
+		}
+		return IsJavaProcess(processName) || IsZomboidServer(processName, commandLine);
 	}
 
 	public static IEnumerable<string> LatestLogs(string? prismDataDir, string? gameDir)
@@ -59,17 +120,16 @@ public static class PrismGameSignals
 		}
 	}
 
-	public static int? SelectGamePid(IEnumerable<GameProcessRow> rows, string? instanceHint, int? prismPid)
+	public static int? SelectGamePid(IEnumerable<GameProcessRow> rows, string? instanceHint, int? prismPid, string? gameDir = null)
 	{
 		if (rows == null)
 		{
 			return null;
 		}
-		int? any = null;
 		int? hinted = null;
 		foreach (GameProcessRow row in rows)
 		{
-			if (row.Pid <= 0 || !CommandLineIsGame(row.Name, row.CommandLine, instanceHint))
+			if (row.Pid <= 0 || !CommandLineIsGame(row.Name, row.CommandLine, instanceHint, gameDir))
 			{
 				continue;
 			}
@@ -77,16 +137,31 @@ public static class PrismGameSignals
 			{
 				return row.Pid;
 			}
-			if (hinted == null && !string.IsNullOrWhiteSpace(instanceHint) && row.CommandLine.Contains(instanceHint, StringComparison.OrdinalIgnoreCase))
+			if (hinted == null)
 			{
 				hinted = row.Pid;
 			}
-			if (any == null)
-			{
-				any = row.Pid;
-			}
 		}
-		return hinted ?? any;
+		return hinted;
+	}
+
+	private static bool ContainsPath(string commandLine, string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			return false;
+		}
+		if (commandLine.Contains(path, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		string slash = path.Replace('\\', '/');
+		if (!slash.Equals(path, StringComparison.Ordinal) && commandLine.Contains(slash, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		string back = path.Replace('/', '\\');
+		return !back.Equals(path, StringComparison.Ordinal) && commandLine.Contains(back, StringComparison.OrdinalIgnoreCase);
 	}
 
 	public static bool MtimeFreshened(DateTime? baselineUtc, string path)
@@ -107,11 +182,14 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 {
 	private readonly string _instanceDir;
 
+	private readonly string _gameDir;
+
 	private readonly List<(string Path, DateTime? BaselineUtc)> _logs = new List<(string, DateTime?)>();
 
 	public LivePrismGameSignals(string prismDataDir, string gameDir)
 	{
 		_instanceDir = Path.Combine(prismDataDir ?? "", "instances", PrismCommand.InstanceId);
+		_gameDir = gameDir ?? "";
 		foreach (string path in PrismGameSignals.LatestLogs(prismDataDir, gameDir))
 		{
 			DateTime? baseline = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
@@ -142,7 +220,7 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			{
 				rows.Add(new GameProcessRow(WmiQuery.Text(item, "Name"), WmiQuery.Text(item, "CommandLine"), ToPid(WmiQuery.Number(item, "ProcessId")), ToPid(WmiQuery.Number(item, "ParentProcessId"))));
 			}
-			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId);
+			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId, _gameDir);
 		}
 		catch (Exception ex)
 		{

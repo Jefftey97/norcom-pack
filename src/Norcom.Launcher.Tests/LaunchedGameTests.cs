@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Norcom.Launcher.Core.Services;
 using Xunit;
 
@@ -15,17 +16,43 @@ public class LaunchedGameTests
 	[Fact]
 	public void SelectPrefersThePrismChildThenTheInstance()
 	{
+		const string serverLine = @"G:\NORCOM\Server\java\jdk-25.0.5+8\bin\java.exe -Xms8G -Xmx8G -jar G:\NORCOM\Server\fabric-server-launch.jar nogui";
 		GameProcessRow other = new GameProcessRow("javaw.exe", "javaw minecraft other", 10, 1);
-		GameProcessRow ours = new GameProcessRow("javaw.exe", "javaw -Dinstance=C:\\Prism\\instances\\NORCOM minecraft", 20, 77);
+		GameProcessRow ours = new GameProcessRow("javaw.exe", "javaw -Dinstance=C:\\Prism\\instances\\NORCOM net.fabricmc.loader.impl.launch.knot.KnotClient", 20, 77);
 		GameProcessRow prism = new GameProcessRow("prismlauncher.exe", "prismlauncher --launch NORCOM", 77, 1);
 		GameProcessRow idle = new GameProcessRow("javaw.exe", "javaw -version", 30, 77);
-		int? child = PrismGameSignals.SelectGamePid(new[] { other, idle, prism, ours }, "instances\\NORCOM", 77);
+		GameProcessRow server = new GameProcessRow("java.exe", serverLine, 30920, 4);
+		int? child = PrismGameSignals.SelectGamePid(new[] { other, idle, prism, server, ours }, "instances\\NORCOM", 77);
 		Assert.Equal(20, child);
-		int? hinted = PrismGameSignals.SelectGamePid(new[] { other, ours }, "instances\\NORCOM", null);
+		int? hinted = PrismGameSignals.SelectGamePid(new[] { other, server, ours }, "instances\\NORCOM", null);
 		Assert.Equal(20, hinted);
-		int? any = PrismGameSignals.SelectGamePid(new[] { idle, other }, null, null);
-		Assert.Equal(10, any);
-		Assert.Null(PrismGameSignals.SelectGamePid(new[] { idle, prism }, "instances\\NORCOM", 77));
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { idle, other, server }, null, null));
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { idle, prism, server }, "instances\\NORCOM", 77));
+		Assert.Equal(20, PrismGameSignals.SelectGamePid(new[] { server, ours }, null, null, "instances\\NORCOM"));
+	}
+
+	[Fact]
+	public void ServerJavaLockIsDroppedWithoutStoppingTheProcess()
+	{
+		string dir = Path.Combine(Path.GetTempPath(), "norcom-lock-" + Guid.NewGuid().ToString("n"));
+		Directory.CreateDirectory(dir);
+		string path = Path.Combine(dir, "game.lock");
+		using Process process = Process.GetCurrentProcess();
+		StartupHeal.WriteGameLock(path, process.Id);
+		Assert.True(StartupHeal.GameLockAlive(path));
+		StartupHeal.CommandReader = pid => pid == process.Id
+			? ("java.exe", @"G:\NORCOM\Server\java\jdk-25.0.5+8\bin\java.exe -Xms8G -Xmx8G -jar G:\NORCOM\Server\fabric-server-launch.jar nogui")
+			: null;
+		try
+		{
+			Assert.True(StartupHeal.ReleaseForeignClientLock(path));
+			Assert.False(File.Exists(path));
+			Assert.False(process.HasExited);
+		}
+		finally
+		{
+			StartupHeal.CommandReader = null;
+		}
 	}
 
 	[Fact]

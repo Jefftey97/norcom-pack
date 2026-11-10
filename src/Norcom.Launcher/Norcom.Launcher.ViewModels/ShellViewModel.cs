@@ -1291,6 +1291,7 @@ public class ShellViewModel : ObservableObject
 		RefreshCrashChannelStatus();
 		NewsText = NewsComposer.Compose(NorcomVersion.Current, null, null, null);
 		StatusLine = "Launcher " + NorcomVersion.Current;
+		StartupHeal.ReleaseForeignClientLock(NorcomPaths.GameLockPath);
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
 		PlayAccount.Install(this);
@@ -1707,6 +1708,14 @@ public class ShellViewModel : ObservableObject
 
 	public void RefreshLaunchedGame()
 	{
+		if (StartupHeal.ReleaseForeignClientLock(NorcomPaths.GameLockPath))
+		{
+			_launchedGamePid = null;
+			if (GameRunning)
+			{
+				GameRunning = false;
+			}
+		}
 		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
 		if (pid is int id && id > 0 && StartupHeal.ReadGamePid(NorcomPaths.GameLockPath)==id && StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
 		{

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Norcom.Launcher.Core.Text;
@@ -139,6 +140,86 @@ public static class StartupHeal
         }
         catch{return null;}
     }
+
+	public static Func<int, (string Name, string CommandLine)?>? CommandReader { get; set; }
+
+	public static bool TryReadProcessCommand(int pid, out string name, out string commandLine)
+	{
+		name = "";
+		commandLine = "";
+		if (pid <= 0)
+		{
+			return false;
+		}
+		if (CommandReader != null)
+		{
+			(string Name, string CommandLine)? row = CommandReader(pid);
+			if (row == null)
+			{
+				return false;
+			}
+			name = row.Value.Name ?? "";
+			commandLine = row.Value.CommandLine ?? "";
+			return name.Length > 0 || commandLine.Length > 0;
+		}
+		if (!OperatingSystem.IsWindows())
+		{
+			return false;
+		}
+		try
+		{
+			List<Dictionary<string, object?>>? rows = WmiQuery.Rows("SELECT Name, CommandLine FROM Win32_Process WHERE ProcessId=" + pid.ToString(System.Globalization.CultureInfo.InvariantCulture), "Name", "CommandLine");
+			if (rows == null || rows.Count == 0)
+			{
+				return false;
+			}
+			name = WmiQuery.Text(rows[0], "Name");
+			commandLine = WmiQuery.Text(rows[0], "CommandLine");
+			return name.Length > 0 || commandLine.Length > 0;
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("process command " + ex.GetType().Name);
+			return false;
+		}
+	}
+
+	public static bool ReleaseForeignClientLock(string lockPath)
+	{
+		int? pid = ReadGamePid(lockPath);
+		long? ticks = ReadGameStartTicks(lockPath);
+		if (pid is not int id || id <= 0 || ticks is not > 0)
+		{
+			return false;
+		}
+		try
+		{
+			using Process process = Process.GetProcessById(id);
+			if (process.HasExited || process.StartTime.ToUniversalTime().Ticks != ticks.Value)
+			{
+				return false;
+			}
+			if (!TryReadProcessCommand(id, out string name, out string commandLine))
+			{
+				return false;
+			}
+			if (!PrismGameSignals.ShouldForgetLockedProcess(name, commandLine))
+			{
+				return false;
+			}
+			LaunchedGame.Forget(lockPath);
+			return true;
+		}
+		catch (ArgumentException)
+		{
+			return false;
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("game lock " + ex.GetType().Name);
+			return false;
+		}
+	}
 
 	public static bool GameLockAlive(string lockPath)
 	{

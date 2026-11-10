@@ -132,17 +132,15 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			{
 				return null;
 			}
-			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");
-			if (searcherType == null)
+			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'", "Name", "CommandLine", "ProcessId", "ParentProcessId");
+			if (found == null)
 			{
 				return null;
 			}
-			object searcher = Activator.CreateInstance(searcherType, "SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'")!;
-			object collection = searcherType.GetMethod("Get")!.Invoke(searcher, null)!;
 			List<GameProcessRow> rows = new List<GameProcessRow>();
-			foreach (object item in (System.Collections.IEnumerable)collection)
+			foreach (Dictionary<string, object?> item in found)
 			{
-				rows.Add(new GameProcessRow(ReadField(item, "Name"), ReadField(item, "CommandLine"), ReadInt(item, "ProcessId"), ReadInt(item, "ParentProcessId")));
+				rows.Add(new GameProcessRow(WmiQuery.Text(item, "Name"), WmiQuery.Text(item, "CommandLine"), ToPid(WmiQuery.Number(item, "ProcessId")), ToPid(WmiQuery.Number(item, "ParentProcessId"))));
 			}
 			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId);
 		}
@@ -165,26 +163,8 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 		return false;
 	}
 
-	private static string ReadField(object item, string name)
+	private static int ToPid(long value)
 	{
-		object? value = item.GetType().GetProperty("Item", new Type[] { typeof(string) })?.GetValue(item, new object[] { name });
-		return value?.ToString() ?? "";
-	}
-
-	private static int ReadInt(object item, string name)
-	{
-		object? value = item.GetType().GetProperty("Item", new Type[] { typeof(string) })?.GetValue(item, new object[] { name });
-		if (value == null)
-		{
-			return 0;
-		}
-		try
-		{
-			return Convert.ToInt32(value);
-		}
-		catch
-		{
-			return 0;
-		}
+		return value > 0 && value <= int.MaxValue ? (int)value : 0;
 	}
 }

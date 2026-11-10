@@ -1,5 +1,5 @@
 using System;
-using System.Reflection;
+using System.Collections.Generic;
 using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Text;
 
@@ -13,20 +13,12 @@ public static class HardwareProbe
 	{
 		try
 		{
-			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");
-			if (searcherType == null)
+			foreach (Dictionary<string, object?> item in WmiQuery.Rows("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem", "TotalPhysicalMemory") ?? new List<Dictionary<string, object?>>())
 			{
-				return 0L;
-			}
-			using IDisposable searcher = (IDisposable)Activator.CreateInstance(searcherType, "SELECT TotalPhysicalMemory FROM Win32_ComputerSystem")!;
-			object results = searcherType.GetMethod("Get")!.Invoke(searcher, null)!;
-			foreach (object item in (System.Collections.IEnumerable)results)
-			{
-				PropertyInfo? indexer = item.GetType().GetProperty("Item");
-				object? ram = indexer?.GetValue(item, new object[] { "TotalPhysicalMemory" });
-				if (ram is IConvertible convertible)
+				long ram = WmiQuery.Number(item, "TotalPhysicalMemory");
+				if (ram > 0)
 				{
-					return convertible.ToInt64(null);
+					return ram;
 				}
 			}
 		}
@@ -53,25 +45,21 @@ public static class HardwareProbe
 		}
 		try
 		{
-			Type? searcherType = Type.GetType("System.Management.ManagementObjectSearcher, System.Management");
-			if (searcherType == null)
+			List<Dictionary<string, object?>>? adapters = WmiQuery.Rows("SELECT Name, AdapterRAM FROM Win32_VideoController", "Name", "AdapterRAM");
+			if (adapters == null)
 			{
 				return null;
 			}
 			string? name = null;
 			long vram = 0L;
-			using IDisposable searcher = (IDisposable)Activator.CreateInstance(searcherType, "SELECT Name, AdapterRAM FROM Win32_VideoController")!;
-			object results = searcherType.GetMethod("Get")!.Invoke(searcher, null)!;
-			foreach (object item in (System.Collections.IEnumerable)results)
+			foreach (Dictionary<string, object?> item in adapters)
 			{
-				PropertyInfo? indexer = item.GetType().GetProperty("Item");
-				string gpu = indexer?.GetValue(item, new object[] { "Name" })?.ToString() ?? "";
+				string gpu = WmiQuery.Text(item, "Name");
 				if (gpu.Length == 0 || GraphicsAuto.IsIntegratedName(gpu))
 				{
 					continue;
 				}
-				object? ram = indexer?.GetValue(item, new object[] { "AdapterRAM" });
-				long bytes = ram is IConvertible convertible ? convertible.ToInt64(null) : 0L;
+				long bytes = WmiQuery.Number(item, "AdapterRAM");
 				if (bytes > vram)
 				{
 					name = gpu;

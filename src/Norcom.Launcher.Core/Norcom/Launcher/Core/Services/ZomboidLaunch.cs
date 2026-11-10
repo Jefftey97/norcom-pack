@@ -1,6 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -15,16 +18,20 @@ public sealed class ZomboidLaunchPlan
 	public string GraphicsNote { get; init; } = "";
 
 	public string GamePath { get; init; } = "";
+
+	public bool IncludesPassword { get; init; }
 }
 
 public static class ZomboidLaunch
 {
 	public const string SteamUrl = "steam://rungameid/108600";
 
-	// TODO(signed-address): append Steam +connect when the NORCOM server address is a signed channel or pack field.
-	// Do not read launcher/channel-v1.json for that. Until the field exists, the home screen only copies the address.
-
 	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath)
+	{
+		return Prepare(sources, userProfile, launcherHome, minecraftLockPath, null);
+	}
+
+	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson)
 	{
 		SteamGameLocation install = SteamLibrary.FindZomboid(sources);
 		if (!install.Found)
@@ -33,6 +40,20 @@ public static class ZomboidLaunch
 			{
 				CanStart = false,
 				Message = SteamLibrary.NotFound
+			};
+		}
+		ZomboidFeedDoc feed = ParseFeed(feedJson);
+		string zomboidRoot = Path.Combine(userProfile, "Zomboid");
+		try
+		{
+			Directory.CreateDirectory(zomboidRoot);
+		}
+		catch (Exception ex)
+		{
+			return new ZomboidLaunchPlan
+			{
+				CanStart = false,
+				Message = "Project Zomboid settings could not be prepared (" + ex.GetType().Name + ")."
 			};
 		}
 		string note = "";
@@ -44,14 +65,67 @@ public static class ZomboidLaunch
 		{
 			note = "Zomboid graphics were not applied (" + ex.GetType().Name + ").";
 		}
+		string url = ZomboidFeed.SteamUrl(feed, out string passwordNote);
+		string workshop = ZomboidFeed.WorkshopNotice(launcherHome, install.LibraryPath, feed.Workshop);
+		string message = "Opening Project Zomboid in Steam. Workshop items are subscribed in Steam.";
+		if (workshop.Length > 0)
+		{
+			message += " " + workshop;
+		}
+		if (passwordNote.Length > 0)
+		{
+			message += " " + passwordNote;
+		}
 		return new ZomboidLaunchPlan
 		{
 			CanStart = true,
-			Url = SteamUrl,
-			Message = "Opening Project Zomboid in Steam. Workshop mods are not managed by NORCOM.",
+			Url = url,
+			Message = message,
 			GraphicsNote = note,
-			GamePath = install.GamePath
+			GamePath = install.GamePath,
+			IncludesPassword = url.Contains("+password", StringComparison.Ordinal)
 		};
+	}
+
+	public static async Task<ZomboidLaunchPlan> PrepareAsync(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, HttpClient http, CancellationToken ct)
+	{
+		ZomboidLaunchPlan plan = Prepare(sources, userProfile, launcherHome, minecraftLockPath, feedJson);
+		if (!plan.CanStart || http == null)
+		{
+			return plan;
+		}
+		ZomboidFeedDoc feed = ParseFeed(feedJson);
+		if (feed.Files.Count == 0)
+		{
+			return plan;
+		}
+		try
+		{
+			await ZomboidFeed.SyncFilesAsync(http, Path.Combine(userProfile, "Zomboid"), feed, ct).ConfigureAwait(false);
+		}
+		catch (Exception ex) when (ex is InvalidDataException or IOException or HttpRequestException)
+		{
+			return new ZomboidLaunchPlan
+			{
+				CanStart = false,
+				Message = ex.Message,
+				GraphicsNote = plan.GraphicsNote,
+				GamePath = plan.GamePath
+			};
+		}
+		return plan;
+	}
+
+	private static ZomboidFeedDoc ParseFeed(string feedJson)
+	{
+		try
+		{
+			return ZomboidFeed.Parse(feedJson);
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			return new ZomboidFeedDoc();
+		}
 	}
 }
 

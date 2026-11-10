@@ -239,14 +239,12 @@ public class ShellViewModel : ObservableObject
 
 	public string PlayLabel => IsZomboid ? "Play Project Zomboid" : LaunchedGame.PlayCaption(GameRunning);
     public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":IsZomboid?ZomboidAvailability():GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
-	public string ServerAddress => NorcomPaths.ServerHost;
 	public bool IsZomboid => string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
 	public string GamePickerDetail => _gamePickerDetail;
 	private string _selectedGameId;
 	private bool _selectedGameLoaded;
 	private string _gamePickerDetail = "Minecraft uses the NORCOM pack in Prism.";
 	private RelayCommand<string> _selectGameCommand;
-	private RelayCommand _copyServerAddressCommand;
 	public string SelectedGameId
 	{
 		get
@@ -261,7 +259,6 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 	public IRelayCommand<string> SelectGameCommand => _selectGameCommand ??= new RelayCommand<string>(SelectGame);
-	public IRelayCommand CopyServerAddressCommand => _copyServerAddressCommand ??= new RelayCommand(CopyServerAddress);
     public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
     private int _statusRefreshing;
     public string ServerCheckedAt {get;private set;}="Not checked yet";
@@ -1507,7 +1504,17 @@ public class ShellViewModel : ObservableObject
 		{
 			ProgressFraction = 0.2;
 			ProgressLabel = "Checking Steam";
-			ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath);
+			string feedJson = "";
+			try
+			{
+				feedJson = await _http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(continueOnCapturedContext: true);
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("zomboid feed " + ex.GetType().Name);
+			}
+			ProgressLabel = "Syncing Project Zomboid";
+			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			RefreshGamePicker();
 			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
 			{
@@ -1516,7 +1523,7 @@ public class ShellViewModel : ObservableObject
 			if (!plan.CanStart)
 			{
 				ProgressFraction = 0.0;
-				ProgressLabel = SteamLibrary.NotFound;
+				ProgressLabel = plan.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) ? SteamLibrary.NotFound : "Project Zomboid was not started";
 				StatusLine = plan.Message;
 				return;
 			}
@@ -1524,7 +1531,7 @@ public class ShellViewModel : ObservableObject
 			StatusLine = plan.Message;
 			SteamStart.Open(plan.Url);
 			ProgressFraction = 1.0;
-			LauncherLog.Write("zomboid steam " + plan.Url);
+			LauncherLog.Write(plan.IncludesPassword ? "zomboid steam connect" : "zomboid steam launch");
 		}
 		catch (Exception ex)
 		{
@@ -1569,7 +1576,7 @@ public class ShellViewModel : ObservableObject
 			return;
 		}
 		SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
-		_gamePickerDetail = install.Found ? "Steam will start Project Zomboid. Workshop mods stay in Steam." : SteamLibrary.NotFound;
+		_gamePickerDetail = install.Found ? "Play checks the pack and opens Project Zomboid in Steam." : SteamLibrary.NotFound;
 	}
 
 	private string ZomboidAvailability()
@@ -1579,20 +1586,6 @@ public class ShellViewModel : ObservableObject
 			return "Please wait for the current operation to finish.";
 		}
 		return _gamePickerDetail;
-	}
-
-	private void CopyServerAddress()
-	{
-		try
-		{
-			Clipboard.SetText(NorcomPaths.ServerHost);
-			StatusLine = "Server address copied.";
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("copy address " + ex.GetType().Name);
-			StatusLine = "Select the server address and copy it.";
-		}
 	}
 
 	public void RefreshLaunchedGame()

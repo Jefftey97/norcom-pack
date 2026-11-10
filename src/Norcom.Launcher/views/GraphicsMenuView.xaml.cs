@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -8,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Services;
+using Norcom.Launcher.ViewModels;
 
 namespace Norcom.Launcher.Views;
 
@@ -23,48 +25,56 @@ public partial class GraphicsMenuView : UserControl
 
 	private bool _building;
 
+	private ShellViewModel _hooked;
+
 	public GraphicsMenuView()
 	{
 		InitializeComponent();
 		Loaded += delegate
 		{
+			Hook();
+			Refresh();
+		};
+		DataContextChanged += delegate
+		{
+			Hook();
 			Refresh();
 		};
 	}
 
+	private void Hook()
+	{
+		if (_hooked != null)
+		{
+			_hooked.PropertyChanged -= OnViewModelChanged;
+		}
+		_hooked = DataContext as ShellViewModel;
+		if (_hooked != null)
+		{
+			_hooked.PropertyChanged += OnViewModelChanged;
+		}
+	}
+
+	private void OnViewModelChanged(object sender, PropertyChangedEventArgs args)
+	{
+		if (args.PropertyName == nameof(ShellViewModel.SelectedGameId))
+		{
+			Refresh();
+		}
+	}
+
 	private void Refresh()
 	{
+		if (DataContext is ShellViewModel vm && !string.IsNullOrEmpty(vm.SelectedGameId))
+		{
+			_gameId = vm.SelectedGameId;
+		}
 		_specs = MachineSpecsProbe.Read();
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
-		BuildGameButtons();
 		LoadProfile();
 		BuildPresets();
 		BuildManual();
 		BuildMods();
-	}
-
-	private void BuildGameButtons()
-	{
-		GameButtons.Children.Clear();
-		for (int i = 0; i < GameGraphicsCatalog.Games.Count; i++)
-		{
-			GameDefinition game = GameGraphicsCatalog.Games[i];
-			Button button = new Button
-			{
-				Content = game.Name,
-				Margin = new Thickness(0, 0, 10, 0),
-				Tag = game.Id
-			};
-			button.Click += delegate(object sender, RoutedEventArgs args)
-			{
-				_gameId = (string)((Button)sender).Tag;
-				LoadProfile();
-				BuildPresets();
-				BuildManual();
-				BuildMods();
-			};
-			GameButtons.Children.Add(button);
-		}
 	}
 
 	private void LoadProfile()
@@ -96,7 +106,7 @@ public partial class GraphicsMenuView : UserControl
 			Button button = new Button
 			{
 				Content = preset,
-				Margin = new Thickness(0, 0, 10, 0),
+				Margin = new Thickness(0, 0, 10, 10),
 				Tag = preset
 			};
 			button.Click += delegate(object sender, RoutedEventArgs args)
@@ -250,12 +260,9 @@ public partial class GraphicsMenuView : UserControl
 	private void BuildMods()
 	{
 		Mods.Children.Clear();
-		if (!string.Equals(_gameId, "minecraft", StringComparison.OrdinalIgnoreCase))
-		{
-			Mods.Children.Add(new TextBlock { Text = "Zomboid options.ini is edited from the manual settings above.", Opacity = 0.75 });
-			return;
-		}
-		string config = Path.Combine(NorcomPaths.GameDir, "config");
+		string config = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase)
+			? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "mods")
+			: Path.Combine(NorcomPaths.GameDir, "config");
 		string index = PreserveIndex();
 		string schemaPath = Path.Combine(config, "norcom-settings-schema.json");
 		string schema = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : "";

@@ -1,14 +1,38 @@
 using Norcom.Launcher.Core.Text;
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Services;
 using Norcom.Launcher.ViewModels;
 
 namespace Norcom.Launcher.Views;
 public partial class HomeView : UserControl
 {
-    public HomeView()=>InitializeComponent();
+    private ShellViewModel _hooked;
+    public HomeView()
+    {
+        InitializeComponent();
+        Loaded += delegate { SyncPasswordBox(); };
+        DataContextChanged += delegate
+        {
+            if(_hooked!=null)_hooked.PropertyChanged -= OnViewModelChanged;
+            _hooked=DataContext as ShellViewModel;
+            if(_hooked!=null)_hooked.PropertyChanged += OnViewModelChanged;
+            SyncPasswordBox();
+        };
+    }
+    private void OnViewModelChanged(object sender, PropertyChangedEventArgs args)
+    {
+        if(args.PropertyName == nameof(ShellViewModel.IsZomboid) || args.PropertyName == nameof(ShellViewModel.SelectedGameId))SyncPasswordBox();
+    }
+    private void SyncPasswordBox()
+    {
+        if(ZomboidPassword==null)return;
+        string saved=DataContext is ShellViewModel vm && vm.IsZomboid && ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome)?ZomboidPasswordStore.Load(NorcomPaths.NorcomHome):"";
+        if(ZomboidPassword.Password!=saved)ZomboidPassword.Password=saved;
+    }
     private void OnSizeChanged(object sender,SizeChangedEventArgs e)
     {
         if(Overview==null)return;
@@ -19,7 +43,7 @@ public partial class HomeView : UserControl
     }
     private void StopClick(object sender,RoutedEventArgs e)
     {
-        if(DataContext is ShellViewModel vm && MessageBox.Show("Close the Minecraft game started by NORCOM? Save your world first.","Stop game",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)vm.StopLaunchedGame();
+        if(DataContext is ShellViewModel vm && MessageBox.Show("Close the "+(vm.IsZomboid?"Project Zomboid":"Minecraft")+" game started by NORCOM? Save your world first.","Stop game",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)vm.StopLaunchedGame();
     }
     private void ZomboidPasswordChanged(object sender,RoutedEventArgs e)
     {
@@ -28,6 +52,7 @@ public partial class HomeView : UserControl
     private async void CheckPackClick(object sender,RoutedEventArgs e)
     {
         if(DataContext is not ShellViewModel vm)return;
+        if(vm.IsZomboid){vm.StatusLine="Project Zomboid files are checked when you press Play.";return;}
         try{await vm.FixPinAsync();}catch(Exception ex){LauncherLog.Write("pack check "+ex.GetType().Name);vm.StatusLine="Pack check unavailable. Try again when your connection is ready.";}
     }
 }

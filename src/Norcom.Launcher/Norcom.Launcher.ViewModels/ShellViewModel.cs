@@ -240,11 +240,20 @@ public class ShellViewModel : ObservableObject
 	public string PlayLabel => IsZomboid ? "Play Project Zomboid" : LaunchedGame.PlayCaption(GameRunning);
     public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":IsZomboid?ZomboidAvailability():GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
 	public bool IsZomboid => string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
-	public bool ShowZomboidPassword => IsZomboid && !ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome);
+	public bool CanStopSelectedGame => IsZomboid ? GameSession.IsRunning(ChosenGame.Zomboid, NorcomPaths.GameLockPath) : GameRunning;
+	public string SessionNote => IsZomboid ? "Play syncs the server's mod list from the pack, then connects in Steam. The first time, subscribe to any Workshop mods NORCOM names. You only need to own Project Zomboid." : "Play checks the client and opens your NORCOM instance in Prism.";
+	public string PasswordPrompt => IsZomboid ? "Server password, saved on this PC only. Leave blank if the server has none." : "Server password is not used for Minecraft.";
+	public string AccountTitle => IsZomboid ? "Owned on Steam" : "Managed in Prism";
+	public string AccountBody => IsZomboid ? "NORCOM opens Project Zomboid through Steam. Sign in to Steam on this PC. NORCOM does not read your Steam password." : "Sign in with Microsoft in Prism when prompted. NORCOM opens your instance there and does not read Prism’s accounts.";
+	public string AccountFine => IsZomboid ? "Workshop mods are subscribed in Steam." : "Prism Launcher is a separate GPL program.";
+	public string AccountAction => IsZomboid ? "Open Steam" : "Get Prism Launcher";
+	public string ClientPackDetail => IsZomboid ? "Project Zomboid files are checked when you press Play." : PinDetail;
 	private string _pendingZomboidPassword = "";
+	private bool _zomboidPasswordTouched;
 	public void SetPendingZomboidPassword(string password)
 	{
 		_pendingZomboidPassword = password ?? "";
+		_zomboidPasswordTouched = true;
 	}
 	public string GamePickerDetail => _gamePickerDetail;
 	private string _selectedGameId;
@@ -1342,6 +1351,7 @@ public class ShellViewModel : ObservableObject
 		_pinDetail = detail ?? "";
 		OnPropertyChanged(nameof(PinStatus));
 		OnPropertyChanged(nameof(PinDetail));
+		OnPropertyChanged(nameof(ClientPackDetail));
 	}
 
 	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct, bool allowRetry = false)
@@ -1570,7 +1580,14 @@ public class ShellViewModel : ObservableObject
 		RefreshGamePicker();
 		OnPropertyChanged(nameof(SelectedGameId));
 		OnPropertyChanged(nameof(IsZomboid));
-		OnPropertyChanged(nameof(ShowZomboidPassword));
+		OnPropertyChanged(nameof(CanStopSelectedGame));
+		OnPropertyChanged(nameof(SessionNote));
+		OnPropertyChanged(nameof(PasswordPrompt));
+		OnPropertyChanged(nameof(AccountTitle));
+		OnPropertyChanged(nameof(AccountBody));
+		OnPropertyChanged(nameof(AccountFine));
+		OnPropertyChanged(nameof(AccountAction));
+		OnPropertyChanged(nameof(ClientPackDetail));
 		OnPropertyChanged(nameof(PlayLabel));
 		OnPropertyChanged(nameof(PlayAvailability));
 		OnPropertyChanged(nameof(GamePickerDetail));
@@ -1598,13 +1615,23 @@ public class ShellViewModel : ObservableObject
 
 	private string RememberZomboidPassword()
 	{
-		if (ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome))
+		if (!_zomboidPasswordTouched && ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome))
 		{
 			return ZomboidPasswordStore.Load(NorcomPaths.NorcomHome);
 		}
 		ZomboidPasswordStore.Save(NorcomPaths.NorcomHome, _pendingZomboidPassword);
-		OnPropertyChanged(nameof(ShowZomboidPassword));
 		return _pendingZomboidPassword;
+	}
+
+	[RelayCommand]
+	private void OpenAccountAction()
+	{
+		if (IsZomboid)
+		{
+			SteamStart.Open("steam://open/main");
+			return;
+		}
+		OpenPrismDownload();
 	}
 
 	public void RefreshLaunchedGame()
@@ -1922,14 +1949,21 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private void OpenGameFolder()
 	{
+		if (IsZomboid)
+		{
+			SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
+			Open(install.Found ? install.GamePath : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid"));
+			return;
+		}
 		Open(NorcomPaths.GameDir);
 	}
 
 	[RelayCommand]
 	private void OpenScreenshotsFolder()
 	{
-		Directory.CreateDirectory(NorcomPaths.ScreenshotsDir);
-		Open(NorcomPaths.ScreenshotsDir);
+		string folder = IsZomboid ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "Screenshots") : NorcomPaths.ScreenshotsDir;
+		Directory.CreateDirectory(folder);
+		Open(folder);
 	}
 
 	[RelayCommand]
@@ -2308,6 +2342,7 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged("PlayLabel");
         OnPropertyChanged(nameof(PlayAvailability));
         OnPropertyChanged(nameof(CanManageClient));
+		OnPropertyChanged(nameof(CanStopSelectedGame));
 		AnimationsPaused = value && PauseWhilePlaying;
 		if (value)
 		{

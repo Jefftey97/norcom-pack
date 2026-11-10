@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Services;
+using Norcom.Launcher.Core.Text;
 using Norcom.Launcher.ViewModels;
 
 namespace Norcom.Launcher.Views;
@@ -25,49 +26,49 @@ public partial class GraphicsMenuView : UserControl
 
 	private bool _building;
 
-	private ShellViewModel _hooked;
+	public static readonly DependencyProperty GameIdProperty = DependencyProperty.Register(nameof(GameId), typeof(string), typeof(GraphicsMenuView), new PropertyMetadata("minecraft", OnGameIdChanged));
+
+	public string GameId
+	{
+		get
+		{
+			return (string)GetValue(GameIdProperty);
+		}
+		set
+		{
+			SetValue(GameIdProperty, value);
+		}
+	}
 
 	public GraphicsMenuView()
 	{
 		InitializeComponent();
 		Loaded += delegate
 		{
-			Hook();
 			Refresh();
 		};
 		DataContextChanged += delegate
 		{
-			Hook();
 			Refresh();
 		};
 	}
 
-	private void Hook()
+	private static void OnGameIdChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
 	{
-		if (_hooked != null)
+		GraphicsMenuView view = (GraphicsMenuView)sender;
+		view._gameId = args.NewValue as string ?? "minecraft";
+		if (view.IsLoaded)
 		{
-			_hooked.PropertyChanged -= OnViewModelChanged;
-		}
-		_hooked = DataContext as ShellViewModel;
-		if (_hooked != null)
-		{
-			_hooked.PropertyChanged += OnViewModelChanged;
-		}
-	}
-
-	private void OnViewModelChanged(object sender, PropertyChangedEventArgs args)
-	{
-		if (args.PropertyName == nameof(ShellViewModel.SelectedGameId))
-		{
-			Refresh();
+			view.Refresh();
 		}
 	}
 
 	private void Refresh()
 	{
-		if (DataContext is ShellViewModel vm && !string.IsNullOrEmpty(vm.SelectedGameId))
+		_gameId = string.IsNullOrWhiteSpace(GameId) ? "minecraft" : GameId;
+		if (Heading != null)
 		{
-			_gameId = vm.SelectedGameId;
+			Heading.Text = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase) ? "Project Zomboid" : "Minecraft";
 		}
 		_specs = MachineSpecsProbe.Read();
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
@@ -75,6 +76,33 @@ public partial class GraphicsMenuView : UserControl
 		BuildPresets();
 		BuildManual();
 		BuildMods();
+		if (string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
+		{
+			_ = RefreshZomboidFeedAsync();
+		}
+	}
+
+	private async System.Threading.Tasks.Task RefreshZomboidFeedAsync()
+	{
+		if (QaGates.OfflineCheckRequested())
+		{
+			return;
+		}
+		try
+		{
+			using HttpClient http = new HttpClient
+			{
+				Timeout = TimeSpan.FromSeconds(8)
+			};
+			string json = await http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(true);
+			Directory.CreateDirectory(NorcomPaths.NorcomHome);
+			File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), json);
+			BuildMods();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("zomboid mods " + ex.GetType().Name);
+		}
 	}
 
 	private void LoadProfile()
@@ -249,16 +277,35 @@ public partial class GraphicsMenuView : UserControl
 	private void BuildMods()
 	{
 		Mods.Children.Clear();
-		string config = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase)
+		bool zomboid = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
+		string config = zomboid
 			? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "mods")
 			: Path.Combine(NorcomPaths.GameDir, "config");
-		string index = PreserveIndex();
 		string schemaPath = Path.Combine(config, "norcom-settings-schema.json");
 		string schema = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : "";
-		IReadOnlyList<DiscoveredModFile> files = ModSettingsCatalog.Discover(config, index, schema);
+		IReadOnlyList<DiscoveredModFile> files;
+		if (zomboid)
+		{
+			string cached = ZomboidFeed.CachePath(NorcomPaths.NorcomHome);
+			string feedJson = File.Exists(cached) ? File.ReadAllText(cached) : "";
+			ZomboidFeedDoc feed = new ZomboidFeedDoc();
+			try
+			{
+				feed = ZomboidFeed.Parse(feedJson);
+			}
+			catch (JsonException)
+			{
+				feed = new ZomboidFeedDoc();
+			}
+			files = ModSettingsCatalog.DiscoverZomboidFeed(config, feed, schema);
+		}
+		else
+		{
+			files = ModSettingsCatalog.DiscoverFeed(config, PreserveIndex(), schema);
+		}
 		if (files.Count == 0)
 		{
-			Mods.Children.Add(new TextBlock { Text = "No config files in the game folder yet.", Opacity = 0.75 });
+			Mods.Children.Add(new TextBlock { Text = "No mods in the pack yet.", Opacity = 0.75 });
 			return;
 		}
 		for (int i = 0; i < files.Count; i++)

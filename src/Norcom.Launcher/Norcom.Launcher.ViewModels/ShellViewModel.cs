@@ -223,6 +223,8 @@ public class ShellViewModel : ObservableObject
 	public bool IsSettings => Page == LauncherPage.Settings;
 
 	public bool IsGraphics => Page == LauncherPage.Graphics;
+	public bool IsMinecraftPage => Page == LauncherPage.Minecraft;
+	public bool IsZomboidPage => Page == LauncherPage.Zomboid;
 
 	public bool CanPlay
 	{
@@ -1308,6 +1310,14 @@ public class ShellViewModel : ObservableObject
 	private void SelectPage(LauncherPage next)
 	{
 		Page = next;
+		if (next == LauncherPage.Minecraft)
+		{
+			SelectGame(ChosenGame.Minecraft);
+		}
+		else if (next == LauncherPage.Zomboid)
+		{
+			SelectGame(ChosenGame.Zomboid);
+		}
 	}
 
 	public async Task InitializeAsync()
@@ -1558,6 +1568,17 @@ public class ShellViewModel : ObservableObject
 			catch (Exception ex)
 			{
 				LauncherLog.Write("zomboid feed " + ex.GetType().Name);
+			}
+			if (!string.IsNullOrWhiteSpace(feedJson))
+			{
+				try
+				{
+					File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), feedJson);
+				}
+				catch (Exception ex)
+				{
+					LauncherLog.Write("zomboid feed cache " + ex.GetType().Name);
+				}
 			}
 			ProgressLabel = "Syncing Project Zomboid";
 			string localPassword = RememberZomboidPassword();
@@ -2372,6 +2393,8 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged("IsHome");
 		OnPropertyChanged("IsSettings");
 		OnPropertyChanged("IsGraphics");
+		OnPropertyChanged(nameof(IsMinecraftPage));
+		OnPropertyChanged(nameof(IsZomboidPage));
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

@@ -41,6 +41,11 @@ public static class ZomboidFeed
 {
 	public const string Url = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/zomboid.json";
 
+	public static string CachePath(string launcherHome)
+	{
+		return Path.Combine(launcherHome, "zomboid-feed.json");
+	}
+
 	public static ZomboidFeedDoc Parse(string json)
 	{
 		if (string.IsNullOrWhiteSpace(json))

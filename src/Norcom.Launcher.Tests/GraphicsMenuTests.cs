@@ -318,6 +318,31 @@ public class GraphicsMenuTests
 		Assert.False(Directory.EnumerateFiles(game, "*.norcom-partial").Any());
 	}
 
+	[Fact]
+	public void ModSettingsFollowThePackFeedAndIgnoreEverythingElse()
+	{
+		string config = NewDir();
+		File.WriteAllText(Path.Combine(config, "listed.json"), "{\"a\":1}");
+		File.WriteAllText(Path.Combine(config, "extra.json"), "{\"a\":1}");
+		string index = "[[files]]\nfile = \"config/listed.json\"\npreserve = true\n";
+		IReadOnlyList<DiscoveredModFile> minecraft = ModSettingsCatalog.DiscoverFeed(config, index, "");
+		DiscoveredModFile listed = Assert.Single(minecraft);
+		Assert.Equal("listed.json", listed.RelativePath);
+		Assert.False(listed.ReadOnly);
+		Assert.Empty(ModSettingsCatalog.DiscoverFeed(config, "", ""));
+		string mods = NewDir();
+		Directory.CreateDirectory(Path.Combine(mods, "Listed"));
+		File.WriteAllText(Path.Combine(mods, "Listed", "config.json"), "{\"a\":1}");
+		Directory.CreateDirectory(Path.Combine(mods, "NotInPack"));
+		File.WriteAllText(Path.Combine(mods, "NotInPack", "config.json"), "{\"a\":1}");
+		ZomboidFeedDoc empty = ZomboidFeed.Parse("{\"workshop\":[],\"files\":[]}");
+		Assert.Empty(ModSettingsCatalog.DiscoverZomboidFeed(mods, empty, ""));
+		ZomboidFeedDoc feed = ZomboidFeed.Parse("{\"workshop\":[{\"workshopId\":\"123\",\"modId\":\"Listed\"}]}");
+		DiscoveredModFile zomboid = Assert.Single(ModSettingsCatalog.DiscoverZomboidFeed(mods, feed, ""));
+		Assert.Equal("Listed/config.json", zomboid.RelativePath);
+		Assert.DoesNotContain("NotInPack", zomboid.RelativePath, StringComparison.Ordinal);
+	}
+
 	private static MachineSpecs Pc(int vramGb, int ramGb, int cores, int mhz, string gpu, int width, int height, int refresh)
 	{
 		return new MachineSpecs

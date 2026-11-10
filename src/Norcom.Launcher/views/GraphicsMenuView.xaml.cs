@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Services;
+using Norcom.Launcher.Core.Text;
+using Norcom.Launcher.ViewModels;
 
 namespace Norcom.Launcher.Views;
 
@@ -23,6 +26,20 @@ public partial class GraphicsMenuView : UserControl
 
 	private bool _building;
 
+	public static readonly DependencyProperty GameIdProperty = DependencyProperty.Register(nameof(GameId), typeof(string), typeof(GraphicsMenuView), new PropertyMetadata("minecraft", OnGameIdChanged));
+
+	public string GameId
+	{
+		get
+		{
+			return (string)GetValue(GameIdProperty);
+		}
+		set
+		{
+			SetValue(GameIdProperty, value);
+		}
+	}
+
 	public GraphicsMenuView()
 	{
 		InitializeComponent();
@@ -30,58 +47,68 @@ public partial class GraphicsMenuView : UserControl
 		{
 			Refresh();
 		};
+		DataContextChanged += delegate
+		{
+			Refresh();
+		};
+	}
+
+	private static void OnGameIdChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+	{
+		GraphicsMenuView view = (GraphicsMenuView)sender;
+		view._gameId = args.NewValue as string ?? "minecraft";
+		if (view.IsLoaded)
+		{
+			view.Refresh();
+		}
 	}
 
 	private void Refresh()
 	{
+		_gameId = string.IsNullOrWhiteSpace(GameId) ? "minecraft" : GameId;
+		if (Heading != null)
+		{
+			Heading.Text = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase) ? "Project Zomboid" : "Minecraft";
+		}
 		_specs = MachineSpecsProbe.Read();
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
-		BuildGameButtons();
 		LoadProfile();
 		BuildPresets();
 		BuildManual();
 		BuildMods();
+		if (string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
+		{
+			_ = RefreshZomboidFeedAsync();
+		}
 	}
 
-	private void BuildGameButtons()
+	private async System.Threading.Tasks.Task RefreshZomboidFeedAsync()
 	{
-		GameButtons.Children.Clear();
-		for (int i = 0; i < GameGraphicsCatalog.Games.Count; i++)
+		if (QaGates.OfflineCheckRequested())
 		{
-			GameDefinition game = GameGraphicsCatalog.Games[i];
-			Button button = new Button
+			return;
+		}
+		try
+		{
+			using HttpClient http = new HttpClient
 			{
-				Content = game.Name,
-				Margin = new Thickness(0, 0, 10, 0),
-				Tag = game.Id
+				Timeout = TimeSpan.FromSeconds(8)
 			};
-			button.Click += delegate(object sender, RoutedEventArgs args)
-			{
-				_gameId = (string)((Button)sender).Tag;
-				LoadProfile();
-				BuildPresets();
-				BuildManual();
-				BuildMods();
-			};
-			GameButtons.Children.Add(button);
+			string json = await http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(true);
+			Directory.CreateDirectory(NorcomPaths.NorcomHome);
+			File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), json);
+			BuildMods();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("zomboid mods " + ex.GetType().Name);
 		}
 	}
 
 	private void LoadProfile()
 	{
-		GameDefinition game = GameGraphicsCatalog.Require(_gameId);
-		_recommendation = GameGraphicsCatalog.Recommend(game, _specs);
-		GraphicsProfileStore store = GraphicsProfileStore.Load(NorcomPaths.NorcomHome);
-		SavedGraphicsProfile saved = store.Find(_gameId);
-		if (saved == null)
-		{
-			saved = new SavedGraphicsProfile
-			{
-				Preset = _recommendation.Preset,
-				Auto = true,
-				Reason = _recommendation.Reason
-			};
-		}
+		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, _gameId, _specs);
+		_recommendation = recommended;
 		_profile = saved;
 		RecommendationText.Text = _profile.Auto ? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason : "Using your " + _profile.Preset + " override. Recommendation was " + _recommendation.Preset + ". " + _recommendation.Reason;
 	}
@@ -96,7 +123,7 @@ public partial class GraphicsMenuView : UserControl
 			Button button = new Button
 			{
 				Content = preset,
-				Margin = new Thickness(0, 0, 10, 0),
+				Margin = new Thickness(0, 0, 10, 10),
 				Tag = preset
 			};
 			button.Click += delegate(object sender, RoutedEventArgs args)
@@ -250,19 +277,35 @@ public partial class GraphicsMenuView : UserControl
 	private void BuildMods()
 	{
 		Mods.Children.Clear();
-		if (!string.Equals(_gameId, "minecraft", StringComparison.OrdinalIgnoreCase))
-		{
-			Mods.Children.Add(new TextBlock { Text = "Zomboid options.ini is edited from the manual settings above.", Opacity = 0.75 });
-			return;
-		}
-		string config = Path.Combine(NorcomPaths.GameDir, "config");
-		string index = PreserveIndex();
+		bool zomboid = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
+		string config = zomboid
+			? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "mods")
+			: Path.Combine(NorcomPaths.GameDir, "config");
 		string schemaPath = Path.Combine(config, "norcom-settings-schema.json");
 		string schema = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : "";
-		IReadOnlyList<DiscoveredModFile> files = ModSettingsCatalog.Discover(config, index, schema);
+		IReadOnlyList<DiscoveredModFile> files;
+		if (zomboid)
+		{
+			string cached = ZomboidFeed.CachePath(NorcomPaths.NorcomHome);
+			string feedJson = File.Exists(cached) ? File.ReadAllText(cached) : "";
+			ZomboidFeedDoc feed = new ZomboidFeedDoc();
+			try
+			{
+				feed = ZomboidFeed.Parse(feedJson);
+			}
+			catch (JsonException)
+			{
+				feed = new ZomboidFeedDoc();
+			}
+			files = ModSettingsCatalog.DiscoverZomboidFeed(config, feed, schema);
+		}
+		else
+		{
+			files = ModSettingsCatalog.DiscoverFeed(config, PreserveIndex(), schema);
+		}
 		if (files.Count == 0)
 		{
-			Mods.Children.Add(new TextBlock { Text = "No config files in the game folder yet.", Opacity = 0.75 });
+			Mods.Children.Add(new TextBlock { Text = "No mods in the pack yet.", Opacity = 0.75 });
 			return;
 		}
 		for (int i = 0; i < files.Count; i++)

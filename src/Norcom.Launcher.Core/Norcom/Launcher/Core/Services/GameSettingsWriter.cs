@@ -45,21 +45,7 @@ public static class GameLaunchGraphics
 	public static string ApplyBeforeLaunch(string gameId, string gameDir, string launcherHome, string minecraftLockPath, string userProfile)
 	{
 		GameDefinition game = GameGraphicsCatalog.Require(gameId);
-		GraphicsProfileStore store = GraphicsProfileStore.Load(launcherHome);
-		SavedGraphicsProfile saved = store.Find(gameId);
-		MachineSpecs specs = MachineSpecsProbe.Read();
-		PresetChoice recommended = GameGraphicsCatalog.Recommend(game, specs);
-		if (saved == null || saved.Auto)
-		{
-			saved = new SavedGraphicsProfile
-			{
-				Preset = recommended.Preset,
-				Auto = true,
-				Reason = recommended.Reason
-			};
-			store.Put(gameId, saved);
-			store.Save(launcherHome);
-		}
+		(SavedGraphicsProfile saved, _) = GraphicsProfileStore.Resolve(launcherHome, gameId, MachineSpecsProbe.Read());
 		if (GameSession.IsRunning(gameId, minecraftLockPath))
 		{
 			return "Skipped " + game.Name + " graphics because the game is running.";

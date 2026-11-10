@@ -36,6 +36,14 @@ public class DesktopContractTests
                 vm.GameRunning=true;Pump();Assert.False(play.IsEnabled);
             }
             finally{Environment.SetEnvironmentVariable("NORCOM_QA_OFFLINE","1");vm.GameRunning=false;}
+            vm.Page=LauncherPage.Minecraft;Pump();
+            var minecraft=Assert.IsType<GraphicsMenuView>(window.FindName("MinecraftPanel"));
+            Assert.Equal(Visibility.Visible,minecraft.Visibility);
+            var card=Assert.IsType<RamCard>(minecraft.FindName("MemoryCard"));
+            var memory=Assert.IsType<Slider>(card.FindName("MemoryControl"));
+            Assert.Equal(vm.RamFloorMb,memory.Minimum);Assert.Equal(vm.RamSafeMaxMb,memory.Maximum);
+            double pick=Math.Min(7168,memory.Maximum);if(pick<memory.Minimum)pick=memory.Minimum;
+            memory.Value=pick;Pump();Assert.Equal(pick,vm.MemoryMb);
             vm.Page=LauncherPage.Settings;Pump();
             Assert.Equal(Visibility.Collapsed,home.Visibility);
             var settings=Assert.IsType<SettingsView>(window.FindName("SettingsPanel"));
@@ -57,9 +65,6 @@ public class DesktopContractTests
                 vm.RefreshLaunchedGame();
                 Assert.False(vm.GameRunning);Assert.False(File.Exists(gameLock));Assert.False(current.HasExited);
             }
-            var memory=Assert.IsType<Slider>(settings.FindName("MemoryControl"));
-            Assert.Equal(2048,memory.Minimum);Assert.Equal(16384,memory.Maximum);
-            memory.Value=7168;Pump();Assert.Equal(7168,vm.MemoryMb);
             var motion=Assert.IsType<CheckBox>(settings.FindName("ReduceMotionControl"));
             var desired=!vm.ReduceMotion;motion.IsChecked=desired;Pump();Assert.Equal(desired,vm.ReduceMotion);
             var repair=Assert.IsType<Button>(settings.FindName("RepairAction"));Assert.Same(vm.RepairCommand,repair.Command);

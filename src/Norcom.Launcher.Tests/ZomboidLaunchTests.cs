@@ -1,3 +1,7 @@
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using Norcom.Launcher.Core.Services;
 using Xunit;
 
@@ -90,6 +94,75 @@ public class ZomboidLaunchTests
 	}
 
 	[Fact]
+	public void FeedConnectsWithoutUsingRcon()
+	{
+		string json = "{\"connect\":{\"host\":\"play.example.com\",\"port\":16261,\"password\":\"from-feed\",\"rcon\":\"admin-secret\"},\"workshop\":[{\"workshopId\":\"123\",\"modId\":\"TestMod\"}]}";
+		ZomboidFeedDoc feed = ZomboidFeed.Parse(json);
+		string url = ZomboidFeed.SteamUrl(feed, "friend-pass", out string note);
+		Assert.Equal("", note);
+		Assert.Contains("+connect%20play.example.com:16261", url, StringComparison.Ordinal);
+		Assert.Contains("+password%20friend-pass", url, StringComparison.Ordinal);
+		Assert.DoesNotContain("from-feed", url, StringComparison.Ordinal);
+		Assert.DoesNotContain("admin-secret", url, StringComparison.Ordinal);
+		Assert.DoesNotContain("rcon", url, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain("+password", ZomboidFeed.SteamUrl(feed, "", out _), StringComparison.Ordinal);
+		string home = NewDir();
+		string user = NewDir();
+		ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(FoundSteam(), user, home, "", json);
+		Assert.True(plan.CanStart);
+		Assert.Equal(ZomboidFeed.SteamUrl(feed, "", out _), plan.Url);
+		Assert.False(plan.IncludesPassword);
+		ZomboidLaunchPlan withPassword = ZomboidLaunch.Prepare(FoundSteam(), user, home, "", json, "friend-pass");
+		Assert.Equal(url, withPassword.Url);
+		Assert.True(withPassword.IncludesPassword);
+		Assert.Contains("Subscribe to these Workshop mods in Steam once: TestMod (123)", plan.Message);
+		ZomboidLaunchPlan again = ZomboidLaunch.Prepare(FoundSteam(), user, home, "", json);
+		Assert.DoesNotContain("Subscribe", again.Message);
+	}
+
+	[Fact]
+	public async Task HashedModFileLandsInTheZomboidModsFolder()
+	{
+		byte[] body = Encoding.UTF8.GetBytes("mod-bytes");
+		string hash = Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant();
+		string json = "{\"files\":[{\"path\":\"mods/LocalMap/mod.info\",\"url\":\"https://pack.example/mod.info\",\"sha256\":\"" + hash + "\"}]}";
+		string user = NewDir();
+		using HttpClient http = new HttpClient(new ByteHandler(body));
+		ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(FoundSteam(), user, NewDir(), "", json, http, CancellationToken.None);
+		Assert.True(plan.CanStart);
+		Assert.Equal(body, await File.ReadAllBytesAsync(Path.Combine(user, "Zomboid", "mods", "LocalMap", "mod.info")));
+	}
+
+	[Fact]
+	public async Task BadHashOrEscapingPathDoesNotWrite()
+	{
+		string user = NewDir();
+		string outside = Path.Combine(user, "escape.txt");
+		await File.WriteAllTextAsync(outside, "keep");
+		string json = "{\"files\":[{\"path\":\"../escape.txt\",\"url\":\"https://pack.example/x\",\"sha256\":\"" + new string('a', 64) + "\"}]}";
+		using HttpClient http = new HttpClient(new ByteHandler(Encoding.UTF8.GetBytes("nope")));
+		ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(FoundSteam(), user, NewDir(), "", json, http, CancellationToken.None);
+		Assert.False(plan.CanStart);
+		Assert.Equal("keep", await File.ReadAllTextAsync(outside));
+		string mismatch = "{\"files\":[{\"path\":\"mods/LocalMap/mod.info\",\"url\":\"https://pack.example/x\",\"sha256\":\"" + new string('b', 64) + "\"}]}";
+		ZomboidLaunchPlan bad = await ZomboidLaunch.PrepareAsync(FoundSteam(), user, NewDir(), "", mismatch, http, CancellationToken.None);
+		Assert.False(bad.CanStart);
+		Assert.False(File.Exists(Path.Combine(user, "Zomboid", "mods", "LocalMap", "mod.info")));
+	}
+
+	[Fact]
+	public void PreparePassesHeapOnTheSteamUrlAndWritesTheUserOverride()
+	{
+		string user = NewDir();
+		ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(FoundSteam(), user, NewDir(), "", "{\"connect\":{\"host\":\"play.example.com\",\"port\":16261}}", "", 4096);
+		Assert.True(plan.CanStart);
+		Assert.Contains("+connect%20play.example.com:16261", plan.Url, StringComparison.Ordinal);
+		Assert.Contains("-Xmx4096m", plan.Url, StringComparison.Ordinal);
+		Assert.Contains("-Xmx4096m", File.ReadAllText(Path.Combine(user, "Zomboid", ZomboidMemory.FileName)), StringComparison.Ordinal);
+		Assert.DoesNotContain("password", plan.Url, StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
 	public void ChosenGameRoundTrip()
 	{
 		string home = NewDir();
@@ -98,6 +171,17 @@ public class ZomboidLaunchTests
 		Assert.Equal(ChosenGame.Zomboid, ChosenGame.Load(home));
 		ChosenGame.Save(home, "nope");
 		Assert.Equal(ChosenGame.Minecraft, ChosenGame.Load(home));
+	}
+
+	private static SteamSources FoundSteam()
+	{
+		const string steam = "/steam";
+		var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+		{
+			[steam + "/steamapps/libraryfolders.vdf"] = "\"path\" \"/steam\"\n"
+		};
+		var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam + "/steamapps/common/ProjectZomboid" };
+		return Sources(new[] { steam }, files, dirs);
 	}
 
 	private static SteamSources Sources(IReadOnlyList<string> registry, Dictionary<string, string> files, HashSet<string> dirs)
@@ -109,6 +193,24 @@ public class ZomboidLaunchTests
 			DirectoryExists = path => dirs.Contains(path),
 			ReadText = path => files.TryGetValue(path, out string text) ? text : null
 		};
+	}
+
+	private sealed class ByteHandler : HttpMessageHandler
+	{
+		private readonly byte[] _bytes;
+
+		public ByteHandler(byte[] bytes)
+		{
+			_bytes = bytes;
+		}
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+			{
+				Content = new ByteArrayContent(_bytes)
+			});
+		}
 	}
 
 	private static string NewDir()

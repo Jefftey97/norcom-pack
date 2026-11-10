@@ -153,7 +153,10 @@ public static class GameGraphicsCatalog
 		string display = specs.DisplayWidth > 0 ? specs.DisplayWidth + "x" + specs.DisplayHeight : "unknown display";
 		string refresh = specs.RefreshHz > 0 ? specs.RefreshHz + " Hz" : "unknown refresh";
 		string clock = specs.CpuMhz > 0 ? specs.CpuMhz + " MHz" : "unknown clock";
-		return gpu + ", " + Gb(specs.VramBytes) + " GB video memory, " + Gb(specs.RamBytes) + " GB memory, " + specs.LogicalCores + " cores at " + clock + ", " + display + " " + refresh + ".";
+		int threads = specs.LogicalCores;
+		int cores = specs.PhysicalCores > 0 ? specs.PhysicalCores : threads;
+		string cpu = threads > 0 ? "Cores: " + cores.ToString(CultureInfo.InvariantCulture) + " cores, " + threads.ToString(CultureInfo.InvariantCulture) + " threads" : "Cores: not detected on this PC";
+		return gpu + ", " + Gb(specs.VramBytes) + " GB video memory, " + Gb(specs.RamBytes) + " GB memory, " + cpu + " at " + clock + ", " + display + " " + refresh + ".";
 	}
 
 	private static string Gb(long bytes)
@@ -172,12 +175,7 @@ public static class GameGraphicsCatalog
 			Id = "minecraft",
 			Name = "Minecraft",
 			Presets = new string[4] { "Low", "Medium", "Medium-High", "Ultra" },
-			Floors = new PresetFloor[3]
-			{
-				new PresetFloor("Ultra", 12L * Gib, 16L * Gib, 8, 2400),
-				new PresetFloor("Medium-High", 8L * Gib, 16L * Gib, 6, 0),
-				new PresetFloor("Medium", 4L * Gib, 8L * Gib, 4, 0)
-			},
+			Floors = SharedFloors(),
 			Settings = new GraphicsSetting[11]
 			{
 				Slider("renderDistance", "Render distance", "How many chunks Minecraft draws around you.", "options", 2, 32, 1, "8", "12", "16", "24"),
@@ -202,12 +200,7 @@ public static class GameGraphicsCatalog
 			Id = "zomboid",
 			Name = "Project Zomboid",
 			Presets = new string[4] { "Low", "Medium", "Medium-High", "Ultra" },
-			Floors = new PresetFloor[3]
-			{
-				new PresetFloor("Ultra", 6L * Gib, 12L * Gib, 4, 0),
-				new PresetFloor("Medium-High", 3L * Gib, 12L * Gib, 4, 0),
-				new PresetFloor("Medium", 1L * Gib, 8L * Gib, 2, 0)
-			},
+			Floors = SharedFloors(),
 			Settings = new GraphicsSetting[7]
 			{
 				Slider("width", "Width", "Window or fullscreen width in pixels.", "zomboid", 800, 3840, 1, "1280", "1920", "1920", "2560"),
@@ -218,6 +211,16 @@ public static class GameGraphicsCatalog
 				Slider("maxTextureSize", "Texture quality", "Higher uses more video memory.", "zomboid", 1, 4, 1, "1", "2", "3", "4"),
 				Slider("lighting", "Lighting", "0 is simpler lighting. 3 is the heaviest.", "zomboid", 0, 3, 1, "0", "1", "2", "3")
 			}
+		};
+	}
+
+	private static PresetFloor[] SharedFloors()
+	{
+		return new PresetFloor[3]
+		{
+			new PresetFloor("Ultra", 12L * Gib, 16L * Gib, 8, 0),
+			new PresetFloor("Medium-High", 7L * Gib, 16L * Gib, 6, 0),
+			new PresetFloor("Medium", 4L * Gib, 8L * Gib, 4, 0)
 		};
 	}
 

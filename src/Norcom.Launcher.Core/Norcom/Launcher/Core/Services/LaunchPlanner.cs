@@ -23,14 +23,17 @@ public static class LaunchPlanner
 			seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			Take(rootElement, prefer: false);
 			Take(rootElement2, prefer: true);
+			int heap = Math.Max(512, ctx2.RamMb);
+			string xms = "-Xms" + heap.ToString(System.Globalization.CultureInfo.InvariantCulture) + "M";
+			string xmx = "-Xmx" + heap.ToString(System.Globalization.CultureInfo.InvariantCulture) + "M";
 			List<string> list = new List<string>
 			{
-				"-Xms1024M",
-				$"-Xmx{Math.Clamp(ctx2.RamMb, 2048, 16384)}M"
+				xms,
+				xmx
 			};
 			CollectArgs(rootElement, "jvm", ctx2, list);
 			CollectArgs(rootElement2, "jvm", ctx2, list);
-			list.RemoveAll((string a) => (a.StartsWith("-Xmx", StringComparison.Ordinal) && a != $"-Xmx{Math.Clamp(ctx2.RamMb, 2048, 16384)}M") || (a.StartsWith("-Xms", StringComparison.Ordinal) && a != "-Xms1024M"));
+			list.RemoveAll((string a) => (a.StartsWith("-Xmx", StringComparison.Ordinal) && a != xmx) || (a.StartsWith("-Xms", StringComparison.Ordinal) && a != xms));
 			if (!string.IsNullOrWhiteSpace(ctx2.LogConfigPath) && rootElement.TryGetProperty("logging", out var value2) && value2.TryGetProperty("client", out var value3) && value3.TryGetProperty("argument", out var value4))
 			{
 				string text = value4.GetString() ?? "";

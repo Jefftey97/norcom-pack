@@ -7,17 +7,86 @@ namespace Norcom.Launcher.Tests;
 public class GraphicsMenuTests
 {
 	[Fact]
-	public void TheSamePcGetsDifferentPresetsPerGame()
+	public void TheSamePcGetsTheSamePresetForBothGames()
 	{
 		MachineSpecs specs = Pc(vramGb: 8, ramGb: 16, cores: 8, mhz: 3600, "RTX 3070", 1920, 1080, 144);
 		PresetChoice minecraft = GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), specs);
 		PresetChoice zomboid = GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), specs);
 		Assert.Equal("Medium-High", minecraft.Preset);
-		Assert.Equal("Ultra", zomboid.Preset);
-		Assert.Contains("Minecraft", minecraft.Reason);
-		Assert.Contains("RTX 3070", minecraft.Reason);
-		Assert.Contains("144", minecraft.Reason);
-		Assert.Contains("Zomboid", zomboid.Reason);
+		Assert.Equal(minecraft.Preset, zomboid.Preset);
+		Assert.Equal("Ultra", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), Pc(vramGb: 12, ramGb: 32, cores: 16, mhz: 3600, "RTX 4080", 2560, 1440, 144)).Preset);
+		Assert.Equal("Ultra", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), Pc(vramGb: 12, ramGb: 32, cores: 16, mhz: 3600, "RTX 4080", 2560, 1440, 144)).Preset);
+		Assert.Equal("Medium", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), Pc(vramGb: 4, ramGb: 16, cores: 8, mhz: 3200, "GTX 1650", 1920, 1080, 60)).Preset);
+		Assert.Equal("Medium", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), Pc(vramGb: 4, ramGb: 16, cores: 8, mhz: 3200, "GTX 1650", 1920, 1080, 60)).Preset);
+	}
+
+	[Fact]
+	public void SpecLineShowsPhysicalCoresAndThreads()
+	{
+		MachineSpecs specs = new MachineSpecs
+		{
+			GpuName = "RTX 3070",
+			PhysicalCores = 8,
+			LogicalCores = 16,
+			CpuMhz = 3800
+		};
+		string text = GameGraphicsCatalog.Describe(specs);
+		Assert.Contains("Cores: 8 cores, 16 threads", text, StringComparison.Ordinal);
+		Assert.DoesNotContain("16 cores", text, StringComparison.Ordinal);
+		specs = new MachineSpecs { LogicalCores = 16 };
+		Assert.Contains("Cores: 16 cores, 16 threads", GameGraphicsCatalog.Describe(specs), StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Rtx3070ClassPcIsMediumHighForBothGames()
+	{
+		MachineSpecs lab = new MachineSpecs
+		{
+			GpuName = "NVIDIA GeForce RTX 3070",
+			VramBytes = 8032L * 1024L * 1024L,
+			RamBytes = (long)(31.9d * 1073741824L),
+			LogicalCores = 16,
+			CpuMhz = 3800,
+			DisplayWidth = 2560,
+			DisplayHeight = 1440,
+			RefreshHz = 144
+		};
+		Assert.Equal("Medium-High", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), lab).Preset);
+		Assert.Equal("Medium-High", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), lab).Preset);
+	}
+
+	[Fact]
+	public void FirstRunSavesTheRecommendedPresetAndKeepsAManualChoice()
+	{
+		MachineSpecs lab = new MachineSpecs
+		{
+			GpuName = "NVIDIA GeForce RTX 3070",
+			VramBytes = 8032L * 1024L * 1024L,
+			RamBytes = (long)(31.9d * 1073741824L),
+			LogicalCores = 16,
+			DisplayWidth = 2560,
+			DisplayHeight = 1440,
+			RefreshHz = 144
+		};
+		string home = NewDir();
+		(SavedGraphicsProfile minecraft, PresetChoice recommended) = GraphicsProfileStore.Resolve(home, "minecraft", lab);
+		Assert.Equal("Medium-High", recommended.Preset);
+		Assert.Equal("Medium-High", minecraft.Preset);
+		Assert.True(minecraft.Auto);
+		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("minecraft").Preset);
+		GraphicsProfileStore stale = GraphicsProfileStore.Load(home);
+		stale.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = true, Reason = "old" });
+		stale.Save(home);
+		(SavedGraphicsProfile zomboid, _) = GraphicsProfileStore.Resolve(home, "zomboid", lab);
+		Assert.Equal("Medium-High", zomboid.Preset);
+		Assert.True(zomboid.Auto);
+		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("zomboid").Preset);
+		GraphicsProfileStore manual = GraphicsProfileStore.Load(home);
+		manual.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = false, Reason = "chosen" });
+		manual.Save(home);
+		(SavedGraphicsProfile kept, _) = GraphicsProfileStore.Resolve(home, "zomboid", lab);
+		Assert.Equal("Low", kept.Preset);
+		Assert.False(kept.Auto);
 	}
 
 	[Fact]
@@ -264,6 +333,31 @@ public class GraphicsMenuTests
 		Assert.Contains("unchanged", result);
 		Assert.Equal("renderDistance:4\n", File.ReadAllText(outside));
 		Assert.False(Directory.EnumerateFiles(game, "*.norcom-partial").Any());
+	}
+
+	[Fact]
+	public void ModSettingsFollowThePackFeedAndIgnoreEverythingElse()
+	{
+		string config = NewDir();
+		File.WriteAllText(Path.Combine(config, "listed.json"), "{\"a\":1}");
+		File.WriteAllText(Path.Combine(config, "extra.json"), "{\"a\":1}");
+		string index = "[[files]]\nfile = \"config/listed.json\"\npreserve = true\n";
+		IReadOnlyList<DiscoveredModFile> minecraft = ModSettingsCatalog.DiscoverFeed(config, index, "");
+		DiscoveredModFile listed = Assert.Single(minecraft);
+		Assert.Equal("listed.json", listed.RelativePath);
+		Assert.False(listed.ReadOnly);
+		Assert.Empty(ModSettingsCatalog.DiscoverFeed(config, "", ""));
+		string mods = NewDir();
+		Directory.CreateDirectory(Path.Combine(mods, "Listed"));
+		File.WriteAllText(Path.Combine(mods, "Listed", "config.json"), "{\"a\":1}");
+		Directory.CreateDirectory(Path.Combine(mods, "NotInPack"));
+		File.WriteAllText(Path.Combine(mods, "NotInPack", "config.json"), "{\"a\":1}");
+		ZomboidFeedDoc empty = ZomboidFeed.Parse("{\"workshop\":[],\"files\":[]}");
+		Assert.Empty(ModSettingsCatalog.DiscoverZomboidFeed(mods, empty, ""));
+		ZomboidFeedDoc feed = ZomboidFeed.Parse("{\"workshop\":[{\"workshopId\":\"123\",\"modId\":\"Listed\"}]}");
+		DiscoveredModFile zomboid = Assert.Single(ModSettingsCatalog.DiscoverZomboidFeed(mods, feed, ""));
+		Assert.Equal("Listed/config.json", zomboid.RelativePath);
+		Assert.DoesNotContain("NotInPack", zomboid.RelativePath, StringComparison.Ordinal);
 	}
 
 	private static MachineSpecs Pc(int vramGb, int ramGb, int cores, int mhz, string gpu, int width, int height, int refresh)

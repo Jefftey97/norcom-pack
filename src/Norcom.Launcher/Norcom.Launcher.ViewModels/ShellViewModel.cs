@@ -48,6 +48,8 @@ public class ShellViewModel : ObservableObject
 
 	private readonly LauncherSettings _settings;
     private bool _loadingSettings=true;
+	private bool _syncingRam;
+	private MachineSpecs _specs = new MachineSpecs();
 
 	private readonly NorcomSignIn _signIn;
 
@@ -221,6 +223,8 @@ public class ShellViewModel : ObservableObject
 	public bool IsSettings => Page == LauncherPage.Settings;
 
 	public bool IsGraphics => Page == LauncherPage.Graphics;
+	public bool IsMinecraftPage => Page == LauncherPage.Minecraft;
+	public bool IsZomboidPage => Page == LauncherPage.Zomboid;
 
 	public bool CanPlay
 	{
@@ -239,14 +243,27 @@ public class ShellViewModel : ObservableObject
 
 	public string PlayLabel => IsZomboid ? "Play Project Zomboid" : LaunchedGame.PlayCaption(GameRunning);
     public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":IsZomboid?ZomboidAvailability():GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
-	public string ServerAddress => NorcomPaths.ServerHost;
 	public bool IsZomboid => string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
+	public bool CanStopSelectedGame => IsZomboid ? GameSession.IsRunning(ChosenGame.Zomboid, NorcomPaths.GameLockPath) : GameRunning;
+	public string SessionNote => IsZomboid ? "Play syncs the server's mod list from the pack, then connects in Steam. The first time, subscribe to any Workshop mods NORCOM names. You only need to own Project Zomboid." : "Play checks the client and opens your NORCOM instance in Prism.";
+	public string PasswordPrompt => IsZomboid ? "Server password, saved on this PC only. Leave blank if the server has none." : "Server password is not used for Minecraft.";
+	public string AccountTitle => IsZomboid ? "Owned on Steam" : "Managed in Prism";
+	public string AccountBody => IsZomboid ? "NORCOM opens Project Zomboid through Steam. Sign in to Steam on this PC. NORCOM does not read your Steam password." : "Sign in with Microsoft in Prism when prompted. NORCOM opens your instance there and does not read Prism’s accounts.";
+	public string AccountFine => IsZomboid ? "Workshop mods are subscribed in Steam." : "Prism Launcher is a separate GPL program.";
+	public string AccountAction => IsZomboid ? "Open Steam" : "Get Prism Launcher";
+	public string ClientPackDetail => IsZomboid ? "Project Zomboid files are checked when you press Play." : PinDetail;
+	private string _pendingZomboidPassword = "";
+	private bool _zomboidPasswordTouched;
+	public void SetPendingZomboidPassword(string password)
+	{
+		_pendingZomboidPassword = password ?? "";
+		_zomboidPasswordTouched = true;
+	}
 	public string GamePickerDetail => _gamePickerDetail;
 	private string _selectedGameId;
 	private bool _selectedGameLoaded;
 	private string _gamePickerDetail = "Minecraft uses the NORCOM pack in Prism.";
 	private RelayCommand<string> _selectGameCommand;
-	private RelayCommand _copyServerAddressCommand;
 	public string SelectedGameId
 	{
 		get
@@ -261,7 +278,6 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 	public IRelayCommand<string> SelectGameCommand => _selectGameCommand ??= new RelayCommand<string>(SelectGame);
-	public IRelayCommand CopyServerAddressCommand => _copyServerAddressCommand ??= new RelayCommand(CopyServerAddress);
     public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
     private int _statusRefreshing;
     public string ServerCheckedAt {get;private set;}="Not checked yet";
@@ -271,6 +287,25 @@ public class ShellViewModel : ObservableObject
 	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
+	private RamBudget GameBudget(int requested) => RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, requested);
+	public int RamFloorMb => GameBudget(0).FloorMb;
+	public int RamSafeMaxMb => GameBudget(0).SafeMaxMb;
+	public int RamTotalMb => GameBudget(0).TotalMb;
+	public string RamScaleCaption => GameBudget((int)MemoryMb).Caption;
+	public string RamWarning => GameBudget((int)MemoryMb).Warning;
+	public string SpecGpu => string.IsNullOrWhiteSpace(_specs.GpuName) ? "GPU: not detected on this PC" : "GPU: " + _specs.GpuName.Trim();
+	public string SpecVram => _specs.VramBytes > 0 ? "Video memory: " + RamBudget.FormatBytes(_specs.VramBytes) : "Video memory: not detected on this PC";
+	public string SpecRam => _specs.RamBytes > 0 ? "Memory: " + RamBudget.FormatBytes(_specs.RamBytes) + (_specs.FreeRamBytes > 0 ? " (" + RamBudget.FormatBytes(_specs.FreeRamBytes) + " free)" : "") : "Memory: not detected on this PC";
+	public string SpecCpu => string.IsNullOrWhiteSpace(_specs.CpuName) ? "CPU: not detected on this PC" : "CPU: " + _specs.CpuName.Trim();
+	public string SpecCores
+	{
+		get
+		{
+			int threads = _specs.LogicalCores;
+			int cores = _specs.PhysicalCores > 0 ? _specs.PhysicalCores : threads;
+			return threads > 0 ? "Cores: " + cores.ToString(System.Globalization.CultureInfo.InvariantCulture) + " cores, " + threads.ToString(System.Globalization.CultureInfo.InvariantCulture) + " threads" : "Cores: not detected on this PC";
+		}
+	}
 
 	public string TierSummary
 	{
@@ -1233,7 +1268,16 @@ public class ShellViewModel : ObservableObject
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
 		Directory.CreateDirectory(NorcomPaths.GameDir);
 		Directory.CreateDirectory(NorcomPaths.LauncherDir);
-		MemoryMb = _settings.RamMb;
+		try
+		{
+			_specs = MachineSpecsProbe.Read();
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+			_specs = new MachineSpecs();
+		}
+		ShowGameMemory();
 		SelectedTier = _settings.GraphicsTier;
 		AutoOn = _settings.GraphicsAuto;
 		LauncherSounds = _settings.LauncherSounds;
@@ -1266,6 +1310,14 @@ public class ShellViewModel : ObservableObject
 	private void SelectPage(LauncherPage next)
 	{
 		Page = next;
+		if (next == LauncherPage.Minecraft)
+		{
+			SelectGame(ChosenGame.Minecraft);
+		}
+		else if (next == LauncherPage.Zomboid)
+		{
+			SelectGame(ChosenGame.Zomboid);
+		}
 	}
 
 	public async Task InitializeAsync()
@@ -1339,6 +1391,7 @@ public class ShellViewModel : ObservableObject
 		_pinDetail = detail ?? "";
 		OnPropertyChanged(nameof(PinStatus));
 		OnPropertyChanged(nameof(PinDetail));
+		OnPropertyChanged(nameof(ClientPackDetail));
 	}
 
 	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct, bool allowRetry = false)
@@ -1507,7 +1560,29 @@ public class ShellViewModel : ObservableObject
 		{
 			ProgressFraction = 0.2;
 			ProgressLabel = "Checking Steam";
-			ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath);
+			string feedJson = "";
+			try
+			{
+				feedJson = await _http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(continueOnCapturedContext: true);
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("zomboid feed " + ex.GetType().Name);
+			}
+			if (!string.IsNullOrWhiteSpace(feedJson))
+			{
+				try
+				{
+					File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), feedJson);
+				}
+				catch (Exception ex)
+				{
+					LauncherLog.Write("zomboid feed cache " + ex.GetType().Name);
+				}
+			}
+			ProgressLabel = "Syncing Project Zomboid";
+			string localPassword = RememberZomboidPassword();
+			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, (int)MemoryMb).ConfigureAwait(continueOnCapturedContext: true);
 			RefreshGamePicker();
 			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
 			{
@@ -1516,7 +1591,7 @@ public class ShellViewModel : ObservableObject
 			if (!plan.CanStart)
 			{
 				ProgressFraction = 0.0;
-				ProgressLabel = SteamLibrary.NotFound;
+				ProgressLabel = plan.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) ? SteamLibrary.NotFound : "Project Zomboid was not started";
 				StatusLine = plan.Message;
 				return;
 			}
@@ -1524,7 +1599,7 @@ public class ShellViewModel : ObservableObject
 			StatusLine = plan.Message;
 			SteamStart.Open(plan.Url);
 			ProgressFraction = 1.0;
-			LauncherLog.Write("zomboid steam " + plan.Url);
+			LauncherLog.Write(plan.IncludesPassword ? "zomboid steam connect" : "zomboid steam launch");
 		}
 		catch (Exception ex)
 		{
@@ -1556,9 +1631,37 @@ public class ShellViewModel : ObservableObject
 		RefreshGamePicker();
 		OnPropertyChanged(nameof(SelectedGameId));
 		OnPropertyChanged(nameof(IsZomboid));
+		OnPropertyChanged(nameof(CanStopSelectedGame));
+		OnPropertyChanged(nameof(SessionNote));
+		OnPropertyChanged(nameof(PasswordPrompt));
+		OnPropertyChanged(nameof(AccountTitle));
+		OnPropertyChanged(nameof(AccountBody));
+		OnPropertyChanged(nameof(AccountFine));
+		OnPropertyChanged(nameof(AccountAction));
+		OnPropertyChanged(nameof(ClientPackDetail));
 		OnPropertyChanged(nameof(PlayLabel));
 		OnPropertyChanged(nameof(PlayAvailability));
 		OnPropertyChanged(nameof(GamePickerDetail));
+		ShowGameMemory();
+	}
+
+	private void ShowGameMemory()
+	{
+		int requested = IsZomboid ? (_settings.ZomboidRamSpecified ? _settings.ZomboidRamMb : 0) : (_settings.RamSpecified ? _settings.RamMb : 0);
+		_syncingRam = true;
+		MemoryMb = GameBudget(requested).ChosenMb;
+		_syncingRam = false;
+		NotifyRam();
+	}
+
+	private void NotifyRam()
+	{
+		OnPropertyChanged(nameof(MemoryLabel));
+		OnPropertyChanged(nameof(RamFloorMb));
+		OnPropertyChanged(nameof(RamSafeMaxMb));
+		OnPropertyChanged(nameof(RamTotalMb));
+		OnPropertyChanged(nameof(RamScaleCaption));
+		OnPropertyChanged(nameof(RamWarning));
 	}
 
 	private void RefreshGamePicker()
@@ -1569,7 +1672,7 @@ public class ShellViewModel : ObservableObject
 			return;
 		}
 		SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
-		_gamePickerDetail = install.Found ? "Steam will start Project Zomboid. Workshop mods stay in Steam." : SteamLibrary.NotFound;
+		_gamePickerDetail = install.Found ? "Play checks the pack and opens Project Zomboid in Steam." : SteamLibrary.NotFound;
 	}
 
 	private string ZomboidAvailability()
@@ -1581,18 +1684,25 @@ public class ShellViewModel : ObservableObject
 		return _gamePickerDetail;
 	}
 
-	private void CopyServerAddress()
+	private string RememberZomboidPassword()
 	{
-		try
+		if (!_zomboidPasswordTouched && ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome))
 		{
-			Clipboard.SetText(NorcomPaths.ServerHost);
-			StatusLine = "Server address copied.";
+			return ZomboidPasswordStore.Load(NorcomPaths.NorcomHome);
 		}
-		catch (Exception ex)
+		ZomboidPasswordStore.Save(NorcomPaths.NorcomHome, _pendingZomboidPassword);
+		return _pendingZomboidPassword;
+	}
+
+	[RelayCommand]
+	private void OpenAccountAction()
+	{
+		if (IsZomboid)
 		{
-			LauncherLog.Write("copy address " + ex.GetType().Name);
-			StatusLine = "Select the server address and copy it.";
+			SteamStart.Open("steam://open/main");
+			return;
 		}
+		OpenPrismDownload();
 	}
 
 	public void RefreshLaunchedGame()
@@ -1910,14 +2020,21 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private void OpenGameFolder()
 	{
+		if (IsZomboid)
+		{
+			SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
+			Open(install.Found ? install.GamePath : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid"));
+			return;
+		}
 		Open(NorcomPaths.GameDir);
 	}
 
 	[RelayCommand]
 	private void OpenScreenshotsFolder()
 	{
-		Directory.CreateDirectory(NorcomPaths.ScreenshotsDir);
-		Open(NorcomPaths.ScreenshotsDir);
+		string folder = IsZomboid ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "Screenshots") : NorcomPaths.ScreenshotsDir;
+		Directory.CreateDirectory(folder);
+		Open(folder);
 	}
 
 	[RelayCommand]
@@ -2276,6 +2393,8 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged("IsHome");
 		OnPropertyChanged("IsSettings");
 		OnPropertyChanged("IsGraphics");
+		OnPropertyChanged(nameof(IsMinecraftPage));
+		OnPropertyChanged(nameof(IsZomboidPage));
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]
@@ -2296,6 +2415,7 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged("PlayLabel");
         OnPropertyChanged(nameof(PlayAvailability));
         OnPropertyChanged(nameof(CanManageClient));
+		OnPropertyChanged(nameof(CanStopSelectedGame));
 		AnimationsPaused = value && PauseWhilePlaying;
 		if (value)
 		{
@@ -2341,9 +2461,26 @@ public class ShellViewModel : ObservableObject
 	private void OnMemoryMbChanged(double value)
 	{
 		OnPropertyChanged("MemoryLabel");
-        if(_loadingSettings)return;
-		_settings.RamMb = (int)value;
+        if(_loadingSettings || _syncingRam)return;
+		RamBudget budget = GameBudget((int)value);
+		if (budget.ChosenMb != (int)value)
+		{
+			_syncingRam = true;
+			MemoryMb = budget.ChosenMb;
+			_syncingRam = false;
+		}
+		if (IsZomboid)
+		{
+			_settings.ZomboidRamMb = budget.ChosenMb;
+			_settings.ZomboidRamSpecified = true;
+		}
+		else
+		{
+			_settings.RamMb = budget.ChosenMb;
+			_settings.RamSpecified = true;
+		}
 		_settings.Save(NorcomPaths.SettingsPath);
+		NotifyRam();
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

@@ -4,5 +4,7 @@ public enum LauncherPage
 {
 	Home,
 	Settings,
-	Graphics
+	Graphics,
+	Minecraft,
+	Zomboid
 }

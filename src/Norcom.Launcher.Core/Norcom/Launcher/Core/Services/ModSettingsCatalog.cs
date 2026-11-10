@@ -181,6 +181,146 @@ public static class ModSettingsCatalog
 		return true;
 	}
 
+	public static IReadOnlyList<DiscoveredModFile> DiscoverFeed(string configRoot, string indexToml, string schemaJson)
+	{
+		ReadPackIndex(indexToml, out HashSet<string> indexed, out _);
+		if (indexed.Count == 0)
+		{
+			return Array.Empty<DiscoveredModFile>();
+		}
+		IReadOnlyList<DiscoveredModFile> all = Discover(configRoot, indexToml, schemaJson);
+		List<DiscoveredModFile> listed = new List<DiscoveredModFile>();
+		for (int i = 0; i < all.Count; i++)
+		{
+			DiscoveredModFile file = all[i];
+			if (indexed.Contains("config/" + file.RelativePath) || indexed.Contains(file.RelativePath))
+			{
+				listed.Add(file);
+			}
+		}
+		return listed;
+	}
+
+	public static IReadOnlyList<DiscoveredModFile> DiscoverZomboidFeed(string modsRoot, ZomboidFeedDoc feed, string schemaJson)
+	{
+		List<DiscoveredModFile> found = new List<DiscoveredModFile>();
+		if (feed == null)
+		{
+			return found;
+		}
+		HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		IReadOnlyList<ZomboidWorkshopMod> workshop = feed.Workshop ?? Array.Empty<ZomboidWorkshopMod>();
+		for (int i = 0; i < workshop.Count; i++)
+		{
+			string modId = workshop[i].ModId ?? "";
+			if (!SafeName(modId) || !seen.Add(modId))
+			{
+				continue;
+			}
+			string dir = Path.Combine(modsRoot, modId);
+			if (!Directory.Exists(dir))
+			{
+				found.Add(new DiscoveredModFile
+				{
+					RelativePath = modId,
+					Format = "unknown",
+					ReadOnly = true,
+					Note = "This pack mod is not on this PC yet."
+				});
+				continue;
+			}
+			string schemaPath = Path.Combine(dir, "norcom-settings-schema.json");
+			string schema = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : schemaJson;
+			IReadOnlyList<DiscoveredModFile> inner = Discover(dir, "", schema ?? "");
+			if (inner.Count == 0)
+			{
+				found.Add(new DiscoveredModFile
+				{
+					RelativePath = modId,
+					Format = "unknown",
+					ReadOnly = true,
+					Note = "This pack mod has no settings file yet."
+				});
+				continue;
+			}
+			for (int f = 0; f < inner.Count; f++)
+			{
+				seen.Add(modId + "/" + inner[f].RelativePath);
+				found.Add(Prefix(modId, inner[f]));
+			}
+		}
+		IReadOnlyList<ZomboidPackFile> files = feed.Files ?? Array.Empty<ZomboidPackFile>();
+		for (int i = 0; i < files.Count; i++)
+		{
+			string path = (files[i].Path ?? "").Replace('\\', '/');
+			if (!path.StartsWith("mods/", StringComparison.Ordinal) || path.Contains("..", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			string relative = path.Substring("mods/".Length);
+			if (!SafeRelative(relative) || !seen.Add(relative))
+			{
+				continue;
+			}
+			string full = Path.Combine(modsRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+			if (!File.Exists(full))
+			{
+				found.Add(new DiscoveredModFile
+				{
+					RelativePath = relative,
+					Format = "unknown",
+					ReadOnly = true,
+					Note = "This pack file is not on this PC yet."
+				});
+				continue;
+			}
+			string parent = Path.GetDirectoryName(full) ?? modsRoot;
+			IReadOnlyList<DiscoveredModFile> one = Discover(parent, "", schemaJson ?? "");
+			DiscoveredModFile match = null;
+			string name = Path.GetFileName(relative);
+			for (int f = 0; f < one.Count; f++)
+			{
+				if (one[f].RelativePath.Equals(name, StringComparison.OrdinalIgnoreCase))
+				{
+					match = one[f];
+					break;
+				}
+			}
+			found.Add(match == null
+				? new DiscoveredModFile { RelativePath = relative, Format = "unknown", ReadOnly = true, Note = "This format is read-only. NORCOM does not guess how to edit it." }
+				: Prefix(Path.GetDirectoryName(relative)?.Replace('\\', '/') ?? "", match));
+		}
+		return found;
+	}
+
+	private static DiscoveredModFile Prefix(string modId, DiscoveredModFile file)
+	{
+		string relative = string.IsNullOrEmpty(modId) ? file.RelativePath : modId + "/" + file.RelativePath;
+		return new DiscoveredModFile
+		{
+			RelativePath = relative,
+			Format = file.Format,
+			Preserved = file.Preserved,
+			ReadOnly = file.ReadOnly,
+			Note = file.Note,
+			Settings = file.Settings
+		};
+	}
+
+	private static bool SafeName(string name)
+	{
+		return SafeRelative(name) && name.IndexOf('/') < 0;
+	}
+
+	private static bool SafeRelative(string relative)
+	{
+		if (string.IsNullOrWhiteSpace(relative) || relative.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+		{
+			return false;
+		}
+		return relative.IndexOfAny(new char[2] { ':', '\\' }) < 0;
+	}
+
 	public static HashSet<string> PreservedPaths(string indexToml)
 	{
 		ReadPackIndex(indexToml, out _, out HashSet<string> preserved);

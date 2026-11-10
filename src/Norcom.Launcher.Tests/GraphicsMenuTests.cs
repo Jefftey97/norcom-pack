@@ -21,6 +21,23 @@ public class GraphicsMenuTests
 	}
 
 	[Fact]
+	public void SpecLineShowsPhysicalCoresAndThreads()
+	{
+		MachineSpecs specs = new MachineSpecs
+		{
+			GpuName = "RTX 3070",
+			PhysicalCores = 8,
+			LogicalCores = 16,
+			CpuMhz = 3800
+		};
+		string text = GameGraphicsCatalog.Describe(specs);
+		Assert.Contains("Cores: 8 cores, 16 threads", text, StringComparison.Ordinal);
+		Assert.DoesNotContain("16 cores", text, StringComparison.Ordinal);
+		specs = new MachineSpecs { LogicalCores = 16 };
+		Assert.Contains("Cores: 16 cores, 16 threads", GameGraphicsCatalog.Describe(specs), StringComparison.Ordinal);
+	}
+
+	[Fact]
 	public void Rtx3070ClassPcIsMediumHighForBothGames()
 	{
 		MachineSpecs lab = new MachineSpecs

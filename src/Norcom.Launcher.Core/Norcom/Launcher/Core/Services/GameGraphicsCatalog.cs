@@ -153,7 +153,10 @@ public static class GameGraphicsCatalog
 		string display = specs.DisplayWidth > 0 ? specs.DisplayWidth + "x" + specs.DisplayHeight : "unknown display";
 		string refresh = specs.RefreshHz > 0 ? specs.RefreshHz + " Hz" : "unknown refresh";
 		string clock = specs.CpuMhz > 0 ? specs.CpuMhz + " MHz" : "unknown clock";
-		return gpu + ", " + Gb(specs.VramBytes) + " GB video memory, " + Gb(specs.RamBytes) + " GB memory, " + specs.LogicalCores + " cores at " + clock + ", " + display + " " + refresh + ".";
+		int threads = specs.LogicalCores;
+		int cores = specs.PhysicalCores > 0 ? specs.PhysicalCores : threads;
+		string cpu = threads > 0 ? "Cores: " + cores.ToString(CultureInfo.InvariantCulture) + " cores, " + threads.ToString(CultureInfo.InvariantCulture) + " threads" : "Cores: not detected on this PC";
+		return gpu + ", " + Gb(specs.VramBytes) + " GB video memory, " + Gb(specs.RamBytes) + " GB memory, " + cpu + " at " + clock + ", " + display + " " + refresh + ".";
 	}
 
 	private static string Gb(long bytes)

@@ -1,4 +1,5 @@
 using System;
+using Norcom.Launcher.Core.Updates;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,12 +25,12 @@ namespace Norcom.Launcher.ViewModels;
 
 public class ShellViewModel : ObservableObject
 {
-	private readonly HttpClient _http = new HttpClient
+	private readonly HttpClient _http = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : new HttpClient
 	{
 		Timeout = TimeSpan.FromMinutes(30.0)
 	};
 
-	private readonly HttpClient _crashHttp = new HttpClient(new HttpClientHandler
+	private readonly HttpClient _crashHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : new HttpClient(new HttpClientHandler
 	{
 		AllowAutoRedirect = false
 	})
@@ -37,11 +38,16 @@ public class ShellViewModel : ObservableObject
 		Timeout = TimeSpan.FromSeconds(12.0)
 	};
 
-	private readonly HttpClient _authHttp = MinecraftServicesAuth.CreateHttp();
+	private readonly IGameProcessLookup _gameLookup;
+    private readonly Func<HttpClient,string,TransferMeter,CancellationToken,Task> _ensureVisualAssets;
+    private readonly HttpClient _metadataHttp = QaGates.OfflineCheckRequested()?QaGates.OfflineClient():new HttpClient{Timeout=TimeSpan.FromSeconds(8),MaxResponseContentBufferSize=262144};
+
+	private readonly HttpClient _authHttp = QaGates.OfflineCheckRequested() ? QaGates.OfflineClient() : MinecraftServicesAuth.CreateHttp();
 
 	private readonly GraphicsService _graphics = new GraphicsService();
 
 	private readonly LauncherSettings _settings;
+    private bool _loadingSettings=true;
 
 	private readonly NorcomSignIn _signIn;
 
@@ -218,6 +224,7 @@ public class ShellViewModel : ObservableObject
 	{
 		get
 		{
+			if (QaGates.OfflineCheckRequested()) return false;
 			if (!IsBusy)
 			{
 				return !GameRunning;
@@ -229,6 +236,10 @@ public class ShellViewModel : ObservableObject
 	public string PlayAccountText => AccountStatus;
 
 	public string PlayLabel => LaunchedGame.PlayCaption(GameRunning);
+    public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
+    public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
+    private int _statusRefreshing;
+    public string ServerCheckedAt {get;private set;}="Not checked yet";
 
 	public string PinStatus => _pinStatus;
 
@@ -555,6 +566,7 @@ public class ShellViewModel : ObservableObject
 		[MemberNotNull("discordInvite")]
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<string>.Default.Equals(discordInvite, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.DiscordInvite);
@@ -696,6 +708,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<double>.Default.Equals(memoryMb, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.MemoryMb);
@@ -716,6 +729,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(launcherSounds, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.LauncherSounds);
@@ -736,6 +750,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(closeToTray, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.CloseToTray);
@@ -756,6 +771,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(reduceMotion, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.ReduceMotion);
@@ -776,6 +792,7 @@ public class ShellViewModel : ObservableObject
 		}
 		set
 		{
+			if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 			if (!EqualityComparer<bool>.Default.Equals(pauseWhilePlaying, value))
 			{
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.PauseWhilePlaying);
@@ -1181,8 +1198,12 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 
-	public ShellViewModel()
+	public ShellViewModel():this(null){}
+
+    internal ShellViewModel(IGameProcessLookup gameLookup, Func<HttpClient,string,TransferMeter,CancellationToken,Task> ensureVisualAssets=null)
 	{
+        _ensureVisualAssets=ensureVisualAssets??KnownVisualAssets.EnsureAsync;
+        _gameLookup=gameLookup??new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData),NorcomPaths.GameDir);
 		_http.DefaultRequestHeaders.UserAgent.ParseAdd(NorcomVersion.UserAgent);
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
 		Directory.CreateDirectory(NorcomPaths.GameDir);
@@ -1204,6 +1225,7 @@ public class ShellViewModel : ObservableObject
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
 		PlayAccount.Install(this);
+        _loadingSettings=false;
 	}
 
 	public void AdvanceClock()
@@ -1223,18 +1245,29 @@ public class ShellViewModel : ObservableObject
 
 	public async Task InitializeAsync()
 	{
-		FlushCrashesAsync();
+		if (QaGates.OfflineCheckRequested())
+		{
+			ServerHeadline = "Server status unknown";
+			Motd = "Offline verification profile. No server connection was attempted.";
+			SetPinStatus("unavailable", "Live pin checks are paused in this verification profile.");
+			return;
+		}
+		// Queued reports remain local until the user explicitly sends diagnostics.
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
-	public async Task PollLivePinAsync(bool force)
+	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false);
+
+	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock)
 	{
+		if (QaGates.OfflineCheckRequested() || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath)) return;
+		if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
 		if (force)
 		{
 			Interlocked.Exchange(ref _pinFixQueued, 1);
 			SetPinStatus("fetching", "Fixing the live server pin");
 		}
-		if (!await _pinLock.WaitAsync(0).ConfigureAwait(continueOnCapturedContext: true))
+		if (!ownsPinLock && !await _pinLock.WaitAsync(0).ConfigureAwait(continueOnCapturedContext: true))
 		{
 			if (!force)
 			{
@@ -1244,6 +1277,7 @@ public class ShellViewModel : ObservableObject
 		}
 		try
 		{
+			if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
 			bool again = true;
 			while (again)
 			{
@@ -1265,7 +1299,7 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
-			_pinLock.Release();
+			if (!ownsPinLock) _pinLock.Release();
 		}
 	}
 
@@ -1282,94 +1316,32 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(PinDetail));
 	}
 
-	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct)
+	public async Task<bool> ApplyUpdateIfNeededAsync(Action<string, double> report, CancellationToken ct, bool allowRetry = false)
 	{
-		_ = 1;
-		try
+		if (IsBusy || BridgeRuntime.HandoffScheduled)
 		{
-			UpdateReport.ClearRejected(NorcomPaths.LauncherDir);
-			report("Checking for a launcher update", 0.05);
-			using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-			timeout.CancelAfter(TimeSpan.FromSeconds(12.0));
-			SelfUpdateService updates = new SelfUpdateService(_http);
-			LauncherManifest manifest = await updates.FetchManifestAsync(timeout.Token).ConfigureAwait(continueOnCapturedContext: true);
-			if (manifest == null)
-			{
-				UpdateReport.Write(NorcomPaths.LauncherDir, "no-manifest");
-				report("No update manifest. Continuing.", 1.0);
-				return false;
-			}
-			bool fromAlt = LauncherInstall.IsAltInstall(Environment.ProcessPath, FriendInstaller.InstalledExePath);
-			string? primaryVersion = NorcomVersion.TryReadExeVersion(FriendInstaller.InstalledExePath);
-			if (UpdateReport.SkipApplied(UpdateReport.ReadAppliedSha(NorcomPaths.LauncherDir), manifest.Sha256, NorcomVersion.Current, manifest.Version, primaryVersion, fromAlt))
-			{
-				NoteUpdate("rejected already-applied");
-				report("rejected already-applied", 1.0);
-				return false;
-			}
-			if (SelfUpdateService.Decide(NorcomVersion.Current, manifest, updates.UsedPrivateManifest) == UpdateKind.None)
-			{
-				if (fromAlt && LauncherInstall.ShouldCopyRunningToPrimary(true, NorcomVersion.Current, primaryVersion, manifest.Version) && !string.IsNullOrWhiteSpace(Environment.ProcessPath))
-				{
-					report("Installing " + NorcomVersion.Current, 0.95);
-					LauncherInstall.PromoteAlt(Environment.ProcessPath, Environment.ProcessId);
-					return true;
-				}
-				string text = (SelfUpdateService.IsAllowedPackageUrl(manifest.ZipUrl, updates.UsedPrivateManifest) ? "up-to-date" : "rejected not-https");
-				NoteUpdate(text);
-				report("Launcher " + NorcomVersion.Current + ". Published manifest is " + manifest.Version + ".", 1.0);
-				StatusLine = "Launcher " + NorcomVersion.Current + ". Published manifest is " + manifest.Version + ". " + text;
-				return false;
-			}
-			report("Downloading " + manifest.Version, 0.1);
-			TransferMeter meter = new TransferMeter();
-			string zipPath = await updates.DownloadVerifiedAsync(manifest, meter, ct).ConfigureAwait(continueOnCapturedContext: true);
-			if (SelfUpdateService.Inspect(zipPath) != UpdatePackageKind.NativeExe)
-			{
-				NoteUpdate("rejected legacy-package");
-				report("rejected legacy-package", 1.0);
-				return false;
-			}
-			string text2 = SelfUpdateService.FindNativeExe(zipPath);
-			if (text2 == null)
-			{
-				NoteUpdate("rejected missing-exe");
-				report("rejected missing-exe", 1.0);
-				return false;
-			}
-			string payloadVersion = SelfUpdateService.ReadPayloadVersion(text2);
-			string exeFileVersion = NorcomVersion.TryReadExeVersion(text2);
-			string text3 = UpdateReport.Rejection(NorcomVersion.Current, manifest.Version, payloadVersion, exeFileVersion, null, manifest.Sha256);
-			if (text3 != null)
-			{
-				NoteUpdate(text3);
-				report(text3, 1.0);
-				return false;
-			}
-			string processPath = Environment.ProcessPath;
-			if (string.IsNullOrWhiteSpace(processPath))
-			{
-				NoteUpdate("rejected missing-exe");
-				report("Cannot replace the running exe because its path is unknown.", 1.0);
-				return false;
-			}
-			report("Installing " + manifest.Version, 0.95);
-			SelfUpdateService.ScheduleReplace(text2, processPath, Environment.ProcessId, manifest.Version, manifest.Sha256);
-			return true;
-		}
-		catch (UpdateRejectedException ex)
-		{
-			NoteUpdate(ex.Token);
-			report(ex.Token, 1.0);
+			report("Finish the current launcher task before updating.", 1);
 			return false;
 		}
-		catch (Exception ex2)
+		IsBusy = true;
+		bool ownsPinLock = false;
+		try
 		{
-			NoteUpdate("failed " + ex2.GetType().Name);
-			StatusLine = "Update failed. " + Redactor.Clean(ex2.Message);
+			await _pinLock.WaitAsync(ct).ConfigureAwait(true);
+			ownsPinLock = true;
+			return await BridgeRuntime.CheckAndScheduleAsync((text, progress) =>
+			{
+				StatusLine = text;
+				report(text, progress);
+			}, ct, allowRetry).ConfigureAwait(true);
+		}
+		catch (Exception ex)
+		{
+			StatusLine = "Launcher update unavailable. " + Redactor.Clean(ex.Message);
 			report(StatusLine, 1.0);
 			return false;
 		}
+		finally { if (ownsPinLock) _pinLock.Release(); IsBusy = BridgeRuntime.HandoffScheduled; }
 	}
 
 	private void NoteUpdate(string token)
@@ -1381,14 +1353,25 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanPlay")]
 	private async Task PlayAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
+		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		IsBusy = true;
-		ProgressFraction = 0.02;
-		ProgressLabel = "Preparing NORCOM";
-		await PollLivePinAsync(force: true).ConfigureAwait(continueOnCapturedContext: true);
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		ProgressFraction = 0.02;
+		ProgressLabel = "Preparing NORCOM";
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
+			await PollLivePinCoreAsync(force: true, ownsPinLock: true).ConfigureAwait(true);
 			string java = await JavaRuntime.EnsureAsync(_http, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "java"))
 			{
@@ -1464,8 +1447,9 @@ public class ShellViewModel : ObservableObject
 		{
 			PrismPlay.GameObserved = null;
 			PrismPlay.GameProcessObserved = null;
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 			RefreshLaunchedGame();
 		}
 	}
@@ -1473,7 +1457,7 @@ public class ShellViewModel : ObservableObject
 	public void RefreshLaunchedGame()
 	{
 		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
-		if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
+		if (pid is int id && id > 0 && StartupHeal.ReadGamePid(NorcomPaths.GameLockPath)==id && StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
 		{
 			_launchedGamePid = id;
 			if (!GameRunning)
@@ -1482,11 +1466,16 @@ public class ShellViewModel : ObservableObject
 			}
 			return;
 		}
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "The game status could not be confirmed. Launcher updates remain blocked.";
+			return;
+		}
 		if (pid != null)
 		{
 			_launchedGamePid = null;
 			_gameWatchUntilUtc = DateTime.MinValue;
-			LaunchedGame.Forget(NorcomPaths.GameLockPath);
+			// The conservative guard alone may clear a confirmed stale lock.
 			if (GameRunning)
 			{
 				GameRunning = false;
@@ -1511,13 +1500,15 @@ public class ShellViewModel : ObservableObject
 		{
 			_launchedGamePid = null;
 			GameRunning = false;
-			StatusLine = "Minecraft was stopped.";
+			StatusLine = "No verified game process is available to stop.";
 			return;
 		}
-		StatusLine = "Stopping Minecraft.";
+        var expectedTicks=StartupHeal.ReadGameStartTicks(NorcomPaths.GameLockPath);
+        if(expectedTicks is not >0){StatusLine="The recorded game process cannot be verified. Close Minecraft from its own window.";return;}
+        StatusLine = "Stopping Minecraft.";
 		Task.Run(delegate
 		{
-			bool stopped = LaunchedGame.TryStop(id);
+			bool stopped = LaunchedGame.TryStop(id,expectedTicks);
 			OnUi(delegate
 			{
 				FinishStop(id, stopped);
@@ -1527,6 +1518,7 @@ public class ShellViewModel : ObservableObject
 
 	private void FinishStop(int pid, bool stopped)
 	{
+        if(!stopped){StatusLine="Stop could not be confirmed. Close Minecraft from its own window.";return;}
 		if (!StartupHeal.IsAlive(pid))
 		{
 			if (_launchedGamePid == pid)
@@ -1551,7 +1543,7 @@ public class ShellViewModel : ObservableObject
 			{
 				ProgressLabel = "Ready";
 			}
-			StatusLine = "Minecraft was stopped.";
+			StatusLine = "No verified game process is available to stop.";
 		}
 		else
 		{
@@ -1564,7 +1556,7 @@ public class ShellViewModel : ObservableObject
 	{
 		try
 		{
-			int? pid = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir).TryGameProcessId(null);
+			int? pid = _gameLookup.TryGameProcessId(null);
 			if (pid is int id && id > 0 && StartupHeal.IsAlive(id))
 			{
 				RememberLaunchedGame(id);
@@ -1635,30 +1627,43 @@ public class ShellViewModel : ObservableObject
 		ApplyResolved(tier, auto: true, why);
 	}
 
-	private void ApplyResolved(GraphicsTier tier, bool auto, string why)
-	{
-		_graphics.Apply(NorcomPaths.GameDir, tier);
-		IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
-		_settings.GraphicsTier = tier;
-		_settings.GraphicsAuto = auto;
-		_settings.Save(NorcomPaths.SettingsPath);
-		SelectedTier = tier;
-		AutoOn = auto;
-		StatusLine = (auto ? "Auto chose " : "") + GraphicsPresets.TierLabel(tier) + " applied. " + why + " Shader cache cleared (" + readOnlyList.Count + "). Keybinds and servers were left alone.";
-	}
+    private void ApplyResolved(GraphicsTier tier,bool auto,string why)
+    {
+        if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
+        if(!_pinLock.Wait(0)){StatusLine="Wait for the pack check to finish before changing graphics.";return;}
+        try
+        {
+            if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
+            _graphics.Apply(NorcomPaths.GameDir,tier);var removed=_graphics.ClearShaderCache(NorcomPaths.GameDir);
+            _settings.GraphicsTier=tier;_settings.GraphicsAuto=auto;_settings.Save(NorcomPaths.SettingsPath);
+            SelectedTier=tier;AutoOn=auto;StatusLine=GraphicsPresets.TierLabel(tier)+" applied. Shader cache cleared ("+removed.Count+").";
+        }
+        catch(Exception ex){StatusLine="Graphics could not be changed. "+Redactor.Clean(ex.Message);}
+        finally{_pinLock.Release();}
+    }
 
 	[RelayCommand]
 	private async Task FixVisualsAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
 		if (IsBusy)
 		{
 			return;
 		}
 		IsBusy = true;
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
 			GraphicsTier tier = _settings.GraphicsTier;
 			if (_settings.GraphicsAuto)
 			{
@@ -1668,37 +1673,50 @@ public class ShellViewModel : ObservableObject
 				_settings.Save(NorcomPaths.SettingsPath);
 			}
 			string backup = _graphics.BackupAndReset(NorcomPaths.GameDir, tier);
-			await KnownVisualAssets.EnsureAsync(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+			await _ensureVisualAssets(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
 			SelectedTier = tier;
 			ProgressFraction = 1.0;
 			ProgressLabel = "Visuals repaired";
+			ProgressDetail = "";
 			StatusLine = "Reset to " + GraphicsPresets.TierLabel(tier) + ". Cache entries removed: " + readOnlyList.Count + ". Backup: " + backup;
 		}
 		catch (Exception ex)
 		{
 			StatusLine = "Fix Visuals stopped. " + Redactor.Clean(ex.Message);
 			ProgressLabel = "Fix Visuals didn't finish";
+			ProgressDetail = "";
 		}
 		finally
 		{
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 		}
 	}
 
 	[RelayCommand]
 	private async Task RepairAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
+		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			return;
+		}
 		if (IsBusy)
 		{
 			return;
 		}
 		IsBusy = true;
-		TransferMeter meter = new TransferMeter();
-		CancellationTokenSource pump = StartPump(meter);
+		bool ownsPinLock = false;
+		CancellationTokenSource pump = null;
 		try
 		{
+			await _pinLock.WaitAsync().ConfigureAwait(true);
+			ownsPinLock = true;
+		TransferMeter meter = new TransferMeter();
+		pump = StartPump(meter);
 			StartupHeal.ClearStale(NorcomPaths.LauncherDir, NorcomPaths.GameDir);
 			GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 			string line = await RepairRun.ExecuteAsync(meter, (CancellationToken token) => new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, token), (CancellationToken token) => JavaRuntime.EnsureAsync(_http, meter, token), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
@@ -1713,8 +1731,9 @@ public class ShellViewModel : ObservableObject
 		}
 		finally
 		{
-			pump.Cancel();
-			IsBusy = false;
+			pump?.Cancel();
+			if (ownsPinLock) _pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
 		}
 	}
 
@@ -1723,7 +1742,7 @@ public class ShellViewModel : ObservableObject
 	{
 		if (await ApplyUpdateIfNeededAsync(delegate
 		{
-		}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true))
+		}, CancellationToken.None, allowRetry: true).ConfigureAwait(continueOnCapturedContext: true))
 		{
 			Application.Current.Shutdown();
 		}
@@ -1764,19 +1783,24 @@ public class ShellViewModel : ObservableObject
 	private async Task SendDiagnostic()
 	{
 		string reportPath = CrashReportService.Queue("manual", "Manual diagnostic from Settings", null);
-		MessageBox.Show((await DeliverCrashAsync(reportPath).ConfigureAwait(continueOnCapturedContext: true)).UserText, "NORCOM", (MessageBoxButton)0, (MessageBoxImage)64);
+		var delivery=await DeliverCrashAsync(reportPath).ConfigureAwait(true);
+        var text=delivery.Kind==CrashReportService.DeliveryKind.SendFailed?"The report stayed on this PC. Choose Send diagnostics in Settings to retry.":delivery.UserText;
+        MessageBox.Show(text,"NORCOM",MessageBoxButton.OK,MessageBoxImage.Information);
 	}
 
-	private Task RefreshServerAsync()
-	{
-		HomeStatus homeStatus = HomeStatusClient.Read();
-		IsOnline = homeStatus.ShowOnline;
-		ServerHeadline = homeStatus.Headline;
-		PlayersText = homeStatus.PlayersText;
-		Motd = homeStatus.Detail;
-		LatencyText = homeStatus.Source;
-		return Task.CompletedTask;
-	}
+    private async Task RefreshServerAsync()
+    {
+        if(QaGates.OfflineCheckRequested() || Interlocked.Exchange(ref _statusRefreshing,1)!=0)return;
+        try
+        {
+            var result=await Task.Run(HomeStatusClient.Read);
+            IsOnline=result.ShowOnline;ServerHeadline=result.Headline;PlayersText=result.PlayersText;
+            Motd=result.Detail;LatencyText=result.Source;
+            ServerCheckedAt="Last check "+DateTime.Now.ToString("HH:mm:ss");OnPropertyChanged(nameof(ServerCheckedAt));
+        }
+        catch(Exception ex){IsOnline=false;ServerHeadline="Status unknown";Motd="The server could not be reached. Try Refresh status.";LauncherLog.Write("status "+ex.GetType().Name);}
+        finally{Interlocked.Exchange(ref _statusRefreshing,0);}
+    }
 
 	private async Task LoadNewsAsync()
 	{
@@ -1835,6 +1859,7 @@ public class ShellViewModel : ObservableObject
 
 	public void SetCrashWebhook(string? url)
 	{
+		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		_settings.CrashWebhookUrl = url?.Trim() ?? "";
 		_settings.Save(NorcomPaths.SettingsPath);
 		RefreshCrashChannelStatus();
@@ -1855,7 +1880,7 @@ public class ShellViewModel : ObservableObject
 
 	public void DeliverQueuedReport(string reportPath)
 	{
-		DeliverCrashAsync(reportPath);
+        StatusLine="A diagnostic report was saved locally. You can choose to send diagnostics from Settings.";
 	}
 
 	private string? CurrentWebhook()
@@ -1894,7 +1919,7 @@ public class ShellViewModel : ObservableObject
 	{
 		try
 		{
-			return await _http.GetStringAsync(url).ConfigureAwait(continueOnCapturedContext: true);
+			return await _metadataHttp.GetStringAsync(url).ConfigureAwait(continueOnCapturedContext: true);
 		}
 		catch (Exception ex)
 		{
@@ -1926,7 +1951,7 @@ public class ShellViewModel : ObservableObject
 
 	private bool CanSignIn()
 	{
-		return !IsBusy;
+		return !IsBusy && !QaGates.OfflineCheckRequested();
 	}
 
 	[RelayCommand(CanExecute = "CanCancelSignIn")]
@@ -1943,6 +1968,7 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanSignOut")]
 	private async Task SignOutAsync()
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;
@@ -1968,15 +1994,15 @@ public class ShellViewModel : ObservableObject
 
 	private bool CanSignOut()
 	{
-		if (SignedIn)
-		{
-			return !IsBusy;
-		}
-		return false;
+		return !IsBusy && !QaGates.OfflineCheckRequested() && (SignedIn
+			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "session.bin"))
+			|| File.Exists(Path.Combine(NorcomPaths.AuthDir, "msal.bin"))
+			|| AccountStatus == AuthMessages.StorageUnavailable);
 	}
 
 	private async Task RunSignInAsync(MicrosoftPrompt prompt)
 	{
+		if (QaGates.OfflineCheckRequested()) return;
 		if (IsBusy)
 		{
 			return;
@@ -2025,6 +2051,7 @@ public class ShellViewModel : ObservableObject
 
 	private void SaveToggles()
 	{
+        if(_loadingSettings)return;
 		_settings.LauncherSounds = LauncherSounds;
 		_settings.CloseToTray = CloseToTray;
 		_settings.ReduceMotion = ReduceMotion;
@@ -2032,7 +2059,7 @@ public class ShellViewModel : ObservableObject
 		_settings.Save(NorcomPaths.SettingsPath);
 	}
 
-	private void QueueProgress(TransferSnapshot shot)
+	private void QueueProgress(TransferSnapshot shot, CancellationTokenSource pump)
 	{
 		Application current = Application.Current;
 		if (current == null)
@@ -2041,6 +2068,7 @@ public class ShellViewModel : ObservableObject
 		}
 		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)delegate
 		{
+			if (!ReferenceEquals(_pump,pump) || pump.IsCancellationRequested) return;
 			ApplyProgress(shot);
 		}, Array.Empty<object>());
 	}
@@ -2072,6 +2100,7 @@ public class ShellViewModel : ObservableObject
 	private CancellationTokenSource StartPump(TransferMeter meter)
 	{
 		_pump?.Cancel();
+		_progressEpoch = 0;
 		CancellationTokenSource cts = new CancellationTokenSource();
 		_pump = cts;
 		Task.Run(async delegate
@@ -2080,7 +2109,7 @@ public class ShellViewModel : ObservableObject
 			{
 				while (!cts.IsCancellationRequested)
 				{
-					QueueProgress(meter.Snapshot());
+					QueueProgress(meter.Snapshot(),cts);
 					await Task.Delay(100, cts.Token).ConfigureAwait(continueOnCapturedContext: false);
 				}
 			}
@@ -2110,6 +2139,8 @@ public class ShellViewModel : ObservableObject
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]
 	private void OnIsBusyChanged(bool value)
 	{
+        OnPropertyChanged(nameof(PlayAvailability));
+        OnPropertyChanged(nameof(CanManageClient));
 		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInBrowserCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInDeviceCommand).NotifyCanExecuteChanged();
@@ -2121,6 +2152,8 @@ public class ShellViewModel : ObservableObject
 	{
 		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		OnPropertyChanged("PlayLabel");
+        OnPropertyChanged(nameof(PlayAvailability));
+        OnPropertyChanged(nameof(CanManageClient));
 		AnimationsPaused = value && PauseWhilePlaying;
 		if (value)
 		{
@@ -2132,7 +2165,7 @@ public class ShellViewModel : ObservableObject
 	private void OnDiscordInviteChanged(string value)
 	{
 		_settings.DiscordInviteUrl = value?.Trim() ?? "";
-		_settings.Save(NorcomPaths.SettingsPath);
+        if(!_loadingSettings)_settings.Save(NorcomPaths.SettingsPath);
 		ApplyDiscord(null);
 	}
 
@@ -2147,6 +2180,7 @@ public class ShellViewModel : ObservableObject
 	private void OnAccountStatusChanged(string value)
 	{
 		OnPropertyChanged("PlayAccountText");
+		((IRelayCommand)SignOutCommand).NotifyCanExecuteChanged();
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]
@@ -2165,6 +2199,7 @@ public class ShellViewModel : ObservableObject
 	private void OnMemoryMbChanged(double value)
 	{
 		OnPropertyChanged("MemoryLabel");
+        if(_loadingSettings)return;
 		_settings.RamMb = (int)value;
 		_settings.Save(NorcomPaths.SettingsPath);
 	}

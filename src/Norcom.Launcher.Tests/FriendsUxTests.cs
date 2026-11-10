@@ -22,11 +22,11 @@ public class FriendsUxTests
 	}
 
 	[Fact]
-	public void ServerListPingTimeoutIsOffline()
+	public void ServerListPingTimeoutIsUnknown()
 	{
 		HomeStatus status = HomeStatusClient.FromPing(new ServerStatus(Online: false, 0, 0, "", -1, Array.Empty<string>(), "Timed out reaching the server."));
 		Assert.False(status.ShowOnline);
-		Assert.Equal("Offline", status.Headline);
+		Assert.Equal("Unknown", status.Headline);
 		Assert.Equal("—", status.PlayersText);
 		Assert.Equal("Timed out reaching the server.", status.Detail);
 		Assert.DoesNotContain("not published", status.Detail);
@@ -34,12 +34,20 @@ public class FriendsUxTests
 		Assert.DoesNotContain(":25565", status.Source);
 	}
 
+	[Theory][InlineData("")][InlineData("Connection refused")][InlineData("Unexpected protocol")]
+	public void UnsuccessfulPingNeverClaimsVerifiedStopped(string error)
+	{
+		var status=HomeStatusClient.FromPing(new ServerStatus(false,0,0,"",-1,Array.Empty<string>(),error),"fixture-endpoint");
+		Assert.Equal("Unknown",status.Headline);Assert.False(status.ShowOnline);
+		Assert.Equal("—",status.PlayersText);Assert.Equal("fixture-endpoint",status.Source);
+	}
+
 	[Fact]
 	public void PresentStatusFileOverridesThePing()
 	{
 		string path = Path.Combine(Path.GetTempPath(), "norcom-status-" + Guid.NewGuid().ToString("n") + ".json");
 		File.WriteAllText(path, """{"up":true,"players":2,"updatedUtc":"2026-11-06T03:00:00Z"}""");
-		HomeStatus? file = HomeStatusClient.ReadFile(path);
+		HomeStatus? file = HomeStatusClient.ReadFile(path,DateTimeOffset.Parse("2026-11-06T03:00:10Z"));
 		Assert.NotNull(file);
 		Assert.Equal("2 online", file.PlayersText);
 		Assert.Null(HomeStatusClient.ReadFile(path + ".missing"));
@@ -50,7 +58,7 @@ public class FriendsUxTests
 	{
 		string path = Path.Combine(Path.GetTempPath(), "norcom-status-" + Guid.NewGuid().ToString("n") + ".json");
 		File.WriteAllText(path, """{"up":true,"players":4,"updatedUtc":"2026-11-06T03:00:00Z","mspt":99}""");
-		HomeStatus status = HomeStatusClient.ReadFile(path);
+		HomeStatus status = HomeStatusClient.ReadFile(path,DateTimeOffset.Parse("2026-11-06T03:00:10Z"));
 		Assert.True(status.ShowOnline);
 		Assert.Equal("Online", status.Headline);
 		Assert.Equal("4 online", status.PlayersText);
@@ -62,7 +70,7 @@ public class FriendsUxTests
 	[Fact]
 	public void StatusDownIsOfflineWithoutACount()
 	{
-		HomeStatus status = HomeStatusClient.Parse("""{"up":false,"players":4,"updatedUtc":"2026-11-06T03:00:00Z"}""", "status.json");
+		HomeStatus status = HomeStatusClient.Parse("""{"up":false,"players":4,"updatedUtc":"2026-11-06T03:00:00Z"}""", "status.json",DateTimeOffset.Parse("2026-11-06T03:00:10Z"));
 		Assert.False(status.ShowOnline);
 		Assert.Equal("Offline", status.Headline);
 		Assert.Equal("—", status.PlayersText);

@@ -5,10 +5,12 @@ using System.Runtime.Versioning;
 
 [assembly: AssemblyCompany("NorcomLauncher")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("2.0.44.0")]
-[assembly: AssemblyInformationalVersion("2.0.44")]
+[assembly: AssemblyFileVersion("3.0.3.0")]
+[assembly: AssemblyInformationalVersion("3.0.3")]
 [assembly: AssemblyProduct("NorcomLauncher")]
 [assembly: AssemblyTitle("NorcomLauncher")]
 [assembly: TargetPlatform("Windows7.0")]
 [assembly: SupportedOSPlatform("Windows7.0")]
 [assembly: AssemblyVersion("2.0.1.0")]
+
+[assembly: InternalsVisibleTo("Norcom.Launcher.UiTests")]

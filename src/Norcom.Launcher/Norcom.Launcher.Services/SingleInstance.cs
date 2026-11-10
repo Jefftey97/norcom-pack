@@ -10,6 +10,11 @@ public sealed class SingleInstance : IDisposable
 {
 	private Mutex? _mutex;
 
+	private readonly string _scope;
+	private int _ownerThread;
+	public SingleInstance() : this("NORCOM.Launcher") { }
+	internal SingleInstance(string scope) => _scope = scope;
+
 	private EventWaitHandle? _activate;
 
 	private EventWaitHandle? _ack;
@@ -24,10 +29,11 @@ public sealed class SingleInstance : IDisposable
 		{
 			return true;
 		}
-		if (TryMutex(out _mutex))
+		if (TryMutex(_scope, out _mutex))
 		{
-			_activate = CreateEvent("NORCOM.Launcher.Activate");
-			_ack = CreateEvent("NORCOM.Launcher.Ack");
+			_ownerThread = Environment.CurrentManagedThreadId;
+			_activate = CreateEvent(_scope + ".Activate");
+			_ack = CreateEvent(_scope + ".Ack");
 			_thread = new Thread(Listen)
 			{
 				IsBackground = true,
@@ -36,110 +42,77 @@ public sealed class SingleInstance : IDisposable
 			_thread.Start();
 			return true;
 		}
-		Signal("NORCOM.Launcher.Activate");
-		if (Wait("NORCOM.Launcher.Ack", 3000))
+		Signal(_scope + ".Activate");
+		if (Wait(_scope + ".Ack", 3000))
 		{
 			return false;
 		}
-		Process[] processesByName = Process.GetProcessesByName("NorcomLauncher");
-		foreach (Process process in processesByName)
+		// A slow UI is not evidence that an arbitrary same-named process is stuck.
+		return false;
+	}
+
+	public static bool ActivateExisting() => ActivateExisting("NORCOM.Launcher");
+	internal static bool ActivateExisting(string scope)
+	{
+		if (TryMutex(scope, out var probe))
 		{
-			if (process.Id != Environment.ProcessId)
-			{
-				try
-				{
-					process.Kill(entireProcessTree: false);
-				}
-				catch
-				{
-				}
-			}
-		}
-		Thread.Sleep(400);
-		if (!TryMutex(out _mutex))
-		{
+			probe?.ReleaseMutex();
+			probe?.Dispose();
 			return false;
 		}
-		_activate = CreateEvent("NORCOM.Launcher.Activate");
-		_ack = CreateEvent("NORCOM.Launcher.Ack");
-		_thread = new Thread(Listen)
-		{
-			IsBackground = true,
-			Name = "NORCOM.Activate"
-		};
-		_thread.Start();
+		Signal(scope + ".Activate");
+		Wait(scope + ".Ack", 3000);
 		return true;
 	}
 
 	public void Dispose()
 	{
+		if (_mutex != null && _ownerThread != Environment.CurrentManagedThreadId)
+			throw new InvalidOperationException("Release the launcher instance on its owning UI thread.");
 		_run = false;
-		try
+		try { _activate?.Set(); } catch (ObjectDisposedException) { }
+		// The listener never synchronously waits on the UI dispatcher.
+		if (_thread == null || _thread.Join(1500))
 		{
-			_activate?.Set();
+			_activate?.Dispose(); _activate = null;
+			_ack?.Dispose(); _ack = null;
 		}
-		catch
-		{
-		}
-		_mutex?.Dispose();
-		_activate?.Dispose();
-		_ack?.Dispose();
+		if (_mutex != null) { _mutex.ReleaseMutex(); _mutex.Dispose(); _mutex = null; }
 	}
 
 	private void Listen()
 	{
-		while (_run && _activate != null)
+		var activate = _activate;
+		while (_run && activate != null)
 		{
-			if (!_activate.WaitOne(500))
-			{
-				continue;
-			}
-			if (!_run)
-			{
-				break;
-			}
 			try
 			{
+				if (!activate.WaitOne(500)) continue;
+				if (!_run) break;
 				_ack?.Reset();
-			}
-			catch
-			{
-			}
-			Application current = Application.Current;
-			if (current == null)
-			{
-				continue;
-			}
-			((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)(Action)delegate
-			{
-				//IL_0015: Unknown result type (might be due to invalid IL or missing references)
-				//IL_001b: Invalid comparison between Unknown and I4
-				Window mainWindow = Application.Current.MainWindow;
-				if (mainWindow != null)
+				var current = Application.Current;
+				if (current == null || current.Dispatcher.HasShutdownStarted || current.Dispatcher.HasShutdownFinished) continue;
+				current.Dispatcher.BeginInvoke((Action)(() =>
 				{
-					mainWindow.Show();
-					if ((int)mainWindow.WindowState == 1)
+					if (!_run || current.Dispatcher.HasShutdownStarted) return;
+					var window = current.MainWindow;
+					if (window != null)
 					{
-						mainWindow.WindowState = (WindowState)0;
+						window.Show();
+						if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+						window.Activate(); window.Topmost = true; window.Topmost = false;
 					}
-					mainWindow.Activate();
-					mainWindow.Topmost = true;
-					mainWindow.Topmost = false;
-				}
-				try
-				{
-					_ack?.Set();
-				}
-				catch
-				{
-				}
-			}, Array.Empty<object>());
+					try { _ack?.Set(); } catch (ObjectDisposedException) { }
+				}));
+			}
+			catch (ObjectDisposedException) { break; }
+			catch (InvalidOperationException) { if (!_run) break; }
 		}
 	}
 
-	private static bool TryMutex(out Mutex? mutex)
+	private static bool TryMutex(string scope, out Mutex? mutex)
 	{
-		string[] array = new string[2] { "Global\\NORCOM.Launcher.SingleInstance", "NORCOM.Launcher.SingleInstance" };
+		string[] array = new string[2] { "Global\\" + scope + ".SingleInstance", scope + ".SingleInstance" };
 		foreach (string name in array)
 		{
 			try
@@ -157,6 +130,8 @@ public sealed class SingleInstance : IDisposable
 					return true;
 				}
 				mutex.Dispose();
+				mutex = null;
+				return false;
 			}
 			catch
 			{

@@ -19,6 +19,8 @@ public sealed class FileAuthStore : IAuthSecretStore
 	public void Write(string name, byte[] plaintext)
 	{
 		string path = Safe(name);
+		// A failed cache read must not become an empty replacement cache.
+		_ = Read(name);
 		byte[] bytes = _protector.Protect(plaintext);
 		File.WriteAllBytes(path, bytes);
 	}
@@ -26,24 +28,22 @@ public sealed class FileAuthStore : IAuthSecretStore
 	public byte[]? Read(string name)
 	{
 		string path = Safe(name);
-		if (!File.Exists(path))
-		{
-			return null;
-		}
+		byte[] protectedBytes;
 		try
 		{
-			return _protector.Unprotect(File.ReadAllBytes(path));
+			protectedBytes = File.ReadAllBytes(path);
 		}
-		catch
+		catch (FileNotFoundException) { return null; }
+		catch (DirectoryNotFoundException) { return null; }
+		catch (Exception ex) { throw new AuthStoreUnavailableException(ex); }
+		try
 		{
-			try
-			{
-				File.Delete(path);
-			}
-			catch
-			{
-			}
-			return null;
+			return _protector.Unprotect(protectedBytes);
+		}
+		catch (Exception ex)
+		{
+			// Unreadable and missing credentials require different UI/action paths.
+			throw new AuthStoreUnavailableException(ex);
 		}
 	}
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -28,10 +29,6 @@ public static class PinGate
 	public const string ServerPinUrl = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/server-pin.json";
 
 	public const string CompatPinUrl = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/main/meta/server-compat.json";
-
-	public const string HostFullPinPath = "G:\\MinecraftServer\\admin\\norcom-mod-pin.json";
-
-	public const string HostSlimPinPath = "G:\\MinecraftServer\\.norcom\\server-pin.json";
 
 	public const string AppliedPinFile = "norcom-applied-pin.txt";
 
@@ -145,9 +142,12 @@ public static class PinGate
 		AcceptedPinJson = null;
 		PublishedPin = null;
 		DeferAppliedWrite = false;
-		string? full = ReadIfExists(Environment.GetEnvironmentVariable("NORCOM_PIN_PATH")) ?? ReadIfExists(HostFullPinPath);
-		string? slim = ReadIfExists(HostSlimPinPath);
-		string source = full != null ? HostFullPinPath : "";
+		// Friends use the published channel. An unrelated owner installation on
+		// the same PC must not silently replace it with a stale private pin.
+		string? overridePath = Environment.GetEnvironmentVariable("NORCOM_PIN_PATH");
+		string? full = ReadIfExists(overridePath);
+		string? slim = null;
+		string source = full != null ? overridePath! : "";
 		if (full == null && slim == null)
 		{
 			foreach (string pinUrl in CandidateUrls(packUrl, manifestUrl))
@@ -375,7 +375,7 @@ public static class PinGate
 	public static async Task<PinSyncResult> SyncPublishedAsync(HttpClient http, string gameDir, CancellationToken ct, bool forceTip, string? launcherDir)
 	{
 		string primaryDir = string.IsNullOrWhiteSpace(launcherDir) ? NorcomPaths.LauncherDir : launcherDir.Trim();
-		string? json = await PinFetch.FetchNamedAsync(http, "norcom-mod-pin.json", ct, forceTip).ConfigureAwait(continueOnCapturedContext: false);
+		string? json = await PinFetch.FetchNamedAsync(http, "norcom-mod-pin.json", ct, forceTip, primaryDir).ConfigureAwait(continueOnCapturedContext: false);
 		if (string.IsNullOrWhiteSpace(json))
 		{
 			json = await PinFetch.FetchNamedAsync(http, "server-pin.json", ct, forceTip: false).ConfigureAwait(continueOnCapturedContext: false);
@@ -393,6 +393,13 @@ public static class PinGate
 		{
 			LauncherLog.Write("pin refuse downgrade baked=" + LivePin + " published=" + pin.Trim());
 			return Mismatch(gameDir, "published pin is older than the baked pin");
+		}
+		if (IsOlderThanApplied(json, primaryDir))
+		{
+			// A cached or archival copy must never move friends back to an older
+			// pin than the one this PC already confirmed. Jars and stamps stay.
+			LauncherLog.Write("pin refuse older-than-applied published=" + pin.Trim());
+			return Mismatch(gameDir, "published pin is older than the applied pin");
 		}
 		if (!hasJars)
 		{
@@ -413,7 +420,7 @@ public static class PinGate
 				return Mismatch(gameDir, "a pack jar does not match the published pin");
 			}
 		}
-		if (!CommitApplied(gameDir, primaryDir, pin))
+		if (!CommitApplied(gameDir, primaryDir, pin, PublishedAtText(json)))
 		{
 			return Mismatch(gameDir, "applied pin could not be saved");
 		}
@@ -477,6 +484,97 @@ public static class PinGate
 		return text.Equals("TEMP", StringComparison.OrdinalIgnoreCase) || text.StartsWith("TEMP-", StringComparison.OrdinalIgnoreCase) || text.StartsWith("TEMP_", StringComparison.OrdinalIgnoreCase);
 	}
 
+	public static string? ReadPrimaryAppliedGeneratedAt(string launcherDir)
+	{
+		string path = Path.Combine(launcherDir, PrimaryAppliedPinFile);
+		if (!File.Exists(path))
+		{
+			return null;
+		}
+		try
+		{
+			using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
+			return Optional(document.RootElement, "generated_at");
+		}
+		catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+		{
+			return null;
+		}
+	}
+
+	// True when a fetched pin document is older than the pin this PC already
+	// applied. Pins only move forward unless the owner republishes with a newer
+	// generated_at; cached, CDN or archival copies cannot roll friends back.
+	public static bool IsOlderThanApplied(string? json, string? launcherDir)
+	{
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return false;
+		}
+		string dir = string.IsNullOrWhiteSpace(launcherDir) ? NorcomPaths.LauncherDir : launcherDir.Trim();
+		string? applied = ReadPrimaryAppliedPin(dir)?.Trim();
+		if (string.IsNullOrEmpty(applied))
+		{
+			return false;
+		}
+		string pin;
+		string generatedAt;
+		try
+		{
+			using JsonDocument document = JsonDocument.Parse(json);
+			JsonElement root = document.RootElement;
+			if (root.ValueKind != JsonValueKind.Object)
+			{
+				return false;
+			}
+			pin = Optional(root, "pin_sha256") ?? Optional(root, "pin") ?? "";
+			generatedAt = Optional(root, "generated_at") ?? "";
+		}
+		catch (JsonException)
+		{
+			return false;
+		}
+		if (pin.Length == 0 || string.Equals(pin, applied, StringComparison.OrdinalIgnoreCase) || !TryTime(generatedAt, out DateTimeOffset published))
+		{
+			return false;
+		}
+		if (TryTime(ReadPrimaryAppliedGeneratedAt(dir), out DateTimeOffset appliedAt))
+		{
+			return published < appliedAt;
+		}
+		// Older stamps carry no publication time. Any applied pin other than the
+		// baked/previous/temporary ones was accepted as newer than the baked pin,
+		// so a document published no later than the baked pin is stale.
+		if (string.Equals(applied, LivePin, StringComparison.OrdinalIgnoreCase) || string.Equals(applied, PreviousPin, StringComparison.OrdinalIgnoreCase) || IsTemporaryPin(applied))
+		{
+			return false;
+		}
+		return TryTime(LivePinGeneratedAt, out DateTimeOffset baked) && published <= baked;
+	}
+
+	private static string PublishedAtText(string? json)
+	{
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return "";
+		}
+		try
+		{
+			using JsonDocument document = JsonDocument.Parse(json);
+			string text = document.RootElement.ValueKind == JsonValueKind.Object ? Optional(document.RootElement, "generated_at") ?? "" : "";
+			return TryTime(text, out _) ? text : "";
+		}
+		catch (JsonException)
+		{
+			return "";
+		}
+	}
+
+	private static bool TryTime(string? text, out DateTimeOffset value)
+	{
+		return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+	}
+
 	public static string? ReadPrimaryAppliedPin(string launcherDir)
 	{
 		string path = Path.Combine(launcherDir, PrimaryAppliedPinFile);
@@ -491,7 +589,7 @@ public static class PinGate
 			string pin = Optional(root, "pin_sha256") ?? Optional(root, "pin") ?? "";
 			return pin.Length == 0 ? null : pin;
 		}
-		catch (Exception ex) when (ex is JsonException or IOException)
+		catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
 		{
 			return null;
 		}
@@ -674,6 +772,8 @@ public static class PinGate
 	private static async Task<bool> TryHealJarsAsync(HttpClient http, string gameDir, IReadOnlyList<(string Name, string Sha256, long Size, string Url)> jars, CancellationToken ct)
 	{
 		List<(string Dest, string Temp)> staged = new List<(string, string)>();
+		List<(string Dest, string? Backup)> placed = new List<(string, string?)>();
+		bool committed = false;
 		try
 		{
 			foreach ((string name, string sha, long size, string url) in jars)
@@ -686,6 +786,8 @@ public static class PinGate
 				}
 				staged.Add((HealDest(gameDir, name), temp));
 			}
+			// Replace every jar or none: each previous jar is kept beside its
+			// destination until all replacements succeed, then restored on failure.
 			foreach ((string dest, string temp) in staged)
 			{
 				string directory = Path.GetDirectoryName(dest);
@@ -693,8 +795,23 @@ public static class PinGate
 				{
 					Directory.CreateDirectory(directory);
 				}
-				File.Move(temp, dest, overwrite: true);
+				string? backup = null;
+				if (File.Exists(dest))
+				{
+					backup = dest + ".norcom-heal-" + Guid.NewGuid().ToString("n") + ".bak";
+					File.Move(dest, backup);
+				}
+				placed.Add((dest, backup));
+				File.Move(temp, dest);
+			}
+			committed = true;
+			foreach ((string dest, string? backup) in placed)
+			{
 				LauncherLog.Write("pin heal jar " + Path.GetFileName(dest));
+				if (backup != null)
+				{
+					TryDeleteQuietly(backup);
+				}
 			}
 			return true;
 		}
@@ -705,6 +822,10 @@ public static class PinGate
 		}
 		finally
 		{
+			if (!committed)
+			{
+				RestoreHealedJars(placed);
+			}
 			foreach ((string _, string temp) in staged)
 			{
 				try
@@ -721,8 +842,54 @@ public static class PinGate
 		}
 	}
 
+	private static void RestoreHealedJars(List<(string Dest, string? Backup)> placed)
+	{
+		for (int i = placed.Count - 1; i >= 0; i--)
+		{
+			(string dest, string? backup) = placed[i];
+			try
+			{
+				if (backup == null)
+				{
+					if (File.Exists(dest))
+					{
+						File.Delete(dest);
+					}
+				}
+				else if (File.Exists(backup))
+				{
+					File.Move(backup, dest, overwrite: true);
+				}
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				// The previous jar remains at its backup path for manual recovery.
+				LauncherLog.Write("pin heal restore kept " + Path.GetFileName(backup ?? dest) + " " + ex.GetType().Name);
+			}
+		}
+	}
+
+	private static void TryDeleteQuietly(string path)
+	{
+		try
+		{
+			File.Delete(path);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			LauncherLog.Write("pin heal backup kept " + Path.GetFileName(path));
+		}
+	}
+
+	public const long MaximumHealJarBytes = 268435456;
+
 	private static async Task<bool> TryDownloadVerifiedAsync(HttpClient http, string name, string sha, long size, string explicitUrl, string temp, CancellationToken ct)
 	{
+		if (size <= 0 || size > MaximumHealJarBytes)
+		{
+			LauncherLog.Write("pin heal refuse size " + Path.GetFileName((name ?? "").Replace('\\', '/')));
+			return false;
+		}
 		foreach (string url in JarUrls(name, explicitUrl))
 		{
 			try
@@ -743,7 +910,17 @@ public static class PinGate
 				{
 					continue;
 				}
-				byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
+				bool contentsApi = url.Contains("api.github.com", StringComparison.OrdinalIgnoreCase);
+				long limit = contentsApi ? (size / 3 + 1) * 4 + 1048576 : size;
+				if (response.Content.Headers.ContentLength is long announced && announced > limit)
+				{
+					continue;
+				}
+				byte[]? body = await ReadBoundedAsync(response, limit, ct).ConfigureAwait(continueOnCapturedContext: false);
+				if (body == null)
+				{
+					continue;
+				}
 				if (url.Contains("api.github.com", StringComparison.OrdinalIgnoreCase))
 				{
 					byte[] decoded = DecodeContentsBytes(body);
@@ -771,6 +948,23 @@ public static class PinGate
 			}
 		}
 		return false;
+	}
+
+	private static async Task<byte[]?> ReadBoundedAsync(HttpResponseMessage response, long limit, CancellationToken ct)
+	{
+		await using Stream input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
+		using MemoryStream output = new MemoryStream();
+		byte[] buffer = new byte[81920];
+		int read;
+		while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(continueOnCapturedContext: false)) > 0)
+		{
+			if (output.Length + read > limit)
+			{
+				return null;
+			}
+			output.Write(buffer, 0, read);
+		}
+		return output.ToArray();
 	}
 
 	private static IEnumerable<string> JarUrls(string name, string explicitUrl)
@@ -834,16 +1028,21 @@ public static class PinGate
 		return inMods;
 	}
 
-	private static bool CommitApplied(string gameDir, string launcherDir, string pin)
+	private static bool CommitApplied(string gameDir, string launcherDir, string pin, string generatedAt)
 	{
 		string text = pin.Trim();
-		string json = JsonSerializer.Serialize(new Dictionary<string, object>
+		Dictionary<string, object> record = new Dictionary<string, object>
 		{
 			["schema"] = 1,
 			["pin"] = text,
 			["pin_sha256"] = text,
-			["appliedUtc"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
-		});
+			["appliedUtc"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
+		};
+		if (!string.IsNullOrWhiteSpace(generatedAt))
+		{
+			record["generated_at"] = generatedAt.Trim();
+		}
+		string json = JsonSerializer.Serialize(record);
 		string primary = Path.Combine(launcherDir, PrimaryAppliedPinFile);
 		string marker = Path.Combine(gameDir, AppliedPinFile);
 		string primaryOld = File.Exists(primary) ? File.ReadAllText(primary) : null;

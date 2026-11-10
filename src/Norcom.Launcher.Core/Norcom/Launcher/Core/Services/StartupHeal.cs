@@ -73,42 +73,9 @@ public static class StartupHeal
 
 	public static void ClearLockIfDead(string lockPath)
 	{
-		if (!File.Exists(lockPath))
-		{
-			return;
-		}
-		try
-		{
-			string text = File.ReadAllText(lockPath);
-			int num = 0;
-			string[] array = text.Split('\n');
-			for (int i = 0; i < array.Length; i++)
-			{
-				string text2 = array[i].Trim();
-				if (text2.StartsWith("pid=", StringComparison.OrdinalIgnoreCase))
-				{
-					string text3 = text2;
-					if (int.TryParse(text3.Substring(4, text3.Length - 4).Trim(), out var result))
-					{
-						num = result;
-					}
-				}
-			}
-			if (num <= 0 || !IsAlive(num))
-			{
-				File.Delete(lockPath);
-			}
-		}
-		catch
-		{
-			try
-			{
-				File.Delete(lockPath);
-			}
-			catch
-			{
-			}
-		}
+		// Repair shares the updater's conservative interpretation. Unknown/locked/
+		// malformed state is retained, never treated as proof that a game stopped.
+		_ = Norcom.Launcher.Core.Updates.GameUpdateGuard.IsBlocked(lockPath);
 	}
 
 	public static bool IsAlive(int pid)
@@ -155,8 +122,23 @@ public static class StartupHeal
 		{
 			Directory.CreateDirectory(directoryName);
 		}
-		File.WriteAllText(lockPath, "pid=" + pid + "\nkind=game\nstarted=" + DateTimeOffset.UtcNow.ToString("o") + "\n");
+		long? ticks=null;
+        try{using var process=Process.GetProcessById(pid);ticks=process.StartTime.ToUniversalTime().Ticks;}catch{ }
+        File.WriteAllText(lockPath,"pid="+pid+"\nkind=game\nstarted="+DateTimeOffset.UtcNow.ToString("o")+"\n"+(ticks.HasValue?"processStartedUtcTicks="+ticks.Value+"\n":""));
 	}
+
+    public static long? ReadGameStartTicks(string path)
+    {
+        try
+        {
+            string value=null;
+            foreach(var row in File.ReadAllLines(path))
+                if(row.StartsWith("processStartedUtcTicks=",StringComparison.Ordinal))
+                {if(value!=null)return null;value=row.Substring("processStartedUtcTicks=".Length);}
+            return long.TryParse(value,out var ticks) && ticks>0?ticks:null;
+        }
+        catch{return null;}
+    }
 
 	public static bool GameLockAlive(string lockPath)
 	{
@@ -175,7 +157,9 @@ public static class StartupHeal
 					string text2 = text;
 					if (int.TryParse(text2.Substring(4, text2.Length - 4).Trim(), out var result))
 					{
-						return IsAlive(result);
+						var ticks=ReadGameStartTicks(lockPath);
+                            if(ticks.HasValue){using var process=Process.GetProcessById(result);return !process.HasExited && process.StartTime.ToUniversalTime().Ticks==ticks.Value;}
+                            return IsAlive(result);
 					}
 				}
 			}

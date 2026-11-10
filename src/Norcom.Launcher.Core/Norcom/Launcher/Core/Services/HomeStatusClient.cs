@@ -48,7 +48,7 @@ public static class HomeStatusClient
 			return new HomeStatus
 			{
 				ShowOnline = false,
-				Headline = "Offline",
+				Headline = "Unknown",
 				PlayersText = "—",
 				Detail = detail,
 				Source = where
@@ -84,23 +84,10 @@ public static class HomeStatusClient
 				return fromUrl;
 			}
 		}
-		if (File.Exists(HostStatusPath))
-		{
-			HomeStatus? host = ReadFile(HostStatusPath);
-			if (host != null)
-			{
-				return host;
-			}
-		}
-		string local = Path.Combine(NorcomPaths.LauncherDir, "status.json");
-		if (File.Exists(local))
-		{
-			return ReadFile(local);
-		}
 		return null;
 	}
 
-	public static HomeStatus Parse(string json, string source)
+	public static HomeStatus Parse(string json, string source, DateTimeOffset? now=null)
 	{
 		using JsonDocument document = JsonDocument.Parse(json);
 		JsonElement root = document.RootElement;
@@ -118,6 +105,9 @@ public static class HomeStatusClient
 		{
 			updated = stamp.GetString()?.Trim() ?? "";
 		}
+        var clock=now??DateTimeOffset.UtcNow;
+        if(!DateTimeOffset.TryParse(updated,out var sampled) || clock-sampled>TimeSpan.FromMinutes(2) || sampled-clock>TimeSpan.FromMinutes(1))
+            return new HomeStatus{ShowOnline=false,Headline="Unknown",PlayersText="—",Detail="The status snapshot is stale or has no valid timestamp. Refresh to try again.",Source=source};
 		bool online = up.GetBoolean();
 		string when = string.IsNullOrWhiteSpace(updated) ? source : source + "  " + updated;
 		if (!online)
@@ -141,7 +131,7 @@ public static class HomeStatusClient
 		};
 	}
 
-	public static HomeStatus? ReadFile(string path)
+	public static HomeStatus? ReadFile(string path, DateTimeOffset? now=null)
 	{
 		try
 		{
@@ -149,7 +139,8 @@ public static class HomeStatusClient
 			{
 				return null;
 			}
-			return Parse(File.ReadAllText(path), path);
+			if(new FileInfo(path).Length>32768)return null;
+            return Parse(File.ReadAllText(path), path,now);
 		}
 		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
 		{
@@ -161,7 +152,7 @@ public static class HomeStatusClient
 	{
 		try
 		{
-			using HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+			using HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(2),MaxResponseContentBufferSize=32768 };
 			string body = http.GetStringAsync(url).GetAwaiter().GetResult();
 			return Parse(body, url);
 		}

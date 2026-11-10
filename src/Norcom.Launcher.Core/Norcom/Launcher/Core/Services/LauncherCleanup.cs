@@ -12,22 +12,8 @@ public static class LauncherCleanup
 		List<string> removed = new List<string>();
 		string liveFull = Path.GetFullPath(liveExe);
 		string? liveDir = Path.GetDirectoryName(liveFull);
-		string recovery = Path.Combine(norcomHome, "recovery");
-		if (Directory.Exists(recovery) && !IsOffLimits(recovery, liveFull, liveDir, gameDir))
-		{
-			foreach (string dir in Directory.EnumerateDirectories(recovery))
-			{
-				string name = Path.GetFileName(dir);
-				if (!name.StartsWith("self-update-", StringComparison.OrdinalIgnoreCase) && !name.StartsWith("install-", StringComparison.OrdinalIgnoreCase))
-				{
-					continue;
-				}
-				if (TryDeleteDirectory(dir, liveFull, liveDir, gameDir))
-				{
-					removed.Add(dir);
-				}
-			}
-		}
+		// Recovery bytes belong to the updater transaction, not ordinary
+		// startup/Play cleanup. Age or a directory name cannot prove them obsolete.
 		if (!string.IsNullOrWhiteSpace(liveDir))
 		{
 			foreach (string relative in LegacyRetirement.Files)

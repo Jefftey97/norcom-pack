@@ -63,6 +63,9 @@ public class LaunchedGameTests
 		}
 		Assert.True(pid > 0);
 		Assert.False(StartupHeal.IsAlive(pid));
-		Assert.True(LaunchedGame.TryStop(pid));
+		// Without the recorded start time the stop is refused; with one, a process
+		// that is already gone counts as stopped (no live process can be touched).
+		Assert.False(LaunchedGame.TryStop(pid));
+		Assert.True(LaunchedGame.TryStop(pid, DateTime.UtcNow.Ticks));
 	}
 }

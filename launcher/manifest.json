@@ -1,7 +1,7 @@
 {
-  "version": "2.0.44",
+  "version": "2.0.45",
   "minVersion": "2.0.0",
-  "sha256": "82698b451b632c9b2298c27dbab6877be842e221377731cf376077152340abd0",
-  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/ff312c9e6be0f44bad5360466f0bdd0ae57f9f09/launcher/NorcomWpf-2.0.44.zip",
-  "notes": "Launcher 2.0.44. Fix follows the live server pin and will not replace pack jars with an older pin. Updates install into the NORCOM Launcher folder. Play reuses a Prism NORCOM instance already on this PC and keeps the saves. Playing shows while the game is open, and the red X stops it. Carrara marble stays with the pack."
+  "sha256": "6453dc2a0451587a1459ee6ceb4cab1439cf029faf39d4b139a47565e861632a",
+  "zipUrl": "https://raw.githubusercontent.com/Jefftey97/norcom-pack/a49c6e1980a2a46e86bcca3ebc763eb6a0f89c77/launcher/NorcomWpf-2.0.45.zip",
+  "notes": "Launcher 2.0.45. One-time bridge to signed updates: after this, launcher updates are verified with the NORCOM release key and the previous version is kept for automatic rollback. Your settings, sign-in and game files are kept."
 }

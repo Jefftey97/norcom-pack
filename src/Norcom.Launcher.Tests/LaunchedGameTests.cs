@@ -56,6 +56,30 @@ public class LaunchedGameTests
 	}
 
 	[Fact]
+	public void EmptyCommandLineKeepsTheMatchingLock()
+	{
+		Assert.False(PrismGameSignals.ShouldForgetLockedProcess("java.exe", ""));
+		Assert.False(PrismGameSignals.ShouldForgetLockedProcess("java.exe", null));
+		string dir = Path.Combine(Path.GetTempPath(), "norcom-lock-" + Guid.NewGuid().ToString("n"));
+		Directory.CreateDirectory(dir);
+		string path = Path.Combine(dir, "game.lock");
+		using Process process = Process.GetCurrentProcess();
+		StartupHeal.WriteGameLock(path, process.Id);
+		StartupHeal.CommandReader = pid => pid == process.Id ? ("java.exe", "") : null;
+		try
+		{
+			Assert.False(StartupHeal.ReleaseForeignClientLock(path));
+			Assert.True(File.Exists(path));
+			Assert.True(StartupHeal.GameLockAlive(path));
+			Assert.False(process.HasExited);
+		}
+		finally
+		{
+			StartupHeal.CommandReader = null;
+		}
+	}
+
+	[Fact]
 	public void LockRoundTripRemembersThePid()
 	{
 		string dir = Path.Combine(Path.GetTempPath(), "norcom-lock-" + Guid.NewGuid().ToString("n"));

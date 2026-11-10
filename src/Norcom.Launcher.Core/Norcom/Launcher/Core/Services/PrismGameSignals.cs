@@ -93,7 +93,7 @@ public static class PrismGameSignals
 
 	public static bool ShouldForgetLockedProcess(string? processName, string? commandLine)
 	{
-		if (string.IsNullOrWhiteSpace(processName) && string.IsNullOrWhiteSpace(commandLine))
+		if (string.IsNullOrWhiteSpace(commandLine))
 		{
 			return false;
 		}

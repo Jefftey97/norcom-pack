@@ -8,9 +8,16 @@ namespace Norcom.Launcher.Core.Services;
 
 public static class HttpDownload
 {
-	public static async Task DownloadAsync(HttpClient http, string url, string dest, TransferMeter meter, CancellationToken ct)
+	public static Task DownloadAsync(HttpClient http, string url, string dest, TransferMeter meter, CancellationToken ct)
+	{
+		return DownloadAsync(http, url, dest, meter, ct, null);
+	}
+
+	// beforeLocalWrite runs immediately before the parent directory is created, before the .part file is created, and before that partial is moved onto dest.
+	public static async Task DownloadAsync(HttpClient http, string url, string dest, TransferMeter meter, CancellationToken ct, Action beforeLocalWrite)
 	{
 		string tmp = dest + ".part";
+		beforeLocalWrite?.Invoke();
 		Directory.CreateDirectory(Path.GetDirectoryName(dest));
 		using HttpResponseMessage response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(continueOnCapturedContext: false);
 		response.EnsureSuccessStatusCode();
@@ -18,6 +25,7 @@ public static class HttpDownload
 		Stream input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
 		try
 		{
+			beforeLocalWrite?.Invoke();
 			FileStream output = File.Create(tmp);
 			try
 			{
@@ -33,6 +41,7 @@ public static class HttpDownload
 					meter.Add(i, total);
 				}
 				await output.DisposeAsync().ConfigureAwait(continueOnCapturedContext: false);
+				beforeLocalWrite?.Invoke();
 				File.Move(tmp, dest, overwrite: true);
 			}
 			finally

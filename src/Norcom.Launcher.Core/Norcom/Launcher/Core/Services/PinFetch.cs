@@ -42,6 +42,13 @@ public static class PinFetch
 
 	private static DateTime _nextTipUtc = DateTime.MinValue;
 
+	// Conditional GitHub API requests answered 304 do not spend the anonymous
+	// 60-per-hour budget, so a minute-by-minute poll keeps the authoritative
+	// source instead of drifting to cached or archival copies.
+	private static readonly Dictionary<string, (string ETag, string Body)> ContentsCache = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+
+	private static readonly object ContentsGate = new object();
+
 	public static string ResolvedTip => _resolvedTip;
 
 	public static string BareRawMain(string file)
@@ -72,9 +79,18 @@ public static class PinFetch
 		_resolvedTip = KnownTip;
 		_etag = "";
 		_nextTipUtc = DateTime.MinValue;
+		lock (ContentsGate)
+		{
+			ContentsCache.Clear();
+		}
 	}
 
-	public static async Task<string?> FetchNamedAsync(HttpClient http, string file, CancellationToken ct, bool forceTip)
+	public static Task<string?> FetchNamedAsync(HttpClient http, string file, CancellationToken ct, bool forceTip)
+	{
+		return FetchNamedAsync(http, file, ct, forceTip, null);
+	}
+
+	public static async Task<string?> FetchNamedAsync(HttpClient http, string file, CancellationToken ct, bool forceTip, string? launcherDir)
 	{
 		await RefreshTipAsync(http, ct, forceTip).ConfigureAwait(continueOnCapturedContext: false);
 		string bust = DateTime.UtcNow.Ticks.ToString();
@@ -96,6 +112,12 @@ public static class PinFetch
 			}
 			if (!LooksLikePin(body))
 			{
+				continue;
+			}
+			if (file.Equals("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) && PinGate.IsOlderThanApplied(body, launcherDir))
+			{
+				// Never offered as a fallback: it would roll this PC back.
+				LauncherLog.Write("pin fetch older-than-applied " + source.Kind + " " + file);
 				continue;
 			}
 			if (file.Equals("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) && PinGate.IsDowngradeDocument(body))
@@ -235,17 +257,43 @@ public static class PinFetch
 				NoStore = true
 			};
 			request.Headers.Pragma.ParseAdd("no-cache");
+			(string ETag, string Body) cached = default;
+			bool hasCached = false;
 			if (source.Contents)
 			{
 				request.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
+				lock (ContentsGate)
+				{
+					hasCached = ContentsCache.TryGetValue(source.Url, out cached);
+				}
+				if (hasCached)
+				{
+					request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
+				}
 			}
 			using HttpResponseMessage response = await http.SendAsync(request, ct).ConfigureAwait(continueOnCapturedContext: false);
+			if (source.Contents && hasCached && response.StatusCode == HttpStatusCode.NotModified)
+			{
+				return cached.Body;
+			}
 			if (!response.IsSuccessStatusCode)
 			{
 				return null;
 			}
 			string body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
-			return string.IsNullOrWhiteSpace(body) ? null : body;
+			if (string.IsNullOrWhiteSpace(body))
+			{
+				return null;
+			}
+			string? tag = response.Headers.ETag?.Tag;
+			if (source.Contents && !string.IsNullOrWhiteSpace(tag) && body.Length <= 1048576)
+			{
+				lock (ContentsGate)
+				{
+					ContentsCache[source.Url] = (tag, body);
+				}
+			}
+			return body;
 		}
 		catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
 		{

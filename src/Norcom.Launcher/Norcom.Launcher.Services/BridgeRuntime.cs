@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Services;
+using Norcom.Launcher.Core.Text;
 using Norcom.Launcher.Core.Updates;
 
 namespace Norcom.Launcher.Services;
@@ -150,9 +151,18 @@ public static class BridgeRuntime
         {report?.Invoke("Launcher "+NorcomVersion.Current+" is up to date.",1);return false;}
         var package=Path.Combine(store.Root,"update","download-"+Guid.NewGuid().ToString("N")+".zip");
         report?.Invoke("Downloading verified launcher "+release.Payload.Version,0.15);
-        await channel.DownloadAsync(release,package,ct).ConfigureAwait(true);
-        var identity=store.Stage(release,package);
-        File.Delete(package);
+        PayloadIdentity identity;
+        try
+        {
+            await channel.DownloadAsync(release,package,ct).ConfigureAwait(true);
+            identity=store.Stage(release,package);
+        }
+        finally
+        {
+            // A failed or cancelled download/stage must not leave a ~70 MB archive behind.
+            try {if(File.Exists(package))File.Delete(package);}
+            catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) {LauncherLog.Write("launcher update package kept "+ex.GetType().Name);}
+        }
         var attempt=store.Prepare(identity);
         using var current=Process.GetCurrentProcess();
         var worker=new ProcessStartInfo(store.BootstrapPath){UseShellExecute=false,WorkingDirectory=store.Root,CreateNoWindow=true};

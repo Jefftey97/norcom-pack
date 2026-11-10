@@ -119,13 +119,35 @@ public sealed class UpdateStore
             VerifyLocal(identity);return identity;
         }
         var stage=Path.Combine(UpdateDirectory,"stage-"+Guid.NewGuid().ToString("N"));
-        ReleasePackage.Extract(release,package,stage);
-        OwnedFiles.WriteNew(Path.Combine(stage,"release-"+identity.PayloadDigest+".json"),Encoding.UTF8.GetBytes(release.Envelope));
-        OwnedFiles.CheckAncestors(destination);
-        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        Directory.Move(stage,destination);
+        try
+        {
+            ReleasePackage.Extract(release,package,stage);
+            OwnedFiles.WriteNew(Path.Combine(stage,"release-"+identity.PayloadDigest+".json"),Encoding.UTF8.GetBytes(release.Envelope));
+            OwnedFiles.CheckAncestors(destination);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            Directory.Move(stage,destination);
+        }
+        finally
+        {
+            // The uniquely named staging folder was created by this call and never
+            // holds an accepted payload; installed and rollback folders are untouched.
+            DiscardStage(stage);
+        }
         VerifyLocal(identity);
         return identity;
+    }
+    private void DiscardStage(string stage)
+    {
+        try
+        {
+            if(!Directory.Exists(stage))return;
+            OwnedFiles.CheckAncestors(stage);
+            if(!string.Equals(Path.GetDirectoryName(Path.GetFullPath(stage)),Path.GetFullPath(UpdateDirectory),StringComparison.OrdinalIgnoreCase) ||
+                !Path.GetFileName(stage).StartsWith("stage-",StringComparison.Ordinal) ||
+                (File.GetAttributes(stage) & FileAttributes.ReparsePoint)!=0)return;
+            Directory.Delete(stage,recursive:true);
+        }
+        catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { }
     }
     public string PayloadPath(PayloadIdentity identity)
     {

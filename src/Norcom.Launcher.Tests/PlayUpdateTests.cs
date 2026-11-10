@@ -12,6 +12,16 @@ namespace Norcom.Launcher.Tests;
 
 public class PlayUpdateTests
 {
+	// The feed fixture must always be one patch ahead of the build under test.
+	private static string Next
+	{
+		get
+		{
+			Version current = Version.Parse(Norcom.Launcher.Core.NorcomVersion.Current);
+			return current.Major + "." + current.Minor + "." + (current.Build + 1);
+		}
+	}
+
 	[Fact]
 	public void MandatoryAndAvailableBothApplyOnPlay()
 	{
@@ -34,17 +44,17 @@ public class PlayUpdateTests
 		Directory.CreateDirectory(root);
 		string exe = Path.Combine(root, "NorcomLauncher.exe");
 		await File.WriteAllTextAsync(exe, "exe");
-		string zip = Path.Combine(root, "NorcomWpf-3.0.2.zip");
+		string zip = Path.Combine(root, "NorcomWpf-" + Next + ".zip");
 		using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
 		{
 			archive.CreateEntryFromFile(exe, "NorcomLauncher.exe");
 			ZipArchiveEntry version = archive.CreateEntry("payload-version.txt");
 			using StreamWriter writer = new StreamWriter(version.Open());
-			writer.Write("3.0.2\n");
+			writer.Write(Next + "\n");
 		}
 		string sha = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(zip))).ToLowerInvariant();
 		string manifestPath = Path.Combine(root, "manifest.json");
-		await File.WriteAllTextAsync(manifestPath, "{\"version\":\"3.0.2\",\"minVersion\":\"2.0.0\",\"sha256\":\"" + sha + "\",\"zipUrl\":\"" + zip.Replace("\\", "\\\\") + "\"}");
+		await File.WriteAllTextAsync(manifestPath, "{\"version\":\"" + Next + "\",\"minVersion\":\"2.0.0\",\"sha256\":\"" + sha + "\",\"zipUrl\":\"" + zip.Replace("\\", "\\\\") + "\"}");
 		string? previousManifest = Environment.GetEnvironmentVariable(SelfUpdateService.ManifestOverrideVariable);
 		bool previousExit = PlayUpdateGate.ExitAfterSchedule;
 		Action<string, string, string>? previousScheduled = SelfUpdateService.PlayScheduled;
@@ -54,7 +64,7 @@ public class PlayUpdateTests
 		{
 			Environment.SetEnvironmentVariable(SelfUpdateService.ManifestOverrideVariable, manifestPath);
 			PlayUpdateGate.ExitAfterSchedule = false;
-			SelfUpdateService.ExeVersionOf = _ => "3.0.2";
+			SelfUpdateService.ExeVersionOf = _ => Next;
 			SelfUpdateService.PlayScheduled = (_, version, hash) => scheduled = version + " " + hash;
 			string hint = "{\"schema\":1,\"pin\":\"" + PinGate.LivePin + "\",\"mc\":\"26.3\",\"loader\":\"0.20.1\",\"minLauncher\":\"9.0.0\",\"repairAction\":\"resync-pack\",\"source\":\"admin\"}";
 			using HttpClient http = new(new HintAndPin(hint, SlimPin()));
@@ -66,7 +76,7 @@ public class PlayUpdateTests
 				File.WriteAllText(Path.Combine(game, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
 				return Task.CompletedTask;
 			}, CancellationToken.None);
-			Assert.Equal("3.0.2 " + sha, scheduled);
+			Assert.Equal(Next + " " + sha, scheduled);
 		}
 		finally
 		{

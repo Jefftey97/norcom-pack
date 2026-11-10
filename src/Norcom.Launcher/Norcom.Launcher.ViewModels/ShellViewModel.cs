@@ -220,6 +220,8 @@ public class ShellViewModel : ObservableObject
 
 	public bool IsSettings => Page == LauncherPage.Settings;
 
+	public bool IsGraphics => Page == LauncherPage.Graphics;
+
 	public bool CanPlay
 	{
 		get
@@ -235,8 +237,31 @@ public class ShellViewModel : ObservableObject
 
 	public string PlayAccountText => AccountStatus;
 
-	public string PlayLabel => LaunchedGame.PlayCaption(GameRunning);
-    public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
+	public string PlayLabel => IsZomboid ? "Play Project Zomboid" : LaunchedGame.PlayCaption(GameRunning);
+    public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":IsZomboid?ZomboidAvailability():GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
+	public string ServerAddress => NorcomPaths.ServerHost;
+	public bool IsZomboid => string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
+	public string GamePickerDetail => _gamePickerDetail;
+	private string _selectedGameId;
+	private bool _selectedGameLoaded;
+	private string _gamePickerDetail = "Minecraft uses the NORCOM pack in Prism.";
+	private RelayCommand<string> _selectGameCommand;
+	private RelayCommand _copyServerAddressCommand;
+	public string SelectedGameId
+	{
+		get
+		{
+			if (!_selectedGameLoaded)
+			{
+				_selectedGameLoaded = true;
+				_selectedGameId = ChosenGame.Load(NorcomPaths.NorcomHome);
+				RefreshGamePicker();
+			}
+			return _selectedGameId;
+		}
+	}
+	public IRelayCommand<string> SelectGameCommand => _selectGameCommand ??= new RelayCommand<string>(SelectGame);
+	public IRelayCommand CopyServerAddressCommand => _copyServerAddressCommand ??= new RelayCommand(CopyServerAddress);
     public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
     private int _statusRefreshing;
     public string ServerCheckedAt {get;private set;}="Not checked yet";
@@ -1354,6 +1379,11 @@ public class ShellViewModel : ObservableObject
 	private async Task PlayAsync()
 	{
 		if (QaGates.OfflineCheckRequested()) return;
+		if (string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
+		{
+			await PlayZomboidAsync().ConfigureAwait(continueOnCapturedContext: true);
+			return;
+		}
 		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
 		{
 			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
@@ -1389,6 +1419,18 @@ public class ShellViewModel : ObservableObject
 				ProgressLabel = "Pack ready";
 				StatusLine = "Stopped after the pack sync. Minecraft was not started.";
 				return;
+			}
+			try
+			{
+				string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+				if (!string.IsNullOrWhiteSpace(graphicsNote))
+				{
+					LauncherLog.Write(graphicsNote);
+				}
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("graphics profile " + ex.GetType().Name);
 			}
 			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb);
 			if (!prismPreparation.CanStart || prismPreparation.Executable == null)
@@ -1451,6 +1493,105 @@ public class ShellViewModel : ObservableObject
 			if (ownsPinLock) _pinLock.Release();
 			IsBusy = BridgeRuntime.HandoffScheduled;
 			RefreshLaunchedGame();
+		}
+	}
+
+	private async Task PlayZomboidAsync()
+	{
+		if (IsBusy || BridgeRuntime.HandoffScheduled)
+		{
+			return;
+		}
+		IsBusy = true;
+		try
+		{
+			ProgressFraction = 0.2;
+			ProgressLabel = "Checking Steam";
+			ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath);
+			RefreshGamePicker();
+			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
+			{
+				LauncherLog.Write(plan.GraphicsNote);
+			}
+			if (!plan.CanStart)
+			{
+				ProgressFraction = 0.0;
+				ProgressLabel = SteamLibrary.NotFound;
+				StatusLine = plan.Message;
+				return;
+			}
+			ProgressLabel = "Opening Steam";
+			StatusLine = plan.Message;
+			SteamStart.Open(plan.Url);
+			ProgressFraction = 1.0;
+			LauncherLog.Write("zomboid steam " + plan.Url);
+		}
+		catch (Exception ex)
+		{
+			ProgressFraction = 0.0;
+			ProgressLabel = "Play didn't finish";
+			StatusLine = Redactor.Clean(ex.Message);
+			LauncherLog.Write("zomboid play " + ex.GetType().Name);
+		}
+		finally
+		{
+			IsBusy = BridgeRuntime.HandoffScheduled;
+			OnPropertyChanged(nameof(PlayAvailability));
+			OnPropertyChanged(nameof(GamePickerDetail));
+		}
+	}
+
+	private void SelectGame(string id)
+	{
+		_selectedGameLoaded = true;
+		_selectedGameId = ChosenGame.Normalize(id);
+		try
+		{
+			ChosenGame.Save(NorcomPaths.NorcomHome, _selectedGameId);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("selected game " + ex.GetType().Name);
+		}
+		RefreshGamePicker();
+		OnPropertyChanged(nameof(SelectedGameId));
+		OnPropertyChanged(nameof(IsZomboid));
+		OnPropertyChanged(nameof(PlayLabel));
+		OnPropertyChanged(nameof(PlayAvailability));
+		OnPropertyChanged(nameof(GamePickerDetail));
+	}
+
+	private void RefreshGamePicker()
+	{
+		if (!string.Equals(_selectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
+		{
+			_gamePickerDetail = "Minecraft uses the NORCOM pack in Prism.";
+			return;
+		}
+		SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
+		_gamePickerDetail = install.Found ? "Steam will start Project Zomboid. Workshop mods stay in Steam." : SteamLibrary.NotFound;
+	}
+
+	private string ZomboidAvailability()
+	{
+		if (IsBusy)
+		{
+			return "Please wait for the current operation to finish.";
+		}
+		return _gamePickerDetail;
+	}
+
+	private void CopyServerAddress()
+	{
+		try
+		{
+			Clipboard.SetText(NorcomPaths.ServerHost);
+			StatusLine = "Server address copied.";
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("copy address " + ex.GetType().Name);
+			StatusLine = "Select the server address and copy it.";
 		}
 	}
 
@@ -2134,6 +2275,7 @@ public class ShellViewModel : ObservableObject
 	{
 		OnPropertyChanged("IsHome");
 		OnPropertyChanged("IsSettings");
+		OnPropertyChanged("IsGraphics");
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

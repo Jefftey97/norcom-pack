@@ -62,7 +62,7 @@ public partial class ShellWindow : Window
         if(_vm.ReduceMotion || _vm.AnimationsPaused)
         {HomePanel.BeginAnimation(OpacityProperty,null);SettingsPanel.BeginAnimation(OpacityProperty,null);return;}
         if(e.PropertyName==nameof(ShellViewModel.Page))
-        {var target=_vm.IsHome?(FrameworkElement)HomePanel:SettingsPanel;target.BeginAnimation(OpacityProperty,new DoubleAnimation(0.88,1,TimeSpan.FromMilliseconds(160)));}
+        {FrameworkElement target=_vm.IsHome?HomePanel:_vm.IsGraphics?GraphicsPanel:SettingsPanel;target.BeginAnimation(OpacityProperty,new DoubleAnimation(0.88,1,TimeSpan.FromMilliseconds(160)));}
     }
     private void MinimizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState.Minimized;
     private void MaximizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState==WindowState.Maximized?WindowState.Normal:WindowState.Maximized;

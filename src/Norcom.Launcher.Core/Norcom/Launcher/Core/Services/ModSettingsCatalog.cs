@@ -45,9 +45,11 @@ public sealed class DiscoveredModFile
 
 public static class ModSettingsCatalog
 {
+	public const string ManagedByPack = "Managed by the pack. Play replaces this file, so it cannot be edited here.";
+
 	public static IReadOnlyList<DiscoveredModFile> Discover(string configRoot, string indexToml, string schemaJson)
 	{
-		HashSet<string> preserved = PreservedPaths(indexToml);
+		ReadPackIndex(indexToml, out HashSet<string> indexed, out HashSet<string> preserved);
 		Dictionary<string, List<SchemaSetting>> schema = ReadSchema(schemaJson);
 		List<DiscoveredModFile> found = new List<DiscoveredModFile>();
 		if (!Directory.Exists(configRoot))
@@ -57,41 +59,48 @@ public static class ModSettingsCatalog
 		foreach (string path in Directory.EnumerateFiles(configRoot, "*", SearchOption.AllDirectories))
 		{
 			string relative = Path.GetRelativePath(configRoot, path).Replace('\\', '/');
+			if (relative.StartsWith("../", StringComparison.Ordinal) || relative == ".." || Path.IsPathRooted(relative))
+			{
+				continue;
+			}
 			if (relative.EndsWith(".schema.json", StringComparison.OrdinalIgnoreCase) || relative.Equals("norcom-settings-schema.json", StringComparison.OrdinalIgnoreCase))
 			{
 				continue;
 			}
 			bool keep = preserved.Contains("config/" + relative) || preserved.Contains(relative);
+			bool managed = (indexed.Contains("config/" + relative) || indexed.Contains(relative)) && !keep;
 			string extension = Path.GetExtension(path);
 			schema.TryGetValue(relative, out List<SchemaSetting> hints);
 			if (hints == null)
 			{
 				schema.TryGetValue(Path.GetFileName(path), out hints);
 			}
+			DiscoveredModFile file;
 			if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
 			{
-				found.Add(ReadJson(path, relative, keep, hints));
+				file = ReadJson(path, relative, keep, hints);
 			}
 			else if (extension.Equals(".toml", StringComparison.OrdinalIgnoreCase))
 			{
-				found.Add(ReadLines(path, relative, "toml", keep, hints, '='));
+				file = ReadToml(path, relative, keep, hints);
 			}
 			else if (extension.Equals(".properties", StringComparison.OrdinalIgnoreCase) || extension.Equals(".ini", StringComparison.OrdinalIgnoreCase))
 			{
-				found.Add(ReadLines(path, relative, extension.TrimStart('.').ToLowerInvariant(), keep, hints, '='));
+				file = ReadLines(path, relative, extension.TrimStart('.').ToLowerInvariant(), keep, hints);
 			}
 			else
 			{
-				found.Add(new DiscoveredModFile
+				file = new DiscoveredModFile
 				{
 					RelativePath = relative,
 					Format = "unknown",
 					Preserved = keep,
 					ReadOnly = true,
-					Note = "This format is listed only. NORCOM does not guess how to edit it.",
+					Note = "This format is read-only. NORCOM does not guess how to edit it.",
 					Settings = Array.Empty<DiscoveredSetting>()
-				});
+				};
 			}
+			found.Add(LockIfManaged(file, managed));
 		}
 		found.Sort((DiscoveredModFile left, DiscoveredModFile right) => string.Compare(left.RelativePath, right.RelativePath, StringComparison.OrdinalIgnoreCase));
 		return found;
@@ -100,42 +109,91 @@ public static class ModSettingsCatalog
 	public static bool TrySave(string configRoot, DiscoveredModFile file, IReadOnlyDictionary<string, string> edits, out string error)
 	{
 		error = "";
-		if (file.ReadOnly || file.Format == "unknown")
+		if (GameSession.IsRunning("minecraft", Norcom.Launcher.Core.NorcomPaths.GameLockPath) || GameSession.IsRunning("zomboid", Norcom.Launcher.Core.NorcomPaths.GameLockPath))
 		{
-			error = "That file is read-only.";
+			error = "The game is running. Settings were not written.";
 			return false;
 		}
-		string path = Path.Combine(configRoot, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+		if (file.ReadOnly || file.Format == "unknown")
+		{
+			error = file.Note.Length > 0 ? file.Note : "That file is read-only.";
+			return false;
+		}
+		string path;
+		try
+		{
+			path = PackSyncService.ConfinedPath(configRoot, file.RelativePath);
+		}
+		catch (InvalidDataException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
 		if (!File.Exists(path))
 		{
 			error = "That file is no longer there.";
 			return false;
 		}
-		GameSettingsWriter.BackupOnce(path);
+		string original;
+		try
+		{
+			original = File.ReadAllText(path);
+		}
+		catch (IOException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
+		string updated;
 		if (file.Format == "json")
 		{
-			JsonNode root = JsonNode.Parse(File.ReadAllText(path)) ?? new JsonObject();
-			foreach (KeyValuePair<string, string> edit in edits)
+			if (!TryPatchJson(original, edits, out updated, out error))
 			{
-				SetDotted(root, edit.Key, edit.Value);
+				return false;
 			}
-			File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions
-			{
-				WriteIndented = true
-			}));
-			return true;
 		}
-		Dictionary<string, string> updates = new Dictionary<string, string>(edits, StringComparer.OrdinalIgnoreCase);
-		File.WriteAllText(path, OptionsPatch.ApplyProperties(File.ReadAllText(path), updates));
+		else if (file.Format == "toml")
+		{
+			if (!TomlValuePatch.TryApply(original, edits, out updated, out error))
+			{
+				return false;
+			}
+		}
+		else if (!TryPatchProperties(original, edits, out updated, out error))
+		{
+			return false;
+		}
+		try
+		{
+			GameSettingsWriter.BackupOnce(path);
+			PackSyncService.WriteContainedText(configRoot, file.RelativePath, updated);
+		}
+		catch (InvalidDataException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
+		catch (IOException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
 		return true;
 	}
 
 	public static HashSet<string> PreservedPaths(string indexToml)
 	{
-		HashSet<string> paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		ReadPackIndex(indexToml, out _, out HashSet<string> preserved);
+		return preserved;
+	}
+
+	public static void ReadPackIndex(string indexToml, out HashSet<string> indexed, out HashSet<string> preserved)
+	{
+		indexed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		preserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		if (string.IsNullOrWhiteSpace(indexToml))
 		{
-			return paths;
+			return;
 		}
 		TomlLite.Doc doc = TomlLite.Parse(indexToml);
 		for (int i = 0; i < doc.Files.Count; i++)
@@ -145,12 +203,86 @@ public static class ModSettingsCatalog
 			{
 				continue;
 			}
+			string path = relative.Replace('\\', '/');
+			indexed.Add(path);
 			if (row.TryGetValue("preserve", out string preserve) && preserve.Equals("true", StringComparison.OrdinalIgnoreCase))
 			{
-				paths.Add(relative.Replace('\\', '/'));
+				preserved.Add(path);
 			}
 		}
-		return paths;
+	}
+
+	private static DiscoveredModFile LockIfManaged(DiscoveredModFile file, bool managed)
+	{
+		if (!managed)
+		{
+			return file;
+		}
+		return new DiscoveredModFile
+		{
+			RelativePath = file.RelativePath,
+			Format = file.Format,
+			Preserved = false,
+			ReadOnly = true,
+			Note = ManagedByPack,
+			Settings = file.Settings
+		};
+	}
+
+	private static bool TryPatchJson(string original, IReadOnlyDictionary<string, string> edits, out string updated, out string error)
+	{
+		updated = original;
+		error = "";
+		JsonNode root;
+		try
+		{
+			root = JsonNode.Parse(original);
+		}
+		catch (JsonException ex)
+		{
+			error = "That JSON could not be read, so it was left unchanged. " + ex.Message;
+			return false;
+		}
+		if (root is not JsonObject)
+		{
+			error = "That JSON could not be read, so it was left unchanged.";
+			return false;
+		}
+		foreach (KeyValuePair<string, string> edit in edits)
+		{
+			SetDotted(root, edit.Key, edit.Value);
+		}
+		updated = root.ToJsonString(new JsonSerializerOptions
+		{
+			WriteIndented = true
+		});
+		return true;
+	}
+
+	private static bool TryPatchProperties(string original, IReadOnlyDictionary<string, string> edits, out string updated, out string error)
+	{
+		updated = original ?? "";
+		error = "";
+		string[] lines = (original ?? "").Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+		for (int i = 0; i < lines.Length; i++)
+		{
+			string trimmed = lines[i].Trim();
+			if (trimmed.Length == 0 || trimmed.StartsWith("#", StringComparison.Ordinal) || trimmed.StartsWith(";", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (trimmed.StartsWith("[", StringComparison.Ordinal) && trimmed.EndsWith("]", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (trimmed.IndexOf('=') <= 0)
+			{
+				error = "That properties file could not be read, so it was left unchanged.";
+				return false;
+			}
+		}
+		updated = OptionsPatch.ApplyProperties(original, new Dictionary<string, string>(edits, StringComparer.OrdinalIgnoreCase));
+		return true;
 	}
 
 	private static DiscoveredModFile ReadJson(string path, string relative, bool preserved, List<SchemaSetting> hints)
@@ -213,7 +345,54 @@ public static class ModSettingsCatalog
 		}
 	}
 
-	private static DiscoveredModFile ReadLines(string path, string relative, string format, bool preserved, List<SchemaSetting> hints, char separator)
+	private static DiscoveredModFile ReadToml(string path, string relative, bool preserved, List<SchemaSetting> hints)
+	{
+		List<DiscoveredSetting> settings = new List<DiscoveredSetting>();
+		string section = "";
+		bool arrayTable = false;
+		string[] lines = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+		for (int i = 0; i < lines.Length; i++)
+		{
+			if (!TomlValuePatch.TryInspect(lines[i], section, arrayTable, out string key, out string value, out bool inline, out string nextSection, out bool nextArray, out string error))
+			{
+				return Unreadable(relative, "toml", preserved, "This TOML could not be read, so it was left unchanged.");
+			}
+			if (key.Length == 0)
+			{
+				section = nextSection;
+				arrayTable = nextArray;
+				continue;
+			}
+			string shown = value.Trim().Trim('"');
+			settings.Add(Described(key, shown, inline || arrayTable ? "inline" : "text", readOnly: inline || arrayTable, hints));
+			section = nextSection;
+			arrayTable = nextArray;
+		}
+		return new DiscoveredModFile
+		{
+			RelativePath = relative,
+			Format = "toml",
+			Preserved = preserved,
+			ReadOnly = false,
+			Note = preserved ? "Pack updates will not replace this file. Only the keys you change here are written." : "",
+			Settings = settings
+		};
+	}
+
+	private static DiscoveredModFile Unreadable(string relative, string format, bool preserved, string note)
+	{
+		return new DiscoveredModFile
+		{
+			RelativePath = relative,
+			Format = format,
+			Preserved = preserved,
+			ReadOnly = true,
+			Note = note,
+			Settings = Array.Empty<DiscoveredSetting>()
+		};
+	}
+
+	private static DiscoveredModFile ReadLines(string path, string relative, string format, bool preserved, List<SchemaSetting> hints)
 	{
 		List<DiscoveredSetting> settings = new List<DiscoveredSetting>();
 		string section = "";
@@ -230,13 +409,13 @@ public static class ModSettingsCatalog
 				section = trimmed.Substring(1, trimmed.Length - 2).Trim();
 				continue;
 			}
-			int split = trimmed.IndexOf(separator);
+			int split = trimmed.IndexOf('=');
 			if (split <= 0)
 			{
-				continue;
+				return Unreadable(relative, format, preserved, "This file could not be read, so it was left unchanged.");
 			}
-			string key = trimmed.Substring(0, split).Trim().Trim('"');
-			string value = trimmed.Substring(split + 1).Trim().Trim('"');
+			string key = trimmed.Substring(0, split).Trim();
+			string value = trimmed.Substring(split + 1).Trim();
 			if (section.Length > 0)
 			{
 				key = section + "." + key;

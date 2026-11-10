@@ -76,14 +76,26 @@ public static class GameSettingsWriter
 		List<string> wrote = new List<string>();
 		if (string.Equals(game.Id, "minecraft", StringComparison.OrdinalIgnoreCase))
 		{
-			WriteOptions(gameDir, ValuesFor(game, values, "options"), wrote);
+			string optionsError = WriteOptions(gameDir, ValuesFor(game, values, "options"), wrote);
+			if (optionsError.Length > 0)
+			{
+				return optionsError;
+			}
 			if (ModInstalled(gameDir, "sodium"))
 			{
-				WriteJson(Path.Combine(gameDir, "config", "sodium-options.json"), ValuesFor(game, values, "sodium"), wrote);
+				string sodiumError = WriteJson(gameDir, "config/sodium-options.json", ValuesFor(game, values, "sodium"), wrote);
+				if (sodiumError.Length > 0)
+				{
+					return sodiumError;
+				}
 			}
 			if (ModInstalled(gameDir, "iris"))
 			{
-				WriteProperties(Path.Combine(gameDir, "config", "iris.properties"), ValuesFor(game, values, "iris"), wrote);
+				string irisError = WriteProperties(gameDir, "config/iris.properties", ValuesFor(game, values, "iris"), wrote);
+				if (irisError.Length > 0)
+				{
+					return irisError;
+				}
 			}
 		}
 		else if (string.Equals(game.Id, "zomboid", StringComparison.OrdinalIgnoreCase))
@@ -93,7 +105,11 @@ public static class GameSettingsWriter
 			{
 				return "Project Zomboid settings were not written because " + folder + " does not exist.";
 			}
-			WriteProperties(Path.Combine(folder, "options.ini"), ValuesFor(game, values, "zomboid"), wrote);
+			string zomboidError = WriteProperties(folder, "options.ini", ValuesFor(game, values, "zomboid"), wrote);
+			if (zomboidError.Length > 0)
+			{
+				return zomboidError;
+			}
 		}
 		if (wrote.Count == 0)
 		{
@@ -120,54 +136,175 @@ public static class GameSettingsWriter
 		return picked;
 	}
 
-	private static void WriteOptions(string gameDir, Dictionary<string, string> values, List<string> wrote)
+	private static string WriteOptions(string gameDir, Dictionary<string, string> values, List<string> wrote)
 	{
 		if (values.Count == 0)
 		{
-			return;
+			return "";
 		}
 		Directory.CreateDirectory(gameDir);
-		string path = Path.Combine(gameDir, "options.txt");
-		BackupOnce(path);
-		string existing = File.Exists(path) ? File.ReadAllText(path) : "";
-		File.WriteAllText(path, OptionsPatch.Apply(existing, values));
-		wrote.Add("options.txt");
+		if (!TryReadContained(gameDir, "options.txt", out string existing, out string readError))
+		{
+			return "options.txt was left unchanged. " + readError;
+		}
+		if (!TryOptions(existing ?? "", values, out string updated, out string error))
+		{
+			return "options.txt was left unchanged. " + error;
+		}
+		return Commit(gameDir, "options.txt", updated, "options.txt", wrote);
 	}
 
-	private static void WriteProperties(string path, Dictionary<string, string> values, List<string> wrote)
+	private static string WriteProperties(string root, string relative, Dictionary<string, string> values, List<string> wrote)
 	{
 		if (values.Count == 0)
 		{
-			return;
+			return "";
 		}
-		string folder = Path.GetDirectoryName(path);
-		if (!string.IsNullOrEmpty(folder))
+		if (!TryReadContained(root, relative, out string existing, out string readError))
 		{
-			Directory.CreateDirectory(folder);
+			return relative + " was left unchanged. " + readError;
 		}
-		BackupOnce(path);
-		string existing = File.Exists(path) ? File.ReadAllText(path) : "";
-		File.WriteAllText(path, OptionsPatch.ApplyProperties(existing, values));
-		wrote.Add(Path.GetFileName(path));
+		if (!TryProperties(existing ?? "", values, out string updated, out string error))
+		{
+			return relative + " was left unchanged. " + error;
+		}
+		return Commit(root, relative, updated, Path.GetFileName(relative.Replace('\\', '/')), wrote);
 	}
 
-	private static void WriteJson(string path, Dictionary<string, string> values, List<string> wrote)
+	private static string WriteJson(string root, string relative, Dictionary<string, string> values, List<string> wrote)
 	{
-		if (values.Count == 0 || !File.Exists(path))
+		if (values.Count == 0)
 		{
-			return;
+			return "";
 		}
-		BackupOnce(path);
-		JsonNode root = JsonNode.Parse(File.ReadAllText(path)) ?? new JsonObject();
+		if (!TryReadContained(root, relative, out string existing, out string readError))
+		{
+			return relative + " was left unchanged. " + readError;
+		}
+		if (existing == null)
+		{
+			return "";
+		}
+		JsonNode rootNode;
+		try
+		{
+			rootNode = JsonNode.Parse(existing);
+		}
+		catch (JsonException)
+		{
+			return relative + " was left unchanged. That JSON could not be read.";
+		}
+		if (rootNode is not JsonObject)
+		{
+			return relative + " was left unchanged. That JSON could not be read.";
+		}
 		foreach (KeyValuePair<string, string> pair in values)
 		{
-			SetDotted(root, pair.Key, pair.Value);
+			SetDotted(rootNode, pair.Key, pair.Value);
 		}
-		File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions
+		string updated = rootNode.ToJsonString(new JsonSerializerOptions
 		{
 			WriteIndented = true
-		}));
-		wrote.Add(Path.GetFileName(path));
+		});
+		return Commit(root, relative, updated, Path.GetFileName(relative.Replace('\\', '/')), wrote);
+	}
+
+	private static bool TryReadContained(string root, string relative, out string text, out string error)
+	{
+		text = null;
+		error = "";
+		string path;
+		try
+		{
+			path = PackSyncService.ConfinedPath(root, relative);
+		}
+		catch (InvalidDataException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
+		if (!File.Exists(path))
+		{
+			return true;
+		}
+		try
+		{
+			text = File.ReadAllText(path);
+			return true;
+		}
+		catch (IOException ex)
+		{
+			error = ex.Message;
+			return false;
+		}
+	}
+
+	private static string Commit(string root, string relative, string updated, string label, List<string> wrote)
+	{
+		try
+		{
+			string path = PackSyncService.ConfinedPath(root, relative);
+			BackupOnce(path);
+			PackSyncService.WriteContainedText(root, relative, updated);
+		}
+		catch (InvalidDataException ex)
+		{
+			return label + " was left unchanged. " + ex.Message;
+		}
+		catch (IOException ex)
+		{
+			return label + " was left unchanged. " + ex.Message;
+		}
+		wrote.Add(label);
+		return "";
+	}
+
+	private static bool TryOptions(string existing, Dictionary<string, string> values, out string updated, out string error)
+	{
+		updated = "";
+		error = "";
+		string[] lines = (existing ?? "").Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+		for (int i = 0; i < lines.Length; i++)
+		{
+			string trimmed = lines[i].Trim();
+			if (trimmed.Length == 0 || trimmed.StartsWith("#", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (trimmed.IndexOf(':') <= 0)
+			{
+				error = "That options file could not be read.";
+				return false;
+			}
+		}
+		updated = OptionsPatch.Apply(existing, values);
+		return true;
+	}
+
+	private static bool TryProperties(string existing, Dictionary<string, string> values, out string updated, out string error)
+	{
+		updated = "";
+		error = "";
+		string[] lines = (existing ?? "").Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+		for (int i = 0; i < lines.Length; i++)
+		{
+			string trimmed = lines[i].Trim();
+			if (trimmed.Length == 0 || trimmed.StartsWith("#", StringComparison.Ordinal) || trimmed.StartsWith(";", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (trimmed.StartsWith("[", StringComparison.Ordinal) && trimmed.EndsWith("]", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (trimmed.IndexOf('=') <= 0)
+			{
+				error = "That properties file could not be read.";
+				return false;
+			}
+		}
+		updated = OptionsPatch.ApplyProperties(existing, values);
+		return true;
 	}
 
 	private static void SetDotted(JsonNode root, string path, string value)

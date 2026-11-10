@@ -479,6 +479,39 @@ public sealed class PackSyncService
 		return !string.IsNullOrEmpty(new FileInfo(path).LinkTarget);
 	}
 
+	public static void WriteContainedText(string baseDir, string relative, string contents)
+	{
+		string dest = ConfinedPath(baseDir, relative);
+		RejectReparseEscape(baseDir, dest, createMissingParents: true);
+		string text = relative.Replace('\\', '/');
+		int slash = text.LastIndexOf('/');
+		string tempRelative = (slash >= 0 ? text.Substring(0, slash + 1) : "") + Path.GetFileName(dest) + "." + Guid.NewGuid().ToString("n") + ".norcom-partial";
+		string temp = ConfinedPath(baseDir, tempRelative);
+		RejectReparseEscape(baseDir, temp, createMissingParents: false);
+		try
+		{
+			using (FileStream stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+			{
+				byte[] bytes = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(contents ?? "");
+				stream.Write(bytes, 0, bytes.Length);
+				stream.Flush(true);
+			}
+			RejectReparseEscape(baseDir, dest, createMissingParents: false);
+			if (EntryExists(dest))
+			{
+				File.Replace(temp, dest, null);
+			}
+			else
+			{
+				File.Move(temp, dest);
+			}
+		}
+		finally
+		{
+			DeleteQuiet(baseDir, temp);
+		}
+	}
+
 	private static void DeleteQuiet(string baseDir, string path)
 	{
 		try

@@ -158,6 +158,114 @@ public class GraphicsMenuTests
 		Assert.Contains("read-only", error);
 	}
 
+	[Fact]
+	public void ModSaveRefusesSymlinksTraversalAndARunningGame()
+	{
+		string root = NewDir();
+		string config = Path.Combine(root, "config");
+		Directory.CreateDirectory(config);
+		string outside = Path.Combine(root, "outside.json");
+		File.WriteAllText(outside, "{\"keep\":1}");
+		File.CreateSymbolicLink(Path.Combine(config, "linked.json"), outside);
+		File.WriteAllText(Path.Combine(root, "escape.txt"), "keep");
+		DiscoveredModFile link = new DiscoveredModFile { RelativePath = "linked.json", Format = "json" };
+		DiscoveredModFile escape = new DiscoveredModFile { RelativePath = "../escape.txt", Format = "json" };
+		Assert.False(ModSettingsCatalog.TrySave(config, link, new Dictionary<string, string> { ["keep"] = "2" }, out string linkError));
+		Assert.False(string.IsNullOrEmpty(linkError));
+		Assert.Equal("{\"keep\":1}", File.ReadAllText(outside));
+		Assert.False(ModSettingsCatalog.TrySave(config, escape, new Dictionary<string, string> { ["keep"] = "2" }, out string escapeError));
+		Assert.False(string.IsNullOrEmpty(escapeError));
+		Assert.Equal("keep", File.ReadAllText(Path.Combine(root, "escape.txt")));
+		File.WriteAllText(Path.Combine(config, "ok.json"), "{\"threads\":1}");
+		DiscoveredModFile ok = new DiscoveredModFile { RelativePath = "ok.json", Format = "json" };
+		GameSession.Probe = _ => true;
+		try
+		{
+			Assert.False(ModSettingsCatalog.TrySave(config, ok, new Dictionary<string, string> { ["threads"] = "4" }, out string running));
+			Assert.Contains("running", running);
+			Assert.Equal("{\"threads\":1}", File.ReadAllText(Path.Combine(config, "ok.json")));
+		}
+		finally
+		{
+			GameSession.Probe = null;
+		}
+	}
+
+	[Fact]
+	public void MalformedFilesAreNotRewritten()
+	{
+		string config = NewDir();
+		File.WriteAllText(Path.Combine(config, "broken.json"), "{");
+		DiscoveredModFile json = new DiscoveredModFile { RelativePath = "broken.json", Format = "json" };
+		Assert.False(ModSettingsCatalog.TrySave(config, json, new Dictionary<string, string> { ["a"] = "1" }, out string jsonError));
+		Assert.Contains("unchanged", jsonError);
+		Assert.Equal("{", File.ReadAllText(Path.Combine(config, "broken.json")));
+		File.WriteAllText(Path.Combine(config, "broken.properties"), "this is not a property\n");
+		DiscoveredModFile properties = new DiscoveredModFile { RelativePath = "broken.properties", Format = "properties" };
+		Assert.False(ModSettingsCatalog.TrySave(config, properties, new Dictionary<string, string> { ["a"] = "1" }, out _));
+		Assert.Equal("this is not a property\n", File.ReadAllText(Path.Combine(config, "broken.properties")));
+		string game = NewDir();
+		File.WriteAllText(Path.Combine(game, "options.txt"), "not options\n");
+		string result = GameSettingsWriter.Apply(GameGraphicsCatalog.Require("minecraft"), new SavedGraphicsProfile { Preset = "Low", Auto = true }, game, NewDir());
+		Assert.Contains("unchanged", result);
+		Assert.Equal("not options\n", File.ReadAllText(Path.Combine(game, "options.txt")));
+	}
+
+	[Fact]
+	public void TomlTableKeyIsEditedInPlace()
+	{
+		string config = NewDir();
+		string original = "# keep\n[quality]\ndistance = 12 # chunks\nenabled = true\n\"my.key\" = \"old\"\ncamera = { distance = 4 }\n\n[client]\nname = \"keep\"\n";
+		File.WriteAllText(Path.Combine(config, "view.toml"), original);
+		IReadOnlyList<DiscoveredModFile> found = ModSettingsCatalog.Discover(config, "", "");
+		DiscoveredModFile file = Assert.Single(found);
+		Assert.Contains(file.Settings, setting => setting.Key == "quality.distance" && setting.Value == "12");
+		Assert.Contains(file.Settings, setting => setting.Key == "quality.\"my.key\"" && !setting.ReadOnly);
+		Assert.Contains(file.Settings, setting => setting.Key == "quality.camera" && setting.ReadOnly);
+		Assert.True(ModSettingsCatalog.TrySave(config, file, new Dictionary<string, string> { ["quality.distance"] = "2", ["quality.\"my.key\""] = "new" }, out string error));
+		Assert.Equal("", error);
+		string updated = File.ReadAllText(Path.Combine(config, "view.toml"));
+		Assert.Equal("# keep\n[quality]\ndistance = 2 # chunks\nenabled = true\n\"my.key\" = \"new\"\ncamera = { distance = 4 }\n\n[client]\nname = \"keep\"\n", updated);
+		Assert.DoesNotContain("quality.distance=", updated);
+		File.WriteAllText(Path.Combine(config, "broken.toml"), "[quality\ndistance = 1\n");
+		DiscoveredModFile broken = new DiscoveredModFile { RelativePath = "broken.toml", Format = "toml" };
+		Assert.False(ModSettingsCatalog.TrySave(config, broken, new Dictionary<string, string> { ["quality.distance"] = "2" }, out _));
+		Assert.Equal("[quality\ndistance = 1\n", File.ReadAllText(Path.Combine(config, "broken.toml")));
+	}
+
+	[Fact]
+	public void PackManagedFilesAreReadOnly()
+	{
+		string config = NewDir();
+		File.WriteAllText(Path.Combine(config, "plain.json"), "{\"a\":1}");
+		string index = "[[files]]\nfile = \"config/plain.json\"\n[[files]]\nfile = \"config/sodium-options.json\"\npreserve = true\n";
+		File.WriteAllText(Path.Combine(config, "sodium-options.json"), "{\"performance\":{\"chunk_builder_threads\":1}}");
+		IReadOnlyList<DiscoveredModFile> files = ModSettingsCatalog.Discover(config, index, "");
+		DiscoveredModFile plain = Assert.Single(files, file => file.RelativePath == "plain.json");
+		Assert.True(plain.ReadOnly);
+		Assert.Contains("Managed by the pack", plain.Note);
+		Assert.False(ModSettingsCatalog.TrySave(config, plain, new Dictionary<string, string> { ["a"] = "2" }, out _));
+		Assert.Equal("{\"a\":1}", File.ReadAllText(Path.Combine(config, "plain.json")));
+		DiscoveredModFile sodium = Assert.Single(files, file => file.RelativePath == "sodium-options.json");
+		Assert.False(sodium.ReadOnly);
+		Assert.True(sodium.Preserved);
+	}
+
+	[Fact]
+	public void GraphicsWriteRefusesASymlink()
+	{
+		string root = NewDir();
+		string game = Path.Combine(root, "game");
+		Directory.CreateDirectory(game);
+		string outside = Path.Combine(root, "outside.txt");
+		File.WriteAllText(outside, "renderDistance:4\n");
+		File.CreateSymbolicLink(Path.Combine(game, "options.txt"), outside);
+		string result = GameSettingsWriter.Apply(GameGraphicsCatalog.Require("minecraft"), new SavedGraphicsProfile { Preset = "Ultra", Auto = true }, game, NewDir());
+		Assert.Contains("unchanged", result);
+		Assert.Equal("renderDistance:4\n", File.ReadAllText(outside));
+		Assert.False(Directory.EnumerateFiles(game, "*.norcom-partial").Any());
+	}
+
 	private static MachineSpecs Pc(int vramGb, int ramGb, int cores, int mhz, string gpu, int width, int height, int refresh)
 	{
 		return new MachineSpecs

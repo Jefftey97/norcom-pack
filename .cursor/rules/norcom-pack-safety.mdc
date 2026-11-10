@@ -1,0 +1,14 @@
+---
+description: Safety rules for the public NORCOM pack and signed launcher feed
+alwaysApply: true
+---
+
+- Friends keep the loader they already have. Every update goes through the existing signed feed. No reinstall and no new download path.
+- Older loaders (for example 2.0.44) route through the 2.0.45 bridge before the newest version. Never skip the bridge.
+- Never delete rollback copies until the new version is confirmed working.
+- The feed must be signed and is time-limited (max 30 days). Never print, commit, move, or request the signing key. Signing happens only on the owner's PC.
+- Never weaken signature or SHA-256 verification.
+- This repo is public: no secrets, tokens, IPs, RCON details, or personal data.
+- Cursor cloud results are Linux-only. Windows/WPF behavior is verified on the owner's PC.
+- If a credential is missing, stop and ask. No workarounds.
+- Small PRs, one goal each.

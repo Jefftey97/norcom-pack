@@ -43,11 +43,11 @@ public sealed class PackSyncService
 		string indexPath = Path.Combine(cacheDir, "index.toml");
 		Directory.CreateDirectory(cacheDir);
 		meter.SetPhase("Pack index", 0.06, 0.06);
-		await HttpDownload.DownloadAsync(_http, url, indexPath, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
-		if (!string.IsNullOrWhiteSpace(indexHash) && !Hashing.EqualsHex(await Hashing.FileHexAsync(indexPath, indexFmt, ct).ConfigureAwait(continueOnCapturedContext: false), indexHash))
+		if (string.IsNullOrWhiteSpace(indexHash))
 		{
-			throw new InvalidDataException("Pack index hash does not match pack.toml.");
+			throw new InvalidDataException("Pack index has no hash.");
 		}
+		await DownloadVerifiedAsync(url, indexPath, indexHash, indexFmt, "Pack index hash does not match pack.toml.", meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		TomlLite.Doc index = TomlLite.Parse(await File.ReadAllTextAsync(indexPath, ct).ConfigureAwait(continueOnCapturedContext: false));
 		List<ManagedEntry> managed = new List<ManagedEntry>();
 		int total = Math.Max(1, index.Files.Count);
@@ -77,23 +77,23 @@ public sealed class PackSyncService
 			else
 			{
 				string destRel = rel;
-				string dest = Path.Combine(gameDir, destRel.Replace('/', Path.DirectorySeparatorChar));
+				string dest = ConfinedPath(gameDir, destRel);
 				if (preserve && File.Exists(dest))
 				{
 					managed.Add(new ManagedEntry(destRel, Preserve: true));
 					continue;
 				}
-				if (File.Exists(dest) && !string.IsNullOrWhiteSpace(hash) && Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fmt, ct).ConfigureAwait(continueOnCapturedContext: false), hash))
+				if (string.IsNullOrWhiteSpace(hash))
+				{
+					throw new InvalidDataException("Pack file has no hash: " + rel);
+				}
+				if (File.Exists(dest) && Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fmt, ct).ConfigureAwait(continueOnCapturedContext: false), hash))
 				{
 					managed.Add(new ManagedEntry(destRel, preserve));
 					continue;
 				}
 				string url2 = root + "/" + rel;
-				await HttpDownload.DownloadAsync(_http, url2, dest, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
-				if (!string.IsNullOrWhiteSpace(hash) && !Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fmt, ct).ConfigureAwait(continueOnCapturedContext: false), hash))
-				{
-					throw new InvalidDataException("Hash mismatch for " + rel);
-				}
+				await DownloadVerifiedAsync(url2, dest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 				managed.Add(new ManagedEntry(destRel, preserve));
 			}
 			rel = null;
@@ -125,16 +125,24 @@ public sealed class PackSyncService
 
 	private async Task<ManagedEntry?> InstallMetaAsync(string gameDir, string cacheDir, string root, string rel, string hash, string fmt, bool preserve, TransferMeter meter, CancellationToken ct)
 	{
-		string tomlDest = Path.Combine(cacheDir, rel.Replace('/', Path.DirectorySeparatorChar));
-		Directory.CreateDirectory(Path.GetDirectoryName(tomlDest));
+		string tomlDest = ConfinedPath(cacheDir, rel);
+		if (string.IsNullOrWhiteSpace(hash))
+		{
+			throw new InvalidDataException("Pack file has no hash: " + rel);
+		}
+		string tomlDir = Path.GetDirectoryName(tomlDest);
+		if (!string.IsNullOrEmpty(tomlDir))
+		{
+			Directory.CreateDirectory(tomlDir);
+		}
 		bool flag = true;
-		if (File.Exists(tomlDest) && !string.IsNullOrWhiteSpace(hash))
+		if (File.Exists(tomlDest))
 		{
 			flag = !Hashing.EqualsHex(await Hashing.FileHexAsync(tomlDest, fmt, ct).ConfigureAwait(continueOnCapturedContext: false), hash);
 		}
 		if (flag)
 		{
-			await HttpDownload.DownloadAsync(_http, root + "/" + rel, tomlDest, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+			await DownloadVerifiedAsync(root + "/" + rel, tomlDest, hash, fmt, "Hash mismatch for " + rel, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		}
 		TomlLite.Doc doc = TomlLite.Parse(await File.ReadAllTextAsync(tomlDest, ct).ConfigureAwait(continueOnCapturedContext: false));
 		if ((doc.Keys.GetValueOrDefault("side") ?? "both").Equals("server", StringComparison.OrdinalIgnoreCase))
@@ -155,23 +163,23 @@ public sealed class PackSyncService
 		}
 		string path = Path.GetDirectoryName(rel.Replace('/', Path.DirectorySeparatorChar)) ?? "";
 		string destRel = Path.Combine(path, filename).Replace('\\', '/');
-		string dest = Path.Combine(gameDir, destRel.Replace('/', Path.DirectorySeparatorChar));
+		string dest = ConfinedPath(gameDir, destRel);
 		string fileHash = doc.Keys.GetValueOrDefault("download.hash") ?? doc.Keys.GetValueOrDefault("hash") ?? "";
 		string fileFmt = doc.Keys.GetValueOrDefault("download.hash-format") ?? doc.Keys.GetValueOrDefault("hash-format") ?? "sha256";
 		if (preserve && File.Exists(dest))
 		{
 			return new ManagedEntry(destRel, Preserve: true);
 		}
-		if (File.Exists(dest) && !string.IsNullOrWhiteSpace(fileHash) && Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fileFmt, ct).ConfigureAwait(continueOnCapturedContext: false), fileHash))
+		if (string.IsNullOrWhiteSpace(fileHash))
+		{
+			throw new InvalidDataException("Pack file has no hash: " + filename);
+		}
+		if (File.Exists(dest) && Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fileFmt, ct).ConfigureAwait(continueOnCapturedContext: false), fileHash))
 		{
 			return new ManagedEntry(destRel, preserve);
 		}
 		meter.SetPhase("Downloading " + filename, meter.Snapshot().Fraction, 0.02);
-		await HttpDownload.DownloadAsync(_http, url, dest, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
-		if (!string.IsNullOrWhiteSpace(fileHash) && !Hashing.EqualsHex(await Hashing.FileHexAsync(dest, fileFmt, ct).ConfigureAwait(continueOnCapturedContext: false), fileHash))
-		{
-			throw new InvalidDataException("Hash mismatch for " + filename);
-		}
+		await DownloadVerifiedAsync(url, dest, fileHash, fileFmt, "Hash mismatch for " + filename, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
 		return new ManagedEntry(destRel, preserve);
 	}
 
@@ -276,6 +284,101 @@ public sealed class PackSyncService
 		{
 			Directory.CreateDirectory(quarantineDir);
 			File.WriteAllText(Path.Combine(quarantineDir, "README.txt"), "These files were removed from the NORCOM game folder because a packwiz .pw.toml or an earlier NORCOM sync said the pack installed them, and the current pack no longer includes them." + Environment.NewLine + "Worlds, screenshots, servers.dat, options.txt, and jars with no packwiz metadata were not moved." + Environment.NewLine + "To put a file back, copy it into the same relative path under the game folder." + Environment.NewLine + string.Join(Environment.NewLine, moved) + Environment.NewLine);
+		}
+	}
+
+	// Pack paths come from the unsigned main-branch index and .pw.toml files.
+	// Writes stay inside the target folder, as IsSafeToDelete already requires for removals.
+	public static string ConfinedPath(string baseDir, string relative)
+	{
+		if (string.IsNullOrWhiteSpace(relative))
+		{
+			throw new InvalidDataException("Pack file path is empty.");
+		}
+		string text = relative.Replace('\\', '/');
+		if (Path.IsPathRooted(text) || text[0] == '/' || text.IndexOf(':') >= 0 || text.IndexOf('\0') >= 0)
+		{
+			throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
+		}
+		string[] parts = text.Split('/');
+		foreach (string part in parts)
+		{
+			if (part.Length == 0 || part == "." || part == ".." || part[part.Length - 1] == ' ' || part[part.Length - 1] == '.')
+			{
+				throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
+			}
+			foreach (char c in part)
+			{
+				if (c < ' ')
+				{
+					throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
+				}
+			}
+		}
+		string root = Path.GetFullPath(baseDir);
+		string full = Path.GetFullPath(Path.Combine(root, text.Replace('/', Path.DirectorySeparatorChar)));
+		if (!IsInsideDirectory(root, full))
+		{
+			throw new InvalidDataException("Pack file path leaves the game folder: " + relative);
+		}
+		return full;
+	}
+
+	// Case-insensitive, and the directory prefix includes the separator so
+	// C:\game does not accept C:\game2. Both paths are fully resolved first.
+	public static bool IsInsideDirectory(string directoryPath, string candidatePath)
+	{
+		string root = Path.GetFullPath(directoryPath);
+		string full = Path.GetFullPath(candidatePath);
+		string prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+		return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+	}
+
+	private async Task DownloadVerifiedAsync(string url, string dest, string hash, string format, string mismatchMessage, TransferMeter meter, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(hash))
+		{
+			throw new InvalidDataException("Pack file has no hash.");
+		}
+		string temp = dest + "." + Guid.NewGuid().ToString("n") + ".norcom-partial";
+		bool placed = false;
+		try
+		{
+			await HttpDownload.DownloadAsync(_http, url, temp, meter, ct).ConfigureAwait(continueOnCapturedContext: false);
+			if (!Hashing.EqualsHex(await Hashing.FileHexAsync(temp, format, ct).ConfigureAwait(continueOnCapturedContext: false), hash))
+			{
+				throw new InvalidDataException(mismatchMessage);
+			}
+			string parent = Path.GetDirectoryName(dest);
+			if (!string.IsNullOrEmpty(parent))
+			{
+				Directory.CreateDirectory(parent);
+			}
+			File.Move(temp, dest, overwrite: true);
+			placed = true;
+		}
+		finally
+		{
+			if (!placed)
+			{
+				DeleteQuiet(temp);
+				DeleteQuiet(temp + ".part");
+			}
+		}
+	}
+
+	private static void DeleteQuiet(string path)
+	{
+		try
+		{
+			if (File.Exists(path))
+			{
+				File.Delete(path);
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("pack partial " + ex.GetType().Name);
 		}
 	}
 

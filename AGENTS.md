@@ -9,7 +9,7 @@ Public friends Minecraft pack (Fabric, packwiz) and the NORCOM Launcher that upd
 - `launcher/manifest.json` — the feed older loaders already fetch. It points at the 2.0.45 bridge.
 - `launcher/channel-v1.json` — the signed friends channel used after the bridge. Do not edit its payload or signature in this repo.
 - `launcher/NorcomWpf-*.zip` — published packages, including rollback copies.
-- `src/Norcom.Launcher.Core` — net8.0 update, pin, and SHA-256 logic. Checked-in launcher projects are version 3.0.3. AssemblyVersion stays 2.0.1.0 on purpose for the 2.0.45 bridge. Newer builds are the zips under `launcher/`.
+- `src/Norcom.Launcher.Core` — update, pin, and SHA-256 logic. Targets net10.0 and keeps net8.0 as an extra target. Checked-in launcher projects are version 3.0.3. AssemblyVersion stays 2.0.1.0 on purpose for the 2.0.45 bridge. Newer builds are the zips under `launcher/`.
 - `src/Norcom.Launcher`, `src/Norcom.Installer`, `src/Norcom.Admin` — Windows WPF apps.
 - `src/Norcom.Launcher.Tests` and `src/Norcom.Admin/Norcom.Admin.Tests` — xUnit.
 - `tools/` — Windows smoke-swap scripts and marble-pack helpers.
@@ -17,14 +17,14 @@ Public friends Minecraft pack (Fabric, packwiz) and the NORCOM Launcher that upd
 
 ## Tests
 
-The .NET 8 SDK is not preinstalled on the Cursor Linux VM. With it installed:
+The .NET SDK is not preinstalled on the Cursor Linux VM. `global.json` pins SDK 10.0.403 (latest patch roll-forward), and `Norcom.Launcher.Tests` targets net10.0, so install the .NET 10 SDK. Admin targets net8.0, so the .NET 8 runtime is also needed for its tests. With both installed:
 
 ```bash
 dotnet test src/Norcom.Launcher.Tests/Norcom.Launcher.Tests.csproj
 dotnet test src/Norcom.Admin/Norcom.Admin.Tests/Norcom.Admin.Tests.csproj
 ```
 
-Those tests cover the checked-in net8.0 source. Windows and WPF behavior is verified on the owner's PC. See `.cursor/CLOUD.md`.
+Those tests cover the checked-in source (Launcher on net10.0, Admin on net8.0). Windows and WPF behavior is verified on the owner's PC. See `.cursor/CLOUD.md`.
 
 ## Rules
 

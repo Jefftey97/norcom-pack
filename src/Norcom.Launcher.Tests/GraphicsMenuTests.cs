@@ -7,17 +7,69 @@ namespace Norcom.Launcher.Tests;
 public class GraphicsMenuTests
 {
 	[Fact]
-	public void TheSamePcGetsDifferentPresetsPerGame()
+	public void TheSamePcGetsTheSamePresetForBothGames()
 	{
 		MachineSpecs specs = Pc(vramGb: 8, ramGb: 16, cores: 8, mhz: 3600, "RTX 3070", 1920, 1080, 144);
 		PresetChoice minecraft = GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), specs);
 		PresetChoice zomboid = GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), specs);
 		Assert.Equal("Medium-High", minecraft.Preset);
-		Assert.Equal("Ultra", zomboid.Preset);
-		Assert.Contains("Minecraft", minecraft.Reason);
-		Assert.Contains("RTX 3070", minecraft.Reason);
-		Assert.Contains("144", minecraft.Reason);
-		Assert.Contains("Zomboid", zomboid.Reason);
+		Assert.Equal(minecraft.Preset, zomboid.Preset);
+		Assert.Equal("Ultra", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), Pc(vramGb: 12, ramGb: 32, cores: 16, mhz: 3600, "RTX 4080", 2560, 1440, 144)).Preset);
+		Assert.Equal("Ultra", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), Pc(vramGb: 12, ramGb: 32, cores: 16, mhz: 3600, "RTX 4080", 2560, 1440, 144)).Preset);
+		Assert.Equal("Medium", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), Pc(vramGb: 4, ramGb: 16, cores: 8, mhz: 3200, "GTX 1650", 1920, 1080, 60)).Preset);
+		Assert.Equal("Medium", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), Pc(vramGb: 4, ramGb: 16, cores: 8, mhz: 3200, "GTX 1650", 1920, 1080, 60)).Preset);
+	}
+
+	[Fact]
+	public void Rtx3070ClassPcIsMediumHighForBothGames()
+	{
+		MachineSpecs lab = new MachineSpecs
+		{
+			GpuName = "NVIDIA GeForce RTX 3070",
+			VramBytes = 8032L * 1024L * 1024L,
+			RamBytes = (long)(31.9d * 1073741824L),
+			LogicalCores = 16,
+			CpuMhz = 3800,
+			DisplayWidth = 2560,
+			DisplayHeight = 1440,
+			RefreshHz = 144
+		};
+		Assert.Equal("Medium-High", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("minecraft"), lab).Preset);
+		Assert.Equal("Medium-High", GameGraphicsCatalog.Recommend(GameGraphicsCatalog.Require("zomboid"), lab).Preset);
+	}
+
+	[Fact]
+	public void FirstRunSavesTheRecommendedPresetAndKeepsAManualChoice()
+	{
+		MachineSpecs lab = new MachineSpecs
+		{
+			GpuName = "NVIDIA GeForce RTX 3070",
+			VramBytes = 8032L * 1024L * 1024L,
+			RamBytes = (long)(31.9d * 1073741824L),
+			LogicalCores = 16,
+			DisplayWidth = 2560,
+			DisplayHeight = 1440,
+			RefreshHz = 144
+		};
+		string home = NewDir();
+		(SavedGraphicsProfile minecraft, PresetChoice recommended) = GraphicsProfileStore.Resolve(home, "minecraft", lab);
+		Assert.Equal("Medium-High", recommended.Preset);
+		Assert.Equal("Medium-High", minecraft.Preset);
+		Assert.True(minecraft.Auto);
+		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("minecraft").Preset);
+		GraphicsProfileStore stale = GraphicsProfileStore.Load(home);
+		stale.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = true, Reason = "old" });
+		stale.Save(home);
+		(SavedGraphicsProfile zomboid, _) = GraphicsProfileStore.Resolve(home, "zomboid", lab);
+		Assert.Equal("Medium-High", zomboid.Preset);
+		Assert.True(zomboid.Auto);
+		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("zomboid").Preset);
+		GraphicsProfileStore manual = GraphicsProfileStore.Load(home);
+		manual.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = false, Reason = "chosen" });
+		manual.Save(home);
+		(SavedGraphicsProfile kept, _) = GraphicsProfileStore.Resolve(home, "zomboid", lab);
+		Assert.Equal("Low", kept.Preset);
+		Assert.False(kept.Auto);
 	}
 
 	[Fact]

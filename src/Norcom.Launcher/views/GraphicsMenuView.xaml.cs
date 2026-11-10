@@ -79,19 +79,8 @@ public partial class GraphicsMenuView : UserControl
 
 	private void LoadProfile()
 	{
-		GameDefinition game = GameGraphicsCatalog.Require(_gameId);
-		_recommendation = GameGraphicsCatalog.Recommend(game, _specs);
-		GraphicsProfileStore store = GraphicsProfileStore.Load(NorcomPaths.NorcomHome);
-		SavedGraphicsProfile saved = store.Find(_gameId);
-		if (saved == null)
-		{
-			saved = new SavedGraphicsProfile
-			{
-				Preset = _recommendation.Preset,
-				Auto = true,
-				Reason = _recommendation.Reason
-			};
-		}
+		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, _gameId, _specs);
+		_recommendation = recommended;
 		_profile = saved;
 		RecommendationText.Text = _profile.Auto ? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason : "Using your " + _profile.Preset + " override. Recommendation was " + _recommendation.Preset + ". " + _recommendation.Reason;
 	}

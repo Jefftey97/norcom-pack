@@ -86,6 +86,38 @@ public sealed class GraphicsProfileStore
 		File.WriteAllText(FilePath(launcherHome), json);
 	}
 
+	public static (SavedGraphicsProfile Profile, PresetChoice Recommended) Resolve(string launcherHome, string gameId, MachineSpecs specs)
+	{
+		GameDefinition game = GameGraphicsCatalog.Require(gameId);
+		PresetChoice recommended = GameGraphicsCatalog.Recommend(game, specs);
+		GraphicsProfileStore store = Load(launcherHome);
+		SavedGraphicsProfile saved = store.Find(gameId);
+		bool write = false;
+		if (saved == null)
+		{
+			saved = new SavedGraphicsProfile
+			{
+				Preset = recommended.Preset,
+				Auto = true,
+				Reason = recommended.Reason
+			};
+			write = true;
+		}
+		else if (saved.Auto && !string.Equals(saved.Preset, recommended.Preset, StringComparison.OrdinalIgnoreCase))
+		{
+			saved.Preset = recommended.Preset;
+			saved.Reason = recommended.Reason;
+			saved.Custom = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			write = true;
+		}
+		if (write)
+		{
+			store.Put(gameId, saved);
+			store.Save(launcherHome);
+		}
+		return (saved, recommended);
+	}
+
 	private static JsonSerializerOptions JsonOptions()
 	{
 		return new JsonSerializerOptions

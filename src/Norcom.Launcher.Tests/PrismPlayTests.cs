@@ -94,13 +94,23 @@ public class PrismPlayTests
 	}
 
 	[Fact]
-	public void JavaCommandLineCountsMinecraftNorcomOrTheInstance()
+	public void JavaCommandLineCountsOnlyTheClientWeLaunch()
 	{
-		Assert.True(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw -Dfoo=minecraft net.minecraft.client.main.Main", null));
-		Assert.True(PrismGameSignals.CommandLineIsGame("java", "java -cp libs NORCOM", null));
-		Assert.True(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw -Dinstance=C:\\Prism\\instances\\NORCOM", "instances\\NORCOM"));
+		const string server = @"G:\NORCOM\Server\java\jdk-25.0.5+8\bin\java.exe -Xms8G -Xmx8G -jar G:\NORCOM\Server\fabric-server-launch.jar nogui";
+		const string client = @"C:\Prism\java\javaw.exe -Xmx6G -Djava.library.path=natives net.fabricmc.loader.impl.launch.knot.KnotClient --gameDir C:\Prism\instances\NORCOM\minecraft";
+		Assert.False(PrismGameSignals.CommandLineIsGame("java.exe", server, @"C:\Prism\instances\NORCOM", @"C:\NORCOM\minecraft"));
+		Assert.False(PrismGameSignals.CommandLineIsGame("java.exe", @"G:\NORCOM\Server\java\jdk-25.0.5+8\bin\java.exe -Xms8G -Xmx8G", @"C:\Prism\instances\NORCOM"));
+		Assert.False(PrismGameSignals.CommandLineIsGame("java", "java -cp libs NORCOM", null));
+		Assert.False(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw -Dfoo=minecraft net.minecraft.client.main.Main", null));
+		Assert.True(PrismGameSignals.CommandLineIsGame("javaw.exe", client, @"C:\Prism\instances\NORCOM"));
+		Assert.True(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw --gameDir C:\\NORCOM\\minecraft net.minecraft.client.main.Main", null, @"C:\NORCOM\minecraft"));
 		Assert.False(PrismGameSignals.CommandLineIsGame("javaw.exe", "javaw -version", null));
 		Assert.False(PrismGameSignals.CommandLineIsGame("prismlauncher.exe", "prismlauncher --launch NORCOM", null));
+		Assert.False(PrismGameSignals.IsZomboidClient("java.exe", server));
+		Assert.False(PrismGameSignals.IsZomboidClient("java.exe", "java -Xms8G -Xmx8G zombie.network.GameServer"));
+		Assert.False(PrismGameSignals.IsZomboidClient("ProjectZomboidServer64.exe", ""));
+		Assert.True(PrismGameSignals.IsZomboidClient("ProjectZomboid64.exe", ""));
+		Assert.False(PrismGameSignals.IsZomboidClient("ProjectZomboid64.exe", "ProjectZomboid64.exe StartServer64"));
 	}
 
 	[Fact]

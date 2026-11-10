@@ -29,7 +29,30 @@ public static class GameSession
 			}
 			if (string.Equals(gameId, "zomboid", StringComparison.OrdinalIgnoreCase))
 			{
-				return System.Diagnostics.Process.GetProcessesByName("ProjectZomboid64").Length > 0;
+				System.Diagnostics.Process[] found = System.Diagnostics.Process.GetProcessesByName("ProjectZomboid64");
+				try
+				{
+					for (int i = 0; i < found.Length; i++)
+					{
+						StartupHeal.TryReadProcessCommand(found[i].Id, out string name, out string commandLine);
+						if (string.IsNullOrEmpty(name))
+						{
+							name = found[i].ProcessName;
+						}
+						if (PrismGameSignals.IsZomboidClient(name, commandLine))
+						{
+							return true;
+						}
+					}
+				}
+				finally
+				{
+					for (int i = 0; i < found.Length; i++)
+					{
+						found[i].Dispose();
+					}
+				}
+				return false;
 			}
 			return false;
 		}

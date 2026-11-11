@@ -83,7 +83,10 @@ public sealed class ZomboidGame : IGame
 
 	public bool CanStop(string lockPath)
 	{
-		return ZomboidSession.Running(lockPath);
+		// Stop on this page would act on the other game's process. Project Zomboid
+		// is closed from its own menu, so Stop stays off on this page.
+		_ = lockPath;
+		return false;
 	}
 
 	public string ClientPackDetail(string pinDetail)

@@ -39,14 +39,6 @@ public static class PrismPlay
 		{
 			LauncherLog.Write("play graphics " + ex.GetType().Name);
 		}
-		try
-		{
-			PlayAccount.EnsureForPlay();
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("play account " + ex.GetType().Name);
-		}
 		string text = PrismInstall.Find(prismEnvironment, prismCandidates);
 		if (text == null)
 		{
@@ -102,15 +94,23 @@ public static class PrismPlay
 			return prepared;
 		}
 		IPrismWork work = signals as IPrismWork;
-		bool hold = work != null && work.LauncherAlreadyRunning();
+		// An open, idle Prism still gets --launch/--server: Prism hands them to the copy that
+		// is already open. Only a Prism that is still downloading a previous launch is waited on,
+		// so a second click cannot start the same instance twice.
+		bool prismOpen = work != null && work.LauncherAlreadyRunning();
+		bool hold = prismOpen && work!.DownloadMoving();
 		Task<int> run = null;
 		if (!hold)
 		{
+			if (prismOpen)
+			{
+				LauncherLog.Write("prism already running; forwarding launch");
+			}
 			run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
 		}
 		else
 		{
-			LauncherLog.Write("prism already running");
+			LauncherLog.Write("prism already running and busy");
 		}
 		Stopwatch idle = Stopwatch.StartNew();
 		bool announced = false;

@@ -59,6 +59,11 @@ public class LaunchedGameTests
 	{
 		Assert.False(PrismGameSignals.ShouldForgetLockedProcess("java.exe", ""));
 		Assert.False(PrismGameSignals.ShouldForgetLockedProcess("java.exe", null));
+		Assert.True(PrismGameSignals.ShouldForgetLockedProcess("chrome.exe", "\"C:\\Program Files\\Google\\Chrome\\chrome.exe\" --type=renderer"));
+		Assert.True(PrismGameSignals.ShouldForgetLockedProcess("chrome.exe", null));
+		Assert.True(PrismGameSignals.ShouldForgetLockedProcess("ProjectZomboid64.exe", "ProjectZomboid64.exe"));
+		Assert.True(PrismGameSignals.ShouldForgetLockedProcess("java.exe", "java -Xmx8g zombie.network.GameServer"));
+		Assert.False(PrismGameSignals.ShouldForgetLockedProcess("", null));
 		string dir = Path.Combine(Path.GetTempPath(), "norcom-lock-" + Guid.NewGuid().ToString("n"));
 		Directory.CreateDirectory(dir);
 		string path = Path.Combine(dir, "game.lock");

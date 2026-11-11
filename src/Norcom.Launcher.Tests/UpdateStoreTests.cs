@@ -127,6 +127,36 @@ public sealed class UpdateStoreTests:IDisposable
         var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
         Assert.Throws<InvalidDataException>(()=>store.PayloadPath(new PayloadIdentity("../../outside","x","2.0.46","x")));
     }
+    [Fact] public void ReinstalledBootstrapIsRecordedUnderTheLock()
+    {
+        var store=new UpdateStore(root,Verifier);
+        using(store.Acquire())
+        {
+            Assert.False(store.RefreshBootstrapHash());
+            var before=store.Read().BootstrapHash;
+            File.WriteAllBytes(Path.Combine(root,"NorcomLauncher.exe"),Encoding.UTF8.GetBytes("reinstalled bootstrap"));
+            Assert.True(store.RefreshBootstrapHash());
+            Assert.NotEqual(before,store.Read().BootstrapHash);
+            Assert.False(store.RefreshBootstrapHash());
+        }
+        Assert.Throws<InvalidOperationException>(()=>store.RefreshBootstrapHash());
+    }
+    [Fact] public void StateReadIgnoresUnknownFieldsAndDefaultsOptionalOnes()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var initial=store.Read();
+        var path=Path.Combine(root,"update","state.json");
+        var node=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        node.Remove("DeferredRetry");
+        node["AddedByANewerLauncher"]=42;
+        File.WriteAllText(path,node.ToJsonString());
+        var read=store.Read();
+        Assert.Equal(initial.InstallId,read.InstallId);
+        Assert.Null(read.DeferredRetry);
+        node.Remove("BootstrapHash");
+        File.WriteAllText(path,node.ToJsonString());
+        Assert.ThrowsAny<Exception>(()=>store.Read());
+    }
     [Fact] public void DeletedWatermarkCannotBeSilentlyReinitialized()
     {
         var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();
@@ -173,7 +203,7 @@ public sealed class UpdateStoreTests:IDisposable
         Assert.Contains(identity.PackageHash,store.Read().Quarantined);Assert.Equal(1,store.Read().Sequence);
         Assert.Equal(bootstrap,File.ReadAllBytes(store.BootstrapPath));
     }
-    [Theory][InlineData("unknown")][InlineData("duplicate")][InlineData("missing")][InlineData("sequence")]
+    [Theory][InlineData("duplicate")][InlineData("missing")][InlineData("sequence")]
     public void RejectsMalformedRecoveryState(string fault)
     {
         var store=new UpdateStore(root,Verifier);using var held=store.Acquire();var p=Package();var identity=store.Stage(p.release,p.zip);

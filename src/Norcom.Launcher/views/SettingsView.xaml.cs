@@ -26,7 +26,7 @@ public partial class SettingsView : UserControl
     private async void SendDiagnosticsClick(object sender,RoutedEventArgs e)
     {
         if(DataContext is not ShellViewModel vm)return;
-        if(MessageBox.Show("Send a redacted launcher report and recent launcher log to the configured NORCOM support receiver? Account files are not included.","Send diagnostics",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)return;
+        if(!LauncherDialogs.Confirm("Send a redacted launcher report and recent launcher log to the configured NORCOM support receiver? Account files are not included.","Send diagnostics"))return;
         try{await vm.SendDiagnosticCommand.ExecuteAsync(null);}catch(Exception ex){LauncherLog.Write("manual diagnostics "+ex.GetType().Name);SetStatus("Report delivery could not be confirmed. The local report was kept.");}
     }
     private void SetStatus(string text){if(DataContext is ShellViewModel vm)vm.StatusLine=text;}

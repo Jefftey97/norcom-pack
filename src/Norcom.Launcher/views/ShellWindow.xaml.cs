@@ -21,6 +21,7 @@ public partial class ShellWindow : Window
     public ShellWindow()
     {
         InitializeComponent();
+        Closing += OnClosing;
         var settings=LauncherSettings.Load(NorcomPaths.SettingsPath);
         var bounds=WindowSizing.Fit(settings.WindowW,settings.WindowH,SystemParameters.WorkArea.Width,SystemParameters.WorkArea.Height);
         MinWidth=bounds.MinWidth;MinHeight=bounds.MinHeight;Width=bounds.Width;Height=bounds.Height;
@@ -67,4 +68,5 @@ public partial class ShellWindow : Window
     private void MinimizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState.Minimized;
     private void MaximizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState==WindowState.Maximized?WindowState.Normal:WindowState.Maximized;
     private void CloseClick(object sender,RoutedEventArgs e)=>Close();
+    private void OnClosing(object sender,System.ComponentModel.CancelEventArgs e)=>LauncherDialogs.DismissOwned(this);
 }

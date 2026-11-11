@@ -109,7 +109,7 @@ public class LauncherAuditRegressionTests
 		Assert.DoesNotContain(handler.Urls, url => url.Contains(PinFetch.KnownTip + "/meta", StringComparison.Ordinal));
 	}
 
-	[Fact]
+	[WindowsFact]
 	public async Task FailedMultiJarHealRestoresEveryPreviousJar()
 	{
 		PinFetch.ResetForTests();

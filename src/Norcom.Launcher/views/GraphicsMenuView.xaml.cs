@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Norcom.Launcher.Core;
+using Norcom.Launcher.Core.Games;
 using Norcom.Launcher.Core.Services;
 using Norcom.Launcher.Core.Text;
 using Norcom.Launcher.ViewModels;
@@ -66,9 +67,14 @@ public partial class GraphicsMenuView : UserControl
 	private void Refresh()
 	{
 		_gameId = string.IsNullOrWhiteSpace(GameId) ? "minecraft" : GameId;
+		IGameBoard board = GameHost.Require(_gameId).Board;
 		if (Heading != null)
 		{
-			Heading.Text = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase) ? "Project Zomboid" : "Minecraft";
+			Heading.Text = board.Heading;
+		}
+		if (TexturePanel != null)
+		{
+			TexturePanel.Visibility = board.ShowTexturePacks ? Visibility.Visible : Visibility.Collapsed;
 		}
 		_specs = MachineSpecsProbe.Read();
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
@@ -76,56 +82,37 @@ public partial class GraphicsMenuView : UserControl
 		BuildPresets();
 		BuildManual();
 		BuildMods();
-		if (string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
-		{
-			_ = RefreshZomboidFeedAsync();
-		}
-	}
-
-	private async System.Threading.Tasks.Task RefreshZomboidFeedAsync()
-	{
-		if (QaGates.OfflineCheckRequested())
-		{
-			return;
-		}
-		try
-		{
-			using HttpClient http = new HttpClient
-			{
-				Timeout = TimeSpan.FromSeconds(8)
-			};
-			string json = await http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(true);
-			Directory.CreateDirectory(NorcomPaths.NorcomHome);
-			File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), json);
-			BuildMods();
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("zomboid mods " + ex.GetType().Name);
-		}
+		board.RefreshFeed(BuildMods);
 	}
 
 	private void LoadProfile()
 	{
-		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, _gameId, _specs);
+		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, GameHost.Require(_gameId).Id, _specs);
 		_recommendation = recommended;
 		_profile = saved;
-		RecommendationText.Text = _profile.Auto ? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason : "Using your " + _profile.Preset + " override. Recommendation was " + _recommendation.Preset + ". " + _recommendation.Reason;
+		RecommendationText.Text = string.IsNullOrEmpty(_profile.Preset)
+			? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason + " It is not applied until you click it."
+			: "Using your " + _profile.Preset + " choice. Recommendation is " + _recommendation.Preset + ". " + _recommendation.Reason;
 	}
 
 	private void BuildPresets()
 	{
 		PresetButtons.Children.Clear();
-		GameDefinition game = GameGraphicsCatalog.Require(_gameId);
+		GameDefinition game = GameHost.Require(_gameId).Board.Definition;
 		for (int i = 0; i < game.Presets.Length; i++)
 		{
 			string preset = game.Presets[i];
+			bool selected = !string.IsNullOrEmpty(_profile.Preset) && string.Equals(preset, _profile.Preset, StringComparison.OrdinalIgnoreCase);
 			Button button = new Button
 			{
-				Content = preset,
+				Content = string.Equals(preset, _recommendation.Preset, StringComparison.OrdinalIgnoreCase) ? preset + " · recommended" : preset,
 				Margin = new Thickness(0, 0, 10, 10),
 				Tag = preset
 			};
+			if (selected && TryFindResource("SelectedChoiceButton") is Style selectedStyle)
+			{
+				button.Style = selectedStyle;
+			}
 			button.Click += delegate(object sender, RoutedEventArgs args)
 			{
 				ChoosePreset((string)((Button)sender).Tag, auto: false);
@@ -154,6 +141,7 @@ public partial class GraphicsMenuView : UserControl
 		_profile.Reason = auto ? _recommendation.Reason : "Chosen in the graphics menu.";
 		SaveAndApply();
 		LoadProfile();
+		BuildPresets();
 		BuildManual();
 	}
 
@@ -161,7 +149,7 @@ public partial class GraphicsMenuView : UserControl
 	{
 		_building = true;
 		Manual.Children.Clear();
-		GameDefinition game = GameGraphicsCatalog.Require(_gameId);
+		GameDefinition game = GameHost.Require(_gameId).Board.Definition;
 		Dictionary<string, string> values = GameGraphicsCatalog.EffectiveValues(game, _profile);
 		for (int i = 0; i < game.Settings.Length; i++)
 		{
@@ -191,7 +179,7 @@ public partial class GraphicsMenuView : UserControl
 		}
 		if (setting.Kind == "choice")
 		{
-			ComboBox combo = new ComboBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Left, Tag = setting.Key };
+			ComboBox combo = new ComboBox { MinWidth = 160, MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left, Tag = setting.Key };
 			for (int i = 0; i < setting.Choices.Length; i++)
 			{
 				combo.Items.Add(setting.Choices[i]);
@@ -248,7 +236,7 @@ public partial class GraphicsMenuView : UserControl
 		if (_profile.Auto)
 		{
 			_profile.Auto = false;
-			_profile.Custom = GameGraphicsCatalog.PresetValues(GameGraphicsCatalog.Require(_gameId), _profile.Preset);
+			_profile.Custom = GameGraphicsCatalog.PresetValues(GameHost.Require(_gameId).Board.Definition, _profile.Preset);
 			_profile.Reason = "Custom settings for this game.";
 		}
 		if (_profile.Custom == null)
@@ -263,46 +251,26 @@ public partial class GraphicsMenuView : UserControl
 	private void SaveAndApply()
 	{
 		GraphicsProfileStore store = GraphicsProfileStore.Load(NorcomPaths.NorcomHome);
-		store.Put(_gameId, _profile);
+		IGameBoard board = GameHost.Require(_gameId).Board;
+		store.Put(board.Id, _profile);
 		store.Save(NorcomPaths.NorcomHome);
-		if (GameSession.IsRunning(_gameId, NorcomPaths.GameLockPath))
+		if (GameSession.IsRunning(board.Id, NorcomPaths.GameLockPath))
 		{
 			StatusText.Text = "Saved. The game is running, so the config file was not changed.";
 			return;
 		}
 		string user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-		StatusText.Text = GameSettingsWriter.Apply(GameGraphicsCatalog.Require(_gameId), _profile, NorcomPaths.GameDir, user);
+		StatusText.Text = board.Apply(_profile, NorcomPaths.GameDir, user);
 	}
 
 	private void BuildMods()
 	{
 		Mods.Children.Clear();
-		bool zomboid = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
-		string config = zomboid
-			? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "mods")
-			: Path.Combine(NorcomPaths.GameDir, "config");
+		IGameBoard board = GameHost.Require(_gameId).Board;
+		string config = board.ConfigDirectory(NorcomPaths.GameDir, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 		string schemaPath = Path.Combine(config, "norcom-settings-schema.json");
 		string schema = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : "";
-		IReadOnlyList<DiscoveredModFile> files;
-		if (zomboid)
-		{
-			string cached = ZomboidFeed.CachePath(NorcomPaths.NorcomHome);
-			string feedJson = File.Exists(cached) ? File.ReadAllText(cached) : "";
-			ZomboidFeedDoc feed = new ZomboidFeedDoc();
-			try
-			{
-				feed = ZomboidFeed.Parse(feedJson);
-			}
-			catch (JsonException)
-			{
-				feed = new ZomboidFeedDoc();
-			}
-			files = ModSettingsCatalog.DiscoverZomboidFeed(config, feed, schema);
-		}
-		else
-		{
-			files = ModSettingsCatalog.DiscoverFeed(config, PreserveIndex(), schema);
-		}
+		IReadOnlyList<DiscoveredModFile> files = board.DiscoverMods(config, schema);
 		if (files.Count == 0)
 		{
 			Mods.Children.Add(new TextBlock { Text = "No mods in the pack yet.", Opacity = 0.75 });

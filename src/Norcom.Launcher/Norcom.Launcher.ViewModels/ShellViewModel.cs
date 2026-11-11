@@ -17,6 +17,7 @@ using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
 using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Models;
+using Norcom.Launcher.Core.Games;
 using Norcom.Launcher.Core.Services;
 using Norcom.Launcher.Core.Text;
 using Norcom.Launcher.Services;
@@ -226,38 +227,36 @@ public class ShellViewModel : ObservableObject
 	public bool IsMinecraftPage => Page == LauncherPage.Minecraft;
 	public bool IsZomboidPage => Page == LauncherPage.Zomboid;
 
-	public bool CanPlay
-	{
-		get
-		{
-			if (QaGates.OfflineCheckRequested()) return false;
-			if (!IsBusy)
-			{
-				return !GameRunning;
-			}
-			return false;
-		}
-	}
+	public bool CanPlay => Active.CanPlay(QaGates.OfflineCheckRequested(), IsBusy, GameRunning);
 
 	public string PlayAccountText => AccountStatus;
 
-	public string PlayLabel => IsZomboid ? "Play Project Zomboid" : LaunchedGame.PlayCaption(GameRunning);
-    public string PlayAvailability => QaGates.OfflineCheckRequested()?"Play is disabled for this offline verification session.":IsZomboid?ZomboidAvailability():GameRunning?"Minecraft is already running.":IsBusy?"Please wait for the current operation to finish.":"Microsoft sign-in is handled in Prism when needed.";
-	public bool IsZomboid => string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
-	public bool CanStopSelectedGame => IsZomboid ? GameSession.IsRunning(ChosenGame.Zomboid, NorcomPaths.GameLockPath) : GameRunning;
-	public string SessionNote => IsZomboid ? "Play syncs the server's mod list from the pack, then connects in Steam. The first time, subscribe to any Workshop mods NORCOM names. You only need to own Project Zomboid." : "Play checks the client and opens your NORCOM instance in Prism.";
-	public string PasswordPrompt => IsZomboid ? "Server password, saved on this PC only. Leave blank if the server has none." : "Server password is not used for Minecraft.";
-	public string AccountTitle => IsZomboid ? "Owned on Steam" : "Managed in Prism";
-	public string AccountBody => IsZomboid ? "NORCOM opens Project Zomboid through Steam. Sign in to Steam on this PC. NORCOM does not read your Steam password." : "Sign in with Microsoft in Prism when prompted. NORCOM opens your instance there and does not read Prism’s accounts.";
-	public string AccountFine => IsZomboid ? "Workshop mods are subscribed in Steam." : "Prism Launcher is a separate GPL program.";
-	public string AccountAction => IsZomboid ? "Open Steam" : "Get Prism Launcher";
-	public string ClientPackDetail => IsZomboid ? "Project Zomboid files are checked when you press Play." : PinDetail;
+	private IGame _active;
+	private IGame Active => _active ?? GameHost.Minecraft;
+	public IGame ActiveGame => Active;
+	public string PlayLabel => Active.PlayLabel(GameRunning);
+    public string PlayAvailability => Active.Availability(QaGates.OfflineCheckRequested(), IsBusy, GameRunning);
+	public bool IsZomboid => Active.PasswordEnabled;
+	public bool PasswordEnabled => Active.PasswordEnabled;
+	public bool CanStopSelectedGame => Active.CanStop(NorcomPaths.GameLockPath);
+	public string SessionNote => Active.SessionNote;
+	public string PasswordPrompt => Active.PasswordPrompt;
+	public string AccountTitle => Active.AccountTitle;
+	public string AccountBody => Active.AccountBody;
+	public string AccountFine => Active.AccountFine;
+	public string AccountAction => Active.AccountAction;
+	public string ClientPackDetail => Active.ClientPackDetail(PinDetail);
+	public bool ChecksPackOnPlay => Active.ChecksPackOnPlay;
+	public string PackCheckNote => Active.PackCheckNote;
+	public string StopGameTitle => Active.Title;
+	public string ActiveTexturePack => Active.TexturePackName();
+	public string TextureChoiceLabel => Active.TextureLabel();
+	public string TextureHint => Active.TextureHint();
 	private string _pendingZomboidPassword = "";
 	private bool _zomboidPasswordTouched;
 	public void SetPendingZomboidPassword(string password)
 	{
-		_pendingZomboidPassword = password ?? "";
-		_zomboidPasswordTouched = true;
+		Active.SetPassword(password);
 	}
 	public string GamePickerDetail => _gamePickerDetail;
 	private string _selectedGameId;
@@ -272,6 +271,7 @@ public class ShellViewModel : ObservableObject
 			{
 				_selectedGameLoaded = true;
 				_selectedGameId = ChosenGame.Load(NorcomPaths.NorcomHome);
+				_active = GameHost.Require(_selectedGameId);
 				RefreshGamePicker();
 			}
 			return _selectedGameId;
@@ -287,12 +287,12 @@ public class ShellViewModel : ObservableObject
 	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
-	private RamBudget GameBudget(int requested) => RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, requested);
-	public int RamFloorMb => GameBudget(0).FloorMb;
-	public int RamSafeMaxMb => GameBudget(0).SafeMaxMb;
-	public int RamTotalMb => GameBudget(0).TotalMb;
-	public string RamScaleCaption => GameBudget((int)MemoryMb).Caption;
-	public string RamWarning => GameBudget((int)MemoryMb).Warning;
+	private RamBudget ShownBudget() => Active.DisplayBudget(_specs.RamBytes, _specs.FreeRamBytes);
+	public int RamFloorMb => ShownBudget().FloorMb;
+	public int RamSafeMaxMb => ShownBudget().SafeMaxMb;
+	public int RamTotalMb => ShownBudget().TotalMb;
+	public string RamScaleCaption => ShownBudget().Caption;
+	public string RamWarning => ShownBudget().Warning;
 	public string SpecGpu => string.IsNullOrWhiteSpace(_specs.GpuName) ? "GPU: not detected on this PC" : "GPU: " + _specs.GpuName.Trim();
 	public string SpecVram => _specs.VramBytes > 0 ? "Video memory: " + RamBudget.FormatBytes(_specs.VramBytes) : "Video memory: not detected on this PC";
 	public string SpecRam => _specs.RamBytes > 0 ? "Memory: " + RamBudget.FormatBytes(_specs.RamBytes) + (_specs.FreeRamBytes > 0 ? " (" + RamBudget.FormatBytes(_specs.FreeRamBytes) + " free)" : "") : "Memory: not detected on this PC";
@@ -1262,7 +1262,7 @@ public class ShellViewModel : ObservableObject
 
     internal ShellViewModel(IGameProcessLookup gameLookup, Func<HttpClient,string,TransferMeter,CancellationToken,Task> ensureVisualAssets=null)
 	{
-        _ensureVisualAssets=ensureVisualAssets??KnownVisualAssets.EnsureAsync;
+        _ensureVisualAssets=ensureVisualAssets??((_, _, _, _) => Task.CompletedTask);
         _gameLookup=gameLookup??new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData),NorcomPaths.GameDir);
 		_http.DefaultRequestHeaders.UserAgent.ParseAdd(NorcomVersion.UserAgent);
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
@@ -1334,9 +1334,9 @@ public class ShellViewModel : ObservableObject
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
-	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false);
+	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false, CancellationToken.None);
 
-	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock)
+	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock, CancellationToken ct)
 	{
 		if (QaGates.OfflineCheckRequested() || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath)) return;
 		if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
@@ -1364,7 +1364,7 @@ public class ShellViewModel : ObservableObject
 				SetPinStatus("fetching", forced ? "Fixing the live server pin" : "Checking the live server pin");
 				try
 				{
-					PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, forced, NorcomPaths.LauncherDir).ConfigureAwait(continueOnCapturedContext: true);
+					PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, ct, forced, NorcomPaths.LauncherDir).ConfigureAwait(continueOnCapturedContext: true);
 					SetPinStatus(result.State, result.Detail);
 				}
 				catch (Exception ex)
@@ -1432,195 +1432,20 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanPlay")]
 	private async Task PlayAsync()
 	{
-		if (QaGates.OfflineCheckRequested()) return;
-		if (string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
+		if (QaGates.OfflineCheckRequested())
 		{
-			await PlayZomboidAsync().ConfigureAwait(continueOnCapturedContext: true);
+			StatusLine = PlayAvailability;
 			return;
 		}
-		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
-		{
-			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
-			return;
-		}
-		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
-		IsBusy = true;
-		bool ownsPinLock = false;
-		CancellationTokenSource pump = null;
-		try
-		{
-			await _pinLock.WaitAsync().ConfigureAwait(true);
-			ownsPinLock = true;
-		ProgressFraction = 0.02;
-		ProgressLabel = "Preparing NORCOM";
-		TransferMeter meter = new TransferMeter();
-		pump = StartPump(meter);
-			await PollLivePinCoreAsync(force: true, ownsPinLock: true).ConfigureAwait(true);
-			string java = await JavaRuntime.EnsureAsync(_http, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "java"))
-			{
-				ProgressLabel = "Java 25 is ready";
-				StatusLine = "Stopped after Java. Minecraft was not started.";
-				return;
-			}
-			ProgressLabel = "Syncing the friends pack";
-			await new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			ServersDat.Ensure(NorcomPaths.GameDir, "NORCOM", "shrimp-cub.tun.ply.gg");
-			await LoadNewsAsync().ConfigureAwait(continueOnCapturedContext: true);
-			await LoadDiscordAsync().ConfigureAwait(continueOnCapturedContext: true);
-			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "sync"))
-			{
-				ProgressLabel = "Pack ready";
-				StatusLine = "Stopped after the pack sync. Minecraft was not started.";
-				return;
-			}
-			try
-			{
-				string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-				if (!string.IsNullOrWhiteSpace(graphicsNote))
-				{
-					LauncherLog.Write(graphicsNote);
-				}
-			}
-			catch (Exception ex)
-			{
-				LauncherLog.Write("graphics profile " + ex.GetType().Name);
-			}
-			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb);
-			if (!prismPreparation.CanStart || prismPreparation.Executable == null)
-			{
-				ProgressLabel = "Prism is required";
-				AccountStatus = prismPreparation.Message;
-				StatusLine = prismPreparation.Message;
-				return;
-			}
-			ProgressLabel = "Opening Prism";
-			AccountStatus = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
-			StatusLine = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
-			PrismPlay.GameObserved = ClearPackReady;
-			PrismPlay.GameProcessObserved = delegate(int? pid)
-			{
-				if (pid is int id && id > 0)
-				{
-					OnUi(delegate
-					{
-						RememberLaunchedGame(id);
-					});
-				}
-			};
-			if (LauncherSounds)
-			{
-				UiSound.Play();
-			}
-			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
-			PrismPreparation prismPreparation2 = await PrismPlay.RunAsync(prismPreparation, new PrismProcess(), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
-			RefreshLaunchedGame();
-			ProgressFraction = 1.0;
-			if (GameRunning)
-			{
-				ProgressLabel = "Playing";
-				ProgressDetail = "";
-			}
-			else
-			{
-				ProgressLabel = (prismPreparation2.CanStart ? "Prism closed" : "Prism did not start Minecraft");
-				ProgressDetail = "";
-				AccountStatus = prismPreparation2.Message;
-				StatusLine = prismPreparation2.Message;
-			}
-			LauncherLog.Write(prismPreparation2.CanStart ? "Prism closed" : "Prism rejected");
-		}
-		catch (Exception ex)
-		{
-			ProgressFraction = 0.0;
-			ProgressLabel = "Play didn't finish";
-			ProgressDetail = "";
-			StatusLine = Redactor.Clean(ex.Message);
-			LauncherLog.Write("Play failed: " + ex.GetType().Name);
-		}
-		finally
-		{
-			PrismPlay.GameObserved = null;
-			PrismPlay.GameProcessObserved = null;
-			pump?.Cancel();
-			if (ownsPinLock) _pinLock.Release();
-			IsBusy = BridgeRuntime.HandoffScheduled;
-			RefreshLaunchedGame();
-		}
+		await Active.PlayAsync(new ShellPlayContext(this)).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
-	private async Task PlayZomboidAsync()
-	{
-		if (IsBusy || BridgeRuntime.HandoffScheduled)
-		{
-			return;
-		}
-		IsBusy = true;
-		try
-		{
-			ProgressFraction = 0.2;
-			ProgressLabel = "Checking Steam";
-			string feedJson = "";
-			try
-			{
-				feedJson = await _http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(continueOnCapturedContext: true);
-			}
-			catch (Exception ex)
-			{
-				LauncherLog.Write("zomboid feed " + ex.GetType().Name);
-			}
-			if (!string.IsNullOrWhiteSpace(feedJson))
-			{
-				try
-				{
-					File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), feedJson);
-				}
-				catch (Exception ex)
-				{
-					LauncherLog.Write("zomboid feed cache " + ex.GetType().Name);
-				}
-			}
-			ProgressLabel = "Syncing Project Zomboid";
-			string localPassword = RememberZomboidPassword();
-			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, (int)MemoryMb).ConfigureAwait(continueOnCapturedContext: true);
-			RefreshGamePicker();
-			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
-			{
-				LauncherLog.Write(plan.GraphicsNote);
-			}
-			if (!plan.CanStart)
-			{
-				ProgressFraction = 0.0;
-				ProgressLabel = plan.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) ? SteamLibrary.NotFound : "Project Zomboid was not started";
-				StatusLine = plan.Message;
-				return;
-			}
-			ProgressLabel = "Opening Steam";
-			StatusLine = plan.Message;
-			SteamStart.Open(plan.Url);
-			ProgressFraction = 1.0;
-			LauncherLog.Write(plan.IncludesPassword ? "zomboid steam connect" : "zomboid steam launch");
-		}
-		catch (Exception ex)
-		{
-			ProgressFraction = 0.0;
-			ProgressLabel = "Play didn't finish";
-			StatusLine = Redactor.Clean(ex.Message);
-			LauncherLog.Write("zomboid play " + ex.GetType().Name);
-		}
-		finally
-		{
-			IsBusy = BridgeRuntime.HandoffScheduled;
-			OnPropertyChanged(nameof(PlayAvailability));
-			OnPropertyChanged(nameof(GamePickerDetail));
-		}
-	}
 
 	private void SelectGame(string id)
 	{
 		_selectedGameLoaded = true;
 		_selectedGameId = ChosenGame.Normalize(id);
+		_active = GameHost.Require(_selectedGameId);
 		try
 		{
 			ChosenGame.Save(NorcomPaths.NorcomHome, _selectedGameId);
@@ -1632,6 +1457,8 @@ public class ShellViewModel : ObservableObject
 		RefreshGamePicker();
 		OnPropertyChanged(nameof(SelectedGameId));
 		OnPropertyChanged(nameof(IsZomboid));
+		OnPropertyChanged(nameof(PasswordEnabled));
+		OnPropertyChanged(nameof(ActiveTexturePack));
 		OnPropertyChanged(nameof(CanStopSelectedGame));
 		OnPropertyChanged(nameof(SessionNote));
 		OnPropertyChanged(nameof(PasswordPrompt));
@@ -1643,14 +1470,14 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(PlayLabel));
 		OnPropertyChanged(nameof(PlayAvailability));
 		OnPropertyChanged(nameof(GamePickerDetail));
+		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		ShowGameMemory();
 	}
 
 	private void ShowGameMemory()
 	{
-		int requested = IsZomboid ? (_settings.ZomboidRamSpecified ? _settings.ZomboidRamMb : 0) : (_settings.RamSpecified ? _settings.RamMb : 0);
 		_syncingRam = true;
-		MemoryMb = GameBudget(requested).ChosenMb;
+		MemoryMb = ShownBudget().ChosenMb;
 		_syncingRam = false;
 		NotifyRam();
 	}
@@ -1667,13 +1494,7 @@ public class ShellViewModel : ObservableObject
 
 	private void RefreshGamePicker()
 	{
-		if (!string.Equals(_selectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
-		{
-			_gamePickerDetail = "Minecraft uses the NORCOM pack in Prism.";
-			return;
-		}
-		SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
-		_gamePickerDetail = install.Found ? "Play checks the pack and opens Project Zomboid in Steam." : SteamLibrary.NotFound;
+		_gamePickerDetail = Active.PickerDetail;
 	}
 
 	private string ZomboidAvailability()
@@ -1698,12 +1519,7 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private void OpenAccountAction()
 	{
-		if (IsZomboid)
-		{
-			SteamStart.Open("steam://open/main");
-			return;
-		}
-		OpenPrismDownload();
+		Process.Start(new ProcessStartInfo(Active.AccountUrl) { UseShellExecute = true });
 	}
 
 	public void RefreshLaunchedGame()
@@ -1873,6 +1689,28 @@ public class ShellViewModel : ObservableObject
 	}
 
 	[RelayCommand]
+	private void ChooseTexturePack(string choice)
+	{
+		if (!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft before changing the texture pack.";
+			return;
+		}
+		try
+		{
+			Active.ChooseTexture(choice);
+			StatusLine = TexturePackChoice.Normalize(choice) + " is the texture pack.";
+		}
+		catch (Exception ex)
+		{
+			StatusLine = "The texture pack could not be changed. " + Redactor.Clean(ex.Message);
+		}
+		OnPropertyChanged(nameof(ActiveTexturePack));
+		OnPropertyChanged(nameof(TextureChoiceLabel));
+		OnPropertyChanged(nameof(TextureHint));
+	}
+
+	[RelayCommand]
 	private void ApplyTier(GraphicsTier tier)
 	{
 		ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
@@ -1924,22 +1762,14 @@ public class ShellViewModel : ObservableObject
 			ownsPinLock = true;
 		TransferMeter meter = new TransferMeter();
 		pump = StartPump(meter);
-			GraphicsTier tier = _settings.GraphicsTier;
-			if (_settings.GraphicsAuto)
-			{
-				PcHardware pcHardware = new WmiPcProbe().TryRead();
-				tier = (((object)pcHardware == null) ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware));
-				_settings.GraphicsTier = tier;
-				_settings.Save(NorcomPaths.SettingsPath);
-			}
-			string backup = _graphics.BackupAndReset(NorcomPaths.GameDir, tier);
 			await _ensureVisualAssets(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
+			GraphicsTier tier = _settings.GraphicsTier;
 			SelectedTier = tier;
 			ProgressFraction = 1.0;
 			ProgressLabel = "Visuals repaired";
 			ProgressDetail = "";
-			StatusLine = "Reset to " + GraphicsPresets.TierLabel(tier) + ". Cache entries removed: " + readOnlyList.Count + ". Backup: " + backup;
+			StatusLine = "In-game settings were left as they are. Cache entries removed: " + readOnlyList.Count + ".";
 		}
 		catch (Exception ex)
 		{
@@ -2029,19 +1859,13 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private void OpenGameFolder()
 	{
-		if (IsZomboid)
-		{
-			SteamGameLocation install = SteamLibrary.FindZomboid(SteamSources.Detect());
-			Open(install.Found ? install.GamePath : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid"));
-			return;
-		}
-		Open(NorcomPaths.GameDir);
+		Open(Active.GameFolder());
 	}
 
 	[RelayCommand]
 	private void OpenScreenshotsFolder()
 	{
-		string folder = IsZomboid ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", "Screenshots") : NorcomPaths.ScreenshotsDir;
+		string folder = Active.ScreenshotsFolder();
 		Directory.CreateDirectory(folder);
 		Open(folder);
 	}
@@ -2052,7 +1876,7 @@ public class ShellViewModel : ObservableObject
 		string reportPath = CrashReportService.Queue("manual", "Manual diagnostic from Settings", null);
 		var delivery=await DeliverCrashAsync(reportPath).ConfigureAwait(true);
         var text=delivery.Kind==CrashReportService.DeliveryKind.SendFailed?"The report stayed on this PC. Choose Send diagnostics in Settings to retry.":delivery.UserText;
-        MessageBox.Show(text,"NORCOM",MessageBoxButton.OK,MessageBoxImage.Information);
+        StatusLine = text;
 	}
 
     private async Task RefreshServerAsync()
@@ -2471,24 +2295,14 @@ public class ShellViewModel : ObservableObject
 	{
 		OnPropertyChanged("MemoryLabel");
         if(_loadingSettings || _syncingRam)return;
-		RamBudget budget = GameBudget((int)value);
+		RamBudget budget = RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, (int)value);
 		if (budget.ChosenMb != (int)value)
 		{
 			_syncingRam = true;
 			MemoryMb = budget.ChosenMb;
 			_syncingRam = false;
 		}
-		if (IsZomboid)
-		{
-			_settings.ZomboidRamMb = budget.ChosenMb;
-			_settings.ZomboidRamSpecified = true;
-		}
-		else
-		{
-			_settings.RamMb = budget.ChosenMb;
-			_settings.RamSpecified = true;
-		}
-		_settings.Save(NorcomPaths.SettingsPath);
+		Active.CommitRam(budget.ChosenMb, _specs.RamBytes, _specs.FreeRamBytes);
 		NotifyRam();
 	}
 
@@ -2515,5 +2329,170 @@ public class ShellViewModel : ObservableObject
 	{
 		SaveToggles();
 		AnimationsPaused = GameRunning && value;
+	}
+
+	private sealed class ShellPlayContext : IPlayContext
+	{
+		private readonly ShellViewModel _shell;
+
+		public ShellPlayContext(ShellViewModel shell)
+		{
+			_shell = shell;
+		}
+
+		public HttpClient Http => _shell._http;
+
+		public bool IsBusy => _shell.IsBusy;
+
+		public bool HandoffScheduled => BridgeRuntime.HandoffScheduled;
+
+		public void SetBusy(bool value)
+		{
+			_shell.IsBusy = value;
+		}
+
+		public double ProgressFraction
+		{
+			get => _shell.ProgressFraction;
+			set => _shell.ProgressFraction = value;
+		}
+
+		public string ProgressLabel
+		{
+			get => _shell.ProgressLabel;
+			set => _shell.ProgressLabel = value;
+		}
+
+		public string ProgressDetail
+		{
+			get => _shell.ProgressDetail;
+			set => _shell.ProgressDetail = value;
+		}
+
+		public string StatusLine
+		{
+			get => _shell.StatusLine;
+			set => _shell.StatusLine = value;
+		}
+
+		public string AccountStatus
+		{
+			get => _shell.AccountStatus;
+			set => _shell.AccountStatus = value;
+		}
+
+		public bool LauncherSounds => _shell.LauncherSounds;
+
+		public void PlaySound()
+		{
+			UiSound.Play();
+		}
+
+		public int MemoryMb => (int)_shell.MemoryMb;
+
+		public bool GameRunning => _shell.GameRunning;
+
+		public void SetGameRunning(bool value)
+		{
+			_shell.GameRunning = value;
+		}
+
+		public CancellationTokenSource StartMeter(TransferMeter meter)
+		{
+			return _shell.StartPump(meter);
+		}
+
+		public void StopMeter(CancellationTokenSource pump)
+		{
+			pump?.Cancel();
+		}
+
+		public Task<bool> AcquirePin(TimeSpan timeout)
+		{
+			return _shell._pinLock.WaitAsync(timeout);
+		}
+
+		public void ReleasePin(bool owned)
+		{
+			if (owned)
+			{
+				_shell._pinLock.Release();
+			}
+		}
+
+		public Task PollPin(CancellationToken ct)
+		{
+			return _shell.PollLivePinCoreAsync(true, true, ct);
+		}
+
+		public Task LoadNews()
+		{
+			return _shell.LoadNewsAsync();
+		}
+
+		public Task LoadDiscord()
+		{
+			return _shell.LoadDiscordAsync();
+		}
+
+		public void ArmWatch()
+		{
+			_shell._gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20);
+		}
+
+		public void AttachObservers()
+		{
+			PrismPlay.GameObserved = _shell.ClearPackReady;
+			PrismPlay.GameProcessObserved = delegate(int? pid)
+			{
+				if (pid is int id && id > 0)
+				{
+					_shell.OnUi(delegate
+					{
+						_shell.RememberLaunchedGame(id);
+					});
+				}
+			};
+		}
+
+		public void DetachObservers()
+		{
+			PrismPlay.GameObserved = null;
+			PrismPlay.GameProcessObserved = null;
+		}
+
+		public void RefreshLaunched()
+		{
+			_shell.RefreshLaunchedGame();
+		}
+
+		public void Apply(PlayOutcome outcome)
+		{
+			_shell.ProgressFraction = outcome.Started ? 1.0 : 0.0;
+			_shell.ProgressLabel = outcome.Label;
+			_shell.ProgressDetail = "";
+			if (!string.IsNullOrWhiteSpace(outcome.Message))
+			{
+				_shell.StatusLine = outcome.Message;
+				_shell.AccountStatus = outcome.Message;
+			}
+			if (!outcome.Started && outcome.Message == PlayAdmission.AlreadyRunning)
+			{
+				_shell.GameRunning = true;
+			}
+			LauncherLog.Write(outcome.Started ? "play started" : "play blocked");
+		}
+
+		public void NotifyCommands()
+		{
+			_shell.OnPropertyChanged(nameof(PlayAvailability));
+			_shell.OnPropertyChanged(nameof(GamePickerDetail));
+			((IRelayCommand)_shell.PlayCommand).NotifyCanExecuteChanged();
+		}
+
+		public string AvailabilityText()
+		{
+			return _shell.PlayAvailability;
+		}
 	}
 }

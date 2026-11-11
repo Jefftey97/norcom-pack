@@ -91,30 +91,12 @@ public sealed class GraphicsProfileStore
 		GameDefinition game = GameGraphicsCatalog.Require(gameId);
 		PresetChoice recommended = GameGraphicsCatalog.Recommend(game, specs);
 		GraphicsProfileStore store = Load(launcherHome);
-		SavedGraphicsProfile saved = store.Find(gameId);
-		bool write = false;
-		if (saved == null)
+		SavedGraphicsProfile saved = store.Find(gameId) ?? new SavedGraphicsProfile
 		{
-			saved = new SavedGraphicsProfile
-			{
-				Preset = recommended.Preset,
-				Auto = true,
-				Reason = recommended.Reason
-			};
-			write = true;
-		}
-		else if (saved.Auto && !string.Equals(saved.Preset, recommended.Preset, StringComparison.OrdinalIgnoreCase))
-		{
-			saved.Preset = recommended.Preset;
-			saved.Reason = recommended.Reason;
-			saved.Custom = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-			write = true;
-		}
-		if (write)
-		{
-			store.Put(gameId, saved);
-			store.Save(launcherHome);
-		}
+			Preset = "",
+			Auto = false,
+			Reason = ""
+		};
 		return (saved, recommended);
 	}
 

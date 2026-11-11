@@ -1,3 +1,4 @@
+using Norcom.Launcher.Core.Games.Minecraft;
 using Norcom.Launcher.Core.Services;
 using Xunit;
 
@@ -23,6 +24,38 @@ public class RamBudgetTests
 		Assert.Equal(8192, thirtyTwo.ReserveMb);
 		Assert.Equal(24576, thirtyTwo.SafeMaxMb);
 		Assert.Equal(12288, thirtyTwo.ChosenMb);
+	}
+
+	[Fact]
+	public void UnmovedSliderShowsTheGameHeapAndKeepsTheInstalledCap()
+	{
+		long total = 32L * Gib;
+		long free = (long)(3.1d * Gib);
+		string cfg = Path.Combine(Path.GetTempPath(), "norcom-ram-show-" + Guid.NewGuid().ToString("n") + ".cfg");
+		File.WriteAllText(cfg, "[General]\nMaxMemAlloc=4096\nMinMemAlloc=512\n");
+		byte[] before = File.ReadAllBytes(cfg);
+		RamBudget shown = RamBudget.ForUnchangedSlider(total, free, MinecraftRam.ReadMaxMb(cfg));
+		Assert.Equal(before, File.ReadAllBytes(cfg));
+		Assert.Equal(4096, shown.ChosenMb);
+		Assert.Equal(24576, shown.SafeMaxMb);
+		Assert.True(shown.SafeMaxMb > shown.AvailableMb);
+		Assert.Contains("Installed memory", shown.Caption, StringComparison.Ordinal);
+		Assert.Contains("does not lower this cap", shown.Caption, StringComparison.Ordinal);
+		Assert.Contains("free right now", shown.Warning, StringComparison.Ordinal);
+		Assert.Contains("not a permanent limit", shown.Warning, StringComparison.Ordinal);
+		Assert.Contains(RamBudget.FormatMb(shown.SafeMaxMb), shown.Warning, StringComparison.Ordinal);
+		RamBudget missing = RamBudget.ForUnchangedSlider(total, free, MinecraftRam.ReadMaxMb(cfg + ".missing"));
+		Assert.Equal(MinecraftRam.PrismDefaultMb, missing.ChosenMb);
+		Assert.Equal(shown.SafeMaxMb, missing.SafeMaxMb);
+		string json = Path.Combine(Path.GetTempPath(), "norcom-zomboid-show-" + Guid.NewGuid().ToString("n") + ".json");
+		File.WriteAllText(json, "{\"vmArgs\":[\"-Xmx3072m\"],\"windows\":{\"vmArgs\":[\"-Xmx3072m\"]}}");
+		RamBudget zomboid = RamBudget.ForUnchangedSlider(total, free, ZomboidMemory.ReadCurrentMb(json));
+		Assert.Equal(3072, zomboid.ChosenMb);
+		Assert.Equal(shown.SafeMaxMb, zomboid.SafeMaxMb);
+		Assert.Equal(ZomboidMemory.GameDefaultMb, ZomboidMemory.ReadCurrentMb(json + ".missing"));
+		RamBudget chosen = RamBudget.Create(total, free, 12288);
+		Assert.Equal(12288, chosen.ChosenMb);
+		Assert.Equal(24576, chosen.SafeMaxMb);
 	}
 
 	[Fact]

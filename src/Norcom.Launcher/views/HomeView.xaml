@@ -6,7 +6,7 @@
     <TextBlock Text="Your pack, your settings, your server. Minecraft opens in Prism. Project Zomboid opens in Steam." Style="{StaticResource Muted}" Margin="0,0,0,16"/>
     <local:GameSwitcher/>
     <TextBlock Text="{Binding SessionNote}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-    <StackPanel Margin="0,0,0,12"><TextBlock Text="{Binding PasswordPrompt}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/><PasswordBox x:Name="ZomboidPassword" IsEnabled="{Binding IsZomboid}" PasswordChanged="ZomboidPasswordChanged" AutomationProperties.Name="Server password"/></StackPanel>
+    <StackPanel Margin="0,0,0,12"><TextBlock Text="{Binding PasswordPrompt}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/><PasswordBox x:Name="ZomboidPassword" IsEnabled="{Binding PasswordEnabled}" PasswordChanged="ZomboidPasswordChanged" AutomationProperties.Name="Server password"/></StackPanel>
     <WrapPanel><Button x:Name="PlayAction" Content="{Binding PlayLabel}" Command="{Binding PlayCommand}" Style="{StaticResource PrimaryButton}" FontSize="20" Padding="44,14" MinWidth="220" AutomationProperties.Name="{Binding PlayLabel}" Margin="0,0,10,10"/>
      <Button Content="Stop game" Click="StopClick" Style="{StaticResource CautionButton}" IsEnabled="{Binding CanStopSelectedGame}" Margin="0,0,0,10" AutomationProperties.Name="Stop the game started by NORCOM"/>
     </WrapPanel>

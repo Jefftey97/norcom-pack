@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Norcom.Launcher.Core.Games;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -53,15 +54,42 @@ public static class GameGraphicsCatalog
 {
 	public const long Gib = 1073741824L;
 
-	public static IReadOnlyList<GameDefinition> Games { get; } = new GameDefinition[2] { Minecraft(), Zomboid() };
+	private static readonly List<GameDefinition> Registered = new List<GameDefinition>();
+
+	public static IReadOnlyList<GameDefinition> Games
+	{
+		get
+		{
+			GameHost.Ensure();
+			return Registered;
+		}
+	}
+
+	public static void Register(GameDefinition definition)
+	{
+		if (definition == null || string.IsNullOrWhiteSpace(definition.Id))
+		{
+			return;
+		}
+		for (int i = 0; i < Registered.Count; i++)
+		{
+			if (string.Equals(Registered[i].Id, definition.Id, StringComparison.OrdinalIgnoreCase))
+			{
+				Registered[i] = definition;
+				return;
+			}
+		}
+		Registered.Add(definition);
+	}
 
 	public static GameDefinition Require(string id)
 	{
-		for (int i = 0; i < Games.Count; i++)
+		GameHost.Ensure();
+		for (int i = 0; i < Registered.Count; i++)
 		{
-			if (string.Equals(Games[i].Id, id, StringComparison.OrdinalIgnoreCase))
+			if (string.Equals(Registered[i].Id, id, StringComparison.OrdinalIgnoreCase))
 			{
-				return Games[i];
+				return Registered[i];
 			}
 		}
 		throw new InvalidOperationException("Unknown game profile: " + id);
@@ -168,53 +196,7 @@ public static class GameGraphicsCatalog
 		return (bytes / (double)Gib).ToString("0.#", CultureInfo.InvariantCulture);
 	}
 
-	private static GameDefinition Minecraft()
-	{
-		return new GameDefinition
-		{
-			Id = "minecraft",
-			Name = "Minecraft",
-			Presets = new string[4] { "Low", "Medium", "Medium-High", "Ultra" },
-			Floors = SharedFloors(),
-			Settings = new GraphicsSetting[11]
-			{
-				Slider("renderDistance", "Render distance", "How many chunks Minecraft draws around you.", "options", 2, 32, 1, "8", "12", "16", "24"),
-				Slider("simulationDistance", "Simulation distance", "How far mobs, crops, and redstone stay active.", "options", 2, 32, 1, "6", "8", "10", "12"),
-				Choice("graphicsMode", "Graphics mode", "Fast, Fancy, or Fabulous. Fabulous is the heaviest.", "options", new string[3] { "0", "1", "2" }, "0", "1", "2", "2"),
-				Choice("particles", "Particles", "0 is all, 1 is decreased, 2 is minimal.", "options", new string[3] { "0", "1", "2" }, "2", "1", "1", "0"),
-				Slider("entityDistanceScaling", "Entity distance", "How far entities are drawn. 1 is the usual distance.", "options", 0.25, 2, 0.25, "0.5", "0.75", "1", "1.25"),
-				Slider("maxFps", "Max FPS", "Caps the frame rate. 260 leaves Minecraft uncapped for this pack.", "options", 30, 260, 10, "60", "120", "144", "260"),
-				Toggle("enableVsync", "VSync", "Locks frames to the display. Off lets the FPS cap do the work.", "options", "false", "false", "false", "false"),
-				Slider("mipmapLevels", "Mipmaps", "Sharper distant textures at the cost of memory.", "options", 0, 4, 1, "2", "4", "4", "4"),
-				Slider("biomeBlendRadius", "Biome blend", "How smoothly grass and water colors blend. Higher is heavier.", "options", 0, 7, 1, "1", "2", "3", "5"),
-				Slider("performance.chunk_builder_threads", "Sodium chunk threads", "0 lets Sodium choose. Written only when Sodium is installed.", "sodium", 0, 16, 1, "1", "2", "0", "0"),
-				Slider("maxShadowRenderDistance", "Iris shadow distance", "Shadow chunks. Written only when Iris is installed.", "iris", 4, 32, 1, "8", "12", "16", "32")
-			}
-		};
-	}
-
-	private static GameDefinition Zomboid()
-	{
-		return new GameDefinition
-		{
-			Id = "zomboid",
-			Name = "Project Zomboid",
-			Presets = new string[4] { "Low", "Medium", "Medium-High", "Ultra" },
-			Floors = SharedFloors(),
-			Settings = new GraphicsSetting[7]
-			{
-				Slider("width", "Width", "Window or fullscreen width in pixels.", "zomboid", 800, 3840, 1, "1280", "1920", "1920", "2560"),
-				Slider("height", "Height", "Window or fullscreen height in pixels.", "zomboid", 600, 2160, 1, "720", "1080", "1080", "1440"),
-				Toggle("fullscreen", "Fullscreen", "Fills the display.", "zomboid", "false", "false", "true", "true"),
-				Toggle("vsync", "VSync", "Locks frames to the display refresh.", "zomboid", "true", "true", "false", "false"),
-				Slider("frameRate", "FPS cap", "Highest frame rate Zomboid will chase.", "zomboid", 30, 240, 1, "30", "60", "120", "144"),
-				Slider("maxTextureSize", "Texture quality", "Higher uses more video memory.", "zomboid", 1, 4, 1, "1", "2", "3", "4"),
-				Slider("lighting", "Lighting", "0 is simpler lighting. 3 is the heaviest.", "zomboid", 0, 3, 1, "0", "1", "2", "3")
-			}
-		};
-	}
-
-	private static PresetFloor[] SharedFloors()
+	internal static PresetFloor[] SharedFloors()
 	{
 		return new PresetFloor[3]
 		{
@@ -224,7 +206,7 @@ public static class GameGraphicsCatalog
 		};
 	}
 
-	private static GraphicsSetting Slider(string key, string label, string help, string target, double min, double max, double step, string low, string medium, string mediumHigh, string ultra)
+	internal static GraphicsSetting Slider(string key, string label, string help, string target, double min, double max, double step, string low, string medium, string mediumHigh, string ultra)
 	{
 		return new GraphicsSetting
 		{
@@ -240,7 +222,7 @@ public static class GameGraphicsCatalog
 		};
 	}
 
-	private static GraphicsSetting Toggle(string key, string label, string help, string target, string low, string medium, string mediumHigh, string ultra)
+	internal static GraphicsSetting Toggle(string key, string label, string help, string target, string low, string medium, string mediumHigh, string ultra)
 	{
 		return new GraphicsSetting
 		{
@@ -254,7 +236,7 @@ public static class GameGraphicsCatalog
 		};
 	}
 
-	private static GraphicsSetting Choice(string key, string label, string help, string target, string[] choices, string low, string medium, string mediumHigh, string ultra)
+	internal static GraphicsSetting Choice(string key, string label, string help, string target, string[] choices, string low, string medium, string mediumHigh, string ultra)
 	{
 		return new GraphicsSetting
 		{
@@ -268,7 +250,7 @@ public static class GameGraphicsCatalog
 		};
 	}
 
-	private static Dictionary<string, string> Map(string low, string medium, string mediumHigh, string ultra)
+	internal static Dictionary<string, string> Map(string low, string medium, string mediumHigh, string ultra)
 	{
 		return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 		{

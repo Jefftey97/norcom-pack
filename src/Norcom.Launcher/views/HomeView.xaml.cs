@@ -25,12 +25,12 @@ public partial class HomeView : UserControl
     }
     private void OnViewModelChanged(object sender, PropertyChangedEventArgs args)
     {
-        if(args.PropertyName == nameof(ShellViewModel.IsZomboid) || args.PropertyName == nameof(ShellViewModel.SelectedGameId))SyncPasswordBox();
+        if(args.PropertyName == nameof(ShellViewModel.PasswordEnabled) || args.PropertyName == nameof(ShellViewModel.SelectedGameId))SyncPasswordBox();
     }
     private void SyncPasswordBox()
     {
         if(ZomboidPassword==null)return;
-        string saved=DataContext is ShellViewModel vm && vm.IsZomboid && ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome)?ZomboidPasswordStore.Load(NorcomPaths.NorcomHome):"";
+        string saved=DataContext is ShellViewModel vm && vm.PasswordEnabled && ZomboidPasswordStore.Exists(NorcomPaths.NorcomHome)?ZomboidPasswordStore.Load(NorcomPaths.NorcomHome):"";
         if(ZomboidPassword.Password!=saved)ZomboidPassword.Password=saved;
     }
     private void OnSizeChanged(object sender,SizeChangedEventArgs e)
@@ -43,7 +43,7 @@ public partial class HomeView : UserControl
     }
     private void StopClick(object sender,RoutedEventArgs e)
     {
-        if(DataContext is ShellViewModel vm && MessageBox.Show("Close the "+(vm.IsZomboid?"Project Zomboid":"Minecraft")+" game started by NORCOM? Save your world first.","Stop game",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)vm.StopLaunchedGame();
+        if(DataContext is ShellViewModel vm && LauncherDialogs.Confirm("Close the "+vm.StopGameTitle+" game started by NORCOM? Save your world first.","Stop game"))vm.StopLaunchedGame();
     }
     private void ZomboidPasswordChanged(object sender,RoutedEventArgs e)
     {
@@ -52,7 +52,7 @@ public partial class HomeView : UserControl
     private async void CheckPackClick(object sender,RoutedEventArgs e)
     {
         if(DataContext is not ShellViewModel vm)return;
-        if(vm.IsZomboid){vm.StatusLine="Project Zomboid files are checked when you press Play.";return;}
+        if(!vm.ChecksPackOnPlay){vm.StatusLine=vm.PackCheckNote;return;}
         try{await vm.FixPinAsync();}catch(Exception ex){LauncherLog.Write("pack check "+ex.GetType().Name);vm.StatusLine="Pack check unavailable. Try again when your connection is ready.";}
     }
 }

@@ -7,6 +7,8 @@ public sealed class PrismPreparation
 {
 	public bool CanStart { get; init; }
 
+	public bool Applied { get; init; }
+
 	public string Message { get; init; } = "";
 
 

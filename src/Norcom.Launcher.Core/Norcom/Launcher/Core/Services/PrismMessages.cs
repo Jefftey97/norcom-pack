@@ -12,6 +12,8 @@ public static class PrismMessages
 
 	public const string ClosedWithoutGame = "Prism closed without Minecraft. Finish Microsoft sign-in in Prism if it asked, then press Play again.";
 
+	public const string NotDetected = "Prism stayed open, but Minecraft was not detected. If the game window is open, you are playing. Otherwise close Prism and press Play again.";
+
 	public const string Rejected = "Prism did not start Minecraft. Finish Microsoft sign-in in Prism's window if it asked, then press Play again. NORCOM did not use a local name.";
 
 	public const string LinkBlocked = "NORCOM's Prism instance already has a minecraft folder that is not the NORCOM game folder. It was not replaced, and Minecraft was not started.";

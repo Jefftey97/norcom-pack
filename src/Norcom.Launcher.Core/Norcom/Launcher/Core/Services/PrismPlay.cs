@@ -11,11 +11,13 @@ public static class PrismPlay
 {
 	public static readonly TimeSpan ProbeBudget = TimeSpan.FromSeconds(15);
 
+	public static readonly TimeSpan OpenBudget = TimeSpan.FromSeconds(90);
+
 	public static Action? GameObserved { get; set; }
 
 	public static Action<int?>? GameProcessObserved { get; set; }
 
-	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
+	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		try
 		{
@@ -65,12 +67,13 @@ public static class PrismPlay
 		{
 			LauncherLog.Write("play heap " + ex.GetType().Name);
 		}
-		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap);
+		bool applied = PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap, applyMemory);
 		FriendsEndpoint endpoint = FriendsServer.Resolve();
 		IReadOnlyList<string> arguments = PrismCommand.Build(endpoint.Host, endpoint.Port);
 		return new PrismPreparation
 		{
 			CanStart = true,
+			Applied = applied,
 			Message = PrismMessages.Opening,
 			Executable = text,
 			Arguments = arguments
@@ -80,16 +83,22 @@ public static class PrismPlay
 	public static Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken)
 	{
 		IPrismGameSignals signals = new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir);
-		return RunAsync(prepared, process, cancellationToken, signals, ProbeBudget);
+		return RunAsync(prepared, process, cancellationToken, signals, ProbeBudget, OpenBudget);
 	}
 
-	public static async Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken, IPrismGameSignals signals, TimeSpan probeBudget)
+	public static Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken, IPrismGameSignals signals, TimeSpan probeBudget)
+	{
+		return RunAsync(prepared, process, cancellationToken, signals, probeBudget, probeBudget);
+	}
+
+	public static async Task<PrismPreparation> RunAsync(PrismPreparation prepared, IPrismProcess process, CancellationToken cancellationToken, IPrismGameSignals signals, TimeSpan probeBudget, TimeSpan openBudget)
 	{
 		if (!prepared.CanStart || prepared.Executable == null)
 		{
 			return prepared;
 		}
 		Task<int> run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
+		Stopwatch open = Stopwatch.StartNew();
 		while (!run.IsCompleted)
 		{
 			if (SeenGame(signals, process, out int? gamePid))
@@ -100,7 +109,28 @@ public static class PrismPlay
 				Observe(run);
 				return Started(prepared);
 			}
-			await Task.WhenAny(run, Task.Delay(500, cancellationToken)).ConfigureAwait(continueOnCapturedContext: false);
+			if (open.Elapsed >= openBudget)
+			{
+				LauncherLog.Write("prism open without minecraft");
+				Observe(run);
+				return new PrismPreparation
+				{
+					CanStart = false,
+					Message = PrismMessages.NotDetected,
+					Executable = prepared.Executable,
+					Arguments = prepared.Arguments
+				};
+			}
+			TimeSpan slice = openBudget - open.Elapsed;
+			if (slice > TimeSpan.FromMilliseconds(500))
+			{
+				slice = TimeSpan.FromMilliseconds(500);
+			}
+			if (slice <= TimeSpan.Zero)
+			{
+				continue;
+			}
+			await Task.WhenAny(run, Task.Delay(slice, cancellationToken)).ConfigureAwait(continueOnCapturedContext: false);
 		}
 		if (await run.ConfigureAwait(continueOnCapturedContext: false) != 0)
 		{

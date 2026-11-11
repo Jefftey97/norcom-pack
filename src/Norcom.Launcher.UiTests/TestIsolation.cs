@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.CompilerServices;
 using Norcom.Launcher.Core;
 
@@ -13,6 +14,7 @@ internal static class TestIsolation
 		Environment.SetEnvironmentVariable("NORCOM_STATE_DIR", state);
 		Environment.SetEnvironmentVariable("NORCOM_GAME_DIR", Path.Combine(root, "game"));
 		Environment.SetEnvironmentVariable("NORCOM_DESKTOP", Path.Combine(root, "Desktop"));
+		Environment.SetEnvironmentVariable("NORCOM_QA_OFFLINE", "1");
 		Directory.CreateDirectory(NorcomPaths.LauncherDir);
 		Directory.CreateDirectory(NorcomPaths.GameDir);
 	}

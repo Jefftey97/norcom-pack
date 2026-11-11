@@ -12,3 +12,4 @@ using System.Runtime.Versioning;
 [assembly: AssemblyTitle("Norcom.Launcher.Core")]
 [assembly: AssemblyVersion("2.0.1.0")]
 [assembly: InternalsVisibleTo("Norcom.Launcher.Tests")]
+[assembly: InternalsVisibleTo("Norcom.Launcher.UiTests")]

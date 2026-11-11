@@ -23,12 +23,17 @@ public sealed class MinecraftState
 		return Path.Combine(home, "minecraft-state.json");
 	}
 
+	private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
+	{
+		PropertyNameCaseInsensitive = true
+	};
+
 	public static MinecraftState Load(string home)
 	{
 		string path = PathFor(home);
 		if (File.Exists(path))
 		{
-			return JsonSerializer.Deserialize<MinecraftState>(File.ReadAllText(path)) ?? new MinecraftState();
+			return JsonSerializer.Deserialize<MinecraftState>(File.ReadAllText(path), Json) ?? new MinecraftState();
 		}
 		LauncherSettings legacy = LauncherSettings.Load(Path.Combine(home, "settings.json"));
 		MinecraftState state = new MinecraftState
@@ -47,6 +52,6 @@ public sealed class MinecraftState
 	public void Save(string home)
 	{
 		Directory.CreateDirectory(home);
-		File.WriteAllText(PathFor(home), JsonSerializer.Serialize(this));
+		File.WriteAllText(PathFor(home), JsonSerializer.Serialize(this, Json));
 	}
 }

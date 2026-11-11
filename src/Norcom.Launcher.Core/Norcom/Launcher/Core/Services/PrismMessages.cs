@@ -8,6 +8,8 @@ public static class PrismMessages
 
 	public const string Opening = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
 
+	public const string Starting = "Starting…";
+
 	public const string Closed = "Prism closed. If you finished its Microsoft sign-in, it started the NORCOM instance. Later Play uses the same Prism. NORCOM does not keep that login.";
 
 	public const string ClosedWithoutGame = "Prism closed without Minecraft. Finish Microsoft sign-in in Prism if it asked, then press Play again.";

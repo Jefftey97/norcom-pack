@@ -25,6 +25,23 @@ public class PackDownloadTests
 	}
 
 	[Fact]
+	public async Task SecondSyncSkipsAnIndexAndFileThatAlreadyMatch()
+	{
+		using var host = new Host();
+		byte[] body = Encoding.UTF8.GetBytes("same-bytes");
+		host.IndexFile("config/keep.txt", body);
+		await host.Sync();
+		foreach (string key in host.Files.Keys.Where(key => key.StartsWith("seen:", StringComparison.Ordinal)).ToList())
+		{
+			host.Files.Remove(key);
+		}
+		await host.Sync();
+		Assert.DoesNotContain(host.Files.Keys, key => key == "seen:https://pack.example/index.toml");
+		Assert.DoesNotContain(host.Files.Keys, key => key == "seen:https://pack.example/config/keep.txt");
+		Assert.Equal("same-bytes", await File.ReadAllTextAsync(Path.Combine(host.Game, "config", "keep.txt")));
+	}
+
+	[Fact]
 	public async Task HashMismatchLeavesTheExistingFile()
 	{
 		using var host = new Host();

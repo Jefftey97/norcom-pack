@@ -127,7 +127,8 @@ public sealed class MinecraftGame : IGame
 	public void ChooseTexture(string choice)
 	{
 		choice = TexturePackChoice.Normalize(choice);
-		MinecraftState state = State();
+		MinecraftState state = MinecraftState.Load(NorcomPaths.NorcomHome);
+		_state = state;
 		state.TexturePack = choice;
 		state.TexturePackSpecified = true;
 		state.TexturePackPending = true;
@@ -147,7 +148,8 @@ public sealed class MinecraftGame : IGame
 
 	public string TexturePackName()
 	{
-		MinecraftState state = State();
+		MinecraftState state = MinecraftState.Load(NorcomPaths.NorcomHome);
+		_state = state;
 		return state.TexturePackSpecified ? TexturePackChoice.Normalize(state.TexturePack) : TexturePackChoice.Detect(TexturePackChoice.ReadEnabled(NorcomPaths.GameDir));
 	}
 
@@ -163,8 +165,15 @@ public sealed class MinecraftGame : IGame
 		return TexturePackChoice.Hint(NorcomPaths.GameDir, choice);
 	}
 
+	internal static Func<IPlayContext, Task> PlayProbe;
+
 	public async Task PlayAsync(IPlayContext context)
 	{
+		if (PlayProbe != null)
+		{
+			await PlayProbe(context).ConfigureAwait(false);
+			return;
+		}
 		if (context.IsBusy || context.HandoffScheduled)
 		{
 			context.StatusLine = PlayConductor.AlreadyStarting;
@@ -173,6 +182,7 @@ public sealed class MinecraftGame : IGame
 		context.SetBusy(true);
 		bool ownsPin = false;
 		CancellationTokenSource pump = null;
+		using CancellationTokenSource play = new CancellationTokenSource();
 		try
 		{
 			if (!await context.AcquirePin(TimeSpan.FromSeconds(20)).ConfigureAwait(false))
@@ -238,7 +248,7 @@ public sealed class MinecraftGame : IGame
 					return await PrismPlay.RunAsync(prepared, new PrismProcess(), token).ConfigureAwait(false);
 				},
 				ClientRunning = () => context.GameRunning
-			}, CancellationToken.None).ConfigureAwait(false);
+			}, play.Token).ConfigureAwait(false);
 			context.Apply(outcome);
 		}
 		catch (Exception ex)

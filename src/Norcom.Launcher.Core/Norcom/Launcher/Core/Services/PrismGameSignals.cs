@@ -17,7 +17,14 @@ public interface IGameProcessLookup
 	int? TryGameProcessId(int? prismProcessId);
 }
 
-public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid);
+public interface IPrismWork
+{
+	bool LauncherAlreadyRunning();
+
+	bool DownloadMoving();
+}
+
+public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid, string WorkingDirectory = "");
 
 public static class PrismGameSignals
 {
@@ -63,6 +70,29 @@ public static class PrismGameSignals
 			|| commandLine.Contains("nogui", StringComparison.OrdinalIgnoreCase)
 			|| commandLine.Contains("net.minecraft.server.Main", StringComparison.Ordinal)
 			|| commandLine.Contains("server.jar", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsPrismLauncher(string? processName)
+	{
+		string file = Path.GetFileName(processName ?? "");
+		return file.Equals("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) || file.Equals("prismlauncher", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsServerLocation(string? text)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+		string value = text.Replace('/', '\\');
+		return value.Contains("\\NORCOM\\Server", StringComparison.OrdinalIgnoreCase)
+			|| value.Contains("\\MinecraftServer", StringComparison.OrdinalIgnoreCase)
+			|| IsMinecraftServerCommand(text);
+	}
+
+	public static bool IsServerJava(string? processName, string? commandLine, string? workingDirectory = null)
+	{
+		return IsJavaProcess(processName) && (IsServerLocation(commandLine) || IsServerLocation(workingDirectory));
 	}
 
 	public static bool IsZomboidClient(string? processName, string? commandLine)
@@ -126,23 +156,76 @@ public static class PrismGameSignals
 		{
 			return null;
 		}
-		int? hinted = null;
-		foreach (GameProcessRow row in rows)
+		List<GameProcessRow> list = new List<GameProcessRow>(rows);
+		Dictionary<int, int> parents = new Dictionary<int, int>();
+		HashSet<int> prismPids = new HashSet<int>();
+		if (prismPid is int passed && passed > 0)
 		{
-			if (row.Pid <= 0 || !CommandLineIsGame(row.Name, row.CommandLine, instanceHint, gameDir))
+			prismPids.Add(passed);
+		}
+		foreach (GameProcessRow row in list)
+		{
+			if (row.Pid > 0)
+			{
+				parents[row.Pid] = row.ParentPid;
+			}
+			if (row.Pid > 0 && IsPrismLauncher(row.Name))
+			{
+				prismPids.Add(row.Pid);
+			}
+		}
+		int? atInstance = null;
+		int? startedChild = null;
+		foreach (GameProcessRow row in list)
+		{
+			if (row.Pid <= 0 || !IsJavaProcess(row.Name) || IsServerJava(row.Name, row.CommandLine, row.WorkingDirectory))
 			{
 				continue;
 			}
-			if (prismPid is int parent && parent > 0 && row.ParentPid == parent)
+			bool here = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
+			bool direct = prismPid is int parent && parent > 0 && row.ParentPid == parent;
+			if (direct && here)
 			{
 				return row.Pid;
 			}
-			if (hinted == null)
+			if (here && OwnedByPrism(row.ParentPid, parents, prismPids) && atInstance == null)
 			{
-				hinted = row.Pid;
+				atInstance = row.Pid;
+			}
+			if (direct && startedChild == null && (HasClientMain(row.CommandLine) || string.IsNullOrWhiteSpace(row.CommandLine)))
+			{
+				startedChild = row.Pid;
 			}
 		}
-		return hinted;
+		return atInstance ?? startedChild;
+	}
+
+	private static bool OwnedByPrism(int parentPid, Dictionary<int, int> parents, HashSet<int> prismPids)
+	{
+		int pid = parentPid;
+		HashSet<int> seen = new HashSet<int>();
+		while (pid > 0 && seen.Add(pid))
+		{
+			if (prismPids.Contains(pid))
+			{
+				return true;
+			}
+			if (!parents.TryGetValue(pid, out int next))
+			{
+				return false;
+			}
+			pid = next;
+		}
+		return false;
+	}
+
+	private static bool PointsAtInstance(string? text, string? instanceHint, string? gameDir)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+		return ContainsPath(text, instanceHint) || ContainsPath(text, gameDir);
 	}
 
 	private static bool ContainsPath(string commandLine, string? path)
@@ -178,17 +261,22 @@ public static class PrismGameSignals
 	}
 }
 
-public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
+public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup, IPrismWork
 {
+	private readonly string _dataDir;
+
 	private readonly string _instanceDir;
 
 	private readonly string _gameDir;
 
 	private readonly List<(string Path, DateTime? BaselineUtc)> _logs = new List<(string, DateTime?)>();
 
+	private long _downloadStamp;
+
 	public LivePrismGameSignals(string prismDataDir, string gameDir)
 	{
-		_instanceDir = Path.Combine(prismDataDir ?? "", "instances", PrismCommand.InstanceId);
+		_dataDir = prismDataDir ?? "";
+		_instanceDir = Path.Combine(_dataDir, "instances", PrismCommand.InstanceId);
 		_gameDir = gameDir ?? "";
 		foreach (string path in PrismGameSignals.LatestLogs(prismDataDir, gameDir))
 		{
@@ -210,7 +298,7 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			{
 				return null;
 			}
-			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'", "Name", "CommandLine", "ProcessId", "ParentProcessId");
+			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe' OR Name='prismlauncher.exe'", "Name", "CommandLine", "ProcessId", "ParentProcessId");
 			if (found == null)
 			{
 				return null;
@@ -218,7 +306,10 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			List<GameProcessRow> rows = new List<GameProcessRow>();
 			foreach (Dictionary<string, object?> item in found)
 			{
-				rows.Add(new GameProcessRow(WmiQuery.Text(item, "Name"), WmiQuery.Text(item, "CommandLine"), ToPid(WmiQuery.Number(item, "ProcessId")), ToPid(WmiQuery.Number(item, "ParentProcessId"))));
+				string name = WmiQuery.Text(item, "Name");
+				int pid = ToPid(WmiQuery.Number(item, "ProcessId"));
+				string directory = PrismGameSignals.IsJavaProcess(name) ? ProcessWorkingDirectory.TryRead(pid) : "";
+				rows.Add(new GameProcessRow(name, WmiQuery.Text(item, "CommandLine"), pid, ToPid(WmiQuery.Number(item, "ParentProcessId")), directory));
 			}
 			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId, _gameDir);
 		}
@@ -239,6 +330,70 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			}
 		}
 		return false;
+	}
+
+	public bool LauncherAlreadyRunning()
+	{
+		try
+		{
+			if (!OperatingSystem.IsWindows())
+			{
+				return false;
+			}
+			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId FROM Win32_Process WHERE Name='prismlauncher.exe'", "ProcessId");
+			return found != null && found.Count > 0;
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("prism already " + ex.GetType().Name);
+			return false;
+		}
+	}
+
+	public bool DownloadMoving()
+	{
+		long stamp = DownloadStamp(_dataDir, _instanceDir, _gameDir);
+		bool moved = _downloadStamp > 0 && stamp > _downloadStamp;
+		if (stamp > _downloadStamp)
+		{
+			_downloadStamp = stamp;
+		}
+		return moved;
+	}
+
+	private static long DownloadStamp(string dataDir, string instanceDir, string gameDir)
+	{
+		long max = 0;
+		void Note(string path)
+		{
+			try
+			{
+				if (File.Exists(path))
+				{
+					max = Math.Max(max, File.GetLastWriteTimeUtc(path).Ticks);
+				}
+				else if (Directory.Exists(path))
+				{
+					max = Math.Max(max, Directory.GetLastWriteTimeUtc(path).Ticks);
+				}
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+			}
+		}
+		Note(Path.Combine(dataDir, "logs"));
+		Note(Path.Combine(dataDir, "logs", "PrismLauncher-0.log"));
+		Note(Path.Combine(dataDir, "assets"));
+		Note(Path.Combine(dataDir, "libraries"));
+		Note(Path.Combine(dataDir, "meta"));
+		Note(Path.Combine(dataDir, "cache"));
+		Note(Path.Combine(instanceDir, "minecraft", "assets"));
+		Note(Path.Combine(instanceDir, "minecraft", "libraries"));
+		Note(Path.Combine(instanceDir, "minecraft", "logs", "latest.log"));
+		Note(Path.Combine(gameDir, "assets"));
+		Note(Path.Combine(gameDir, "libraries"));
+		Note(Path.Combine(gameDir, "logs", "latest.log"));
+		return max;
 	}
 
 	private static int ToPid(long value)

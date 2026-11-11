@@ -17,6 +17,10 @@ public static class PrismPlay
 
 	public static Action<int?>? GameProcessObserved { get; set; }
 
+	public static Action<string>? StatusObserved { get; set; }
+
+	public static Action<string> PlayFailed { get; set; } = ReportPlayFailure;
+
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		try
@@ -97,22 +101,48 @@ public static class PrismPlay
 		{
 			return prepared;
 		}
-		Task<int> run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
-		Stopwatch open = Stopwatch.StartNew();
-		while (!run.IsCompleted)
+		IPrismWork work = signals as IPrismWork;
+		bool hold = work != null && work.LauncherAlreadyRunning();
+		Task<int> run = null;
+		if (!hold)
 		{
+			run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
+		}
+		else
+		{
+			LauncherLog.Write("prism already running");
+		}
+		Stopwatch idle = Stopwatch.StartNew();
+		bool announced = false;
+		while (run == null || !run.IsCompleted)
+		{
+			if (hold && work != null && !work.LauncherAlreadyRunning())
+			{
+				break;
+			}
 			if (SeenGame(signals, process, out int? gamePid))
 			{
 				LauncherLog.Write("prism open minecraft started");
 				NotePid(gamePid);
 				NoteGame();
-				Observe(run);
+				if (run != null)
+				{
+					Observe(run);
+				}
 				return Started(prepared);
 			}
-			if (open.Elapsed >= openBudget)
+			if (work != null && work.DownloadMoving())
+			{
+				idle.Restart();
+			}
+			if (idle.Elapsed >= openBudget)
 			{
 				LauncherLog.Write("prism open without minecraft");
-				Observe(run);
+				NoteFailure(PrismMessages.NotDetected);
+				if (run != null)
+				{
+					Observe(run);
+				}
 				return new PrismPreparation
 				{
 					CanStart = false,
@@ -121,7 +151,12 @@ public static class PrismPlay
 					Arguments = prepared.Arguments
 				};
 			}
-			TimeSpan slice = openBudget - open.Elapsed;
+			if (!announced)
+			{
+				announced = true;
+				NoteStatus(PrismMessages.Starting);
+			}
+			TimeSpan slice = openBudget - idle.Elapsed;
 			if (slice > TimeSpan.FromMilliseconds(500))
 			{
 				slice = TimeSpan.FromMilliseconds(500);
@@ -130,7 +165,31 @@ public static class PrismPlay
 			{
 				continue;
 			}
-			await Task.WhenAny(run, Task.Delay(slice, cancellationToken)).ConfigureAwait(continueOnCapturedContext: false);
+			if (run == null)
+			{
+				await Task.Delay(slice, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+			}
+			else
+			{
+				await Task.WhenAny(run, Task.Delay(slice, cancellationToken)).ConfigureAwait(continueOnCapturedContext: false);
+			}
+		}
+		if (run == null)
+		{
+			if (!await GameStartedAsync(signals, openBudget > probeBudget ? openBudget : probeBudget, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
+			{
+				LauncherLog.Write("prism closed without minecraft");
+				NoteFailure(PrismMessages.ClosedWithoutGame);
+				return new PrismPreparation
+				{
+					CanStart = false,
+					Message = PrismMessages.ClosedWithoutGame,
+					Executable = prepared.Executable,
+					Arguments = prepared.Arguments
+				};
+			}
+			LauncherLog.Write("prism closed minecraft started");
+			return Started(prepared);
 		}
 		if (await run.ConfigureAwait(continueOnCapturedContext: false) != 0)
 		{
@@ -142,9 +201,11 @@ public static class PrismPlay
 				Arguments = prepared.Arguments
 			};
 		}
-		if (!await GameStartedAsync(signals, probeBudget, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
+		TimeSpan handoff = openBudget > probeBudget ? openBudget : probeBudget;
+		if (!await GameStartedAsync(signals, handoff, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
 		{
 			LauncherLog.Write("prism closed without minecraft");
+			NoteFailure(PrismMessages.ClosedWithoutGame);
 			return new PrismPreparation
 			{
 				CanStart = false,
@@ -169,6 +230,42 @@ public static class PrismPlay
 		}
 	}
 
+	private static void NoteStatus(string text)
+	{
+		try
+		{
+			StatusObserved?.Invoke(text);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play status " + ex.GetType().Name);
+		}
+	}
+
+	private static void NoteFailure(string message)
+	{
+		try
+		{
+			PlayFailed?.Invoke(message);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play report " + ex.GetType().Name);
+		}
+	}
+
+	private static void ReportPlayFailure(string message)
+	{
+		try
+		{
+			CrashReportService.Queue("play", message, null);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play report " + ex.GetType().Name);
+		}
+	}
+
 	private static void NotePid(int? pid)
 	{
 		try
@@ -187,16 +284,9 @@ public static class PrismPlay
 		if (signals is IGameProcessLookup lookup)
 		{
 			gamePid = lookup.TryGameProcessId(TrackedPid(process));
-			if (gamePid != null)
-			{
-				return true;
-			}
+			return gamePid != null;
 		}
-		else if (signals.MinecraftProcessRunning())
-		{
-			return true;
-		}
-		return signals.LogFreshenedSinceLaunch();
+		return signals.MinecraftProcessRunning();
 	}
 
 	private static int? TrackedPid(IPrismProcess process)
@@ -229,6 +319,7 @@ public static class PrismPlay
 	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken, IPrismProcess process = null)
 	{
 		Stopwatch watch = Stopwatch.StartNew();
+		bool announced = false;
 		while (true)
 		{
 			if (SeenGame(signals, process, out int? gamePid))
@@ -240,6 +331,11 @@ public static class PrismPlay
 			if (watch.Elapsed >= budget)
 			{
 				return false;
+			}
+			if (!announced)
+			{
+				announced = true;
+				NoteStatus(PrismMessages.Starting);
 			}
 			TimeSpan remaining = budget - watch.Elapsed;
 			TimeSpan slice = TimeSpan.FromMilliseconds(500);

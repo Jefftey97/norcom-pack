@@ -31,6 +31,7 @@ public sealed class PackSyncService
 		}
 		meter.SetPhase("Reading pack", 0.02, 0.05);
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
+		bool packSynced = HasSyncRecord(gameDir, managedPath);
 		await PinHeal.RunAsync(_http, gameDir, doc, packUrl, async _ =>
 		{
 		meter.SetPhase("Repair: resyncing the pack", 0.08, 0.8);
@@ -119,7 +120,73 @@ public sealed class PackSyncService
 		meter.SetPhase("Pack ready", 0.92, 0.0);
 		LauncherLog.Write("Pack sync complete files=" + managed.Count);
 		meter.HandOff();
-		}, ct).ConfigureAwait(continueOnCapturedContext: false);
+		}, ct, packSynced).ConfigureAwait(continueOnCapturedContext: false);
+		RequireMods(gameDir, managedPath);
+	}
+
+	// A pin stamp written by the pin poll is not a pack sync. The sync record is the managed manifest, and only after every mod jar is on disk.
+	public static bool HasSyncRecord(string gameDir, string managedPath)
+	{
+		if (string.IsNullOrWhiteSpace(PinGate.ReadAppliedPin(gameDir)) || string.IsNullOrWhiteSpace(managedPath) || !File.Exists(managedPath))
+		{
+			return false;
+		}
+		return MissingMods(gameDir, managedPath).Count == 0;
+	}
+
+	public static void RequireMods(string gameDir, string managedPath)
+	{
+		List<string> missing = MissingMods(gameDir, managedPath);
+		if (missing.Count == 0)
+		{
+			return;
+		}
+		throw new PinMismatchException("The friends pack is missing " + string.Join(", ", missing) + ", so Minecraft was not started.");
+	}
+
+	public static List<string> MissingMods(string gameDir, string managedPath)
+	{
+		List<string> missing = new List<string>();
+		if (string.IsNullOrWhiteSpace(managedPath) || !File.Exists(managedPath))
+		{
+			missing.Add("the pack sync record");
+			return missing;
+		}
+		List<ManagedEntry>? entries;
+		try
+		{
+			entries = JsonSerializer.Deserialize<List<ManagedEntry>>(File.ReadAllText(managedPath));
+		}
+		catch (JsonException)
+		{
+			missing.Add("the pack sync record");
+			return missing;
+		}
+		if (entries == null)
+		{
+			missing.Add("the pack sync record");
+			return missing;
+		}
+		foreach (ManagedEntry entry in entries)
+		{
+			string rel = (entry.RelativePath ?? "").Replace('\\', '/');
+			if (entry.Preserve || !rel.StartsWith("mods/", StringComparison.OrdinalIgnoreCase) || !rel.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			try
+			{
+				if (!File.Exists(ConfinedPath(gameDir, rel)))
+				{
+					missing.Add(Path.GetFileName(rel));
+				}
+			}
+			catch (InvalidDataException)
+			{
+				missing.Add(Path.GetFileName(rel));
+			}
+		}
+		return missing;
 	}
 
 	private async Task<ManagedEntry?> InstallMetaAsync(string gameDir, string cacheDir, string root, string rel, string hash, string fmt, bool preserve, TransferMeter meter, CancellationToken ct)
@@ -331,11 +398,26 @@ public sealed class PackSyncService
 		return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 	}
 
+	private async Task<bool> MatchesOnDiskAsync(string baseDir, string dest, string hash, string format, CancellationToken ct)
+	{
+		if (!File.Exists(dest))
+		{
+			return false;
+		}
+		RejectReparseEscape(baseDir, dest, createMissingParents: false);
+		return Hashing.EqualsHex(await Hashing.FileHexAsync(dest, format, ct).ConfigureAwait(continueOnCapturedContext: false), hash);
+	}
+
 	private async Task DownloadVerifiedAsync(string baseDir, string url, string dest, string hash, string format, string mismatchMessage, TransferMeter meter, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(hash))
 		{
 			throw new InvalidDataException("Pack file has no hash.");
+		}
+		if (await MatchesOnDiskAsync(baseDir, dest, hash, format, ct).ConfigureAwait(continueOnCapturedContext: false))
+		{
+			LauncherLog.Write("pack skip " + Path.GetFileName(dest));
+			return;
 		}
 		string temp = dest + "." + Guid.NewGuid().ToString("n") + ".norcom-partial";
 		bool placed = false;

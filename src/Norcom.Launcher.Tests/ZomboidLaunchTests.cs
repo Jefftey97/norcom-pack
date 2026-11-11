@@ -10,6 +10,35 @@ namespace Norcom.Launcher.Tests;
 public class ZomboidLaunchTests
 {
 	[Fact]
+	public void ConnectLinkStartsSteamApplaunchWithTheConnectArguments()
+	{
+		const string steam = @"C:\Program Files (x86)\Steam";
+		string exe = Path.Combine(steam, "steam.exe");
+		bool ok = SteamAppLaunch.TryBuild("steam://rungameid/108600//+connect%2069.9.178.16:27758", new[] { steam }, path => path == exe, out string steamExe, out IReadOnlyList<string> args);
+		Assert.True(ok);
+		Assert.Equal(exe, steamExe);
+		Assert.Equal(new[] { "-applaunch", "108600", "+connect", "69.9.178.16:27758" }, args);
+	}
+
+	[Fact]
+	public void ConnectLinkKeepsPasswordAndHeapArguments()
+	{
+		const string steam = @"C:\Steam";
+		bool ok = SteamAppLaunch.TryBuild("steam://rungameid/108600//+connect%20play.example.com:16261%20+password%20pw%20-Xmx4096m", new[] { steam }, _ => true, out _, out IReadOnlyList<string> args);
+		Assert.True(ok);
+		Assert.Equal(new[] { "-applaunch", "108600", "+connect", "play.example.com:16261", "+password", "pw", "-Xmx4096m" }, args);
+	}
+
+	[Fact]
+	public void PlainLinksAndMissingSteamKeepTheSteamProtocol()
+	{
+		Assert.False(SteamAppLaunch.TryBuild("steam://rungameid/108600", new[] { @"C:\Steam" }, _ => true, out _, out _));
+		Assert.False(SteamAppLaunch.TryBuild("steam://open/main", new[] { @"C:\Steam" }, _ => true, out _, out _));
+		Assert.False(SteamAppLaunch.TryBuild("steam://rungameid/108600//+connect%20h:1", new[] { @"C:\Steam" }, _ => false, out _, out _));
+		Assert.False(SteamAppLaunch.TryBuild("steam://rungameid/10x600//+connect%20h:1", new[] { @"C:\Steam" }, _ => true, out _, out _));
+		Assert.False(SteamAppLaunch.TryBuild("steam://rungameid/108600//+connect%20h:1", Array.Empty<string>(), _ => true, out _, out _));
+	}
+	[Fact]
 	public void MissingSteamIsAClearMessage()
 	{
 		ZomboidLaunchPlan plan = ZomboidLaunch.Prepare(Sources(Array.Empty<string>(), new Dictionary<string, string>(), new HashSet<string>()), NewDir(), NewDir(), "");

@@ -7,12 +7,8 @@
   <StackPanel x:Name="TexturePanel" Visibility="Collapsed">
    <TextBlock Text="TEXTURE PACK" Style="{StaticResource Eyebrow}"/>
    <WrapPanel Margin="0,0,0,8">
-    <Button Content="Patrix" Command="{Binding ChooseTexturePackCommand}" CommandParameter="Patrix" Margin="0,0,10,10" AutomationProperties.Name="Choose Patrix">
-     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding ActiveTexturePack}" Value="Patrix"><Setter Property="Background" Value="{StaticResource BlueBrush}"/><Setter Property="Foreground" Value="{StaticResource InputOnAccentBrush}"/><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger></Style.Triggers></Style></Button.Style>
-    </Button>
-    <Button Content="Alacrity" Command="{Binding ChooseTexturePackCommand}" CommandParameter="Alacrity" Margin="0,0,10,10" AutomationProperties.Name="Choose Alacrity">
-     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding ActiveTexturePack}" Value="Alacrity"><Setter Property="Background" Value="{StaticResource BlueBrush}"/><Setter Property="Foreground" Value="{StaticResource InputOnAccentBrush}"/><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger></Style.Triggers></Style></Button.Style>
-    </Button>
+    <Button x:Name="PatrixPackButton" Content="Patrix" Command="{Binding ChooseTexturePackCommand}" CommandParameter="Patrix" Margin="0,0,10,10" AutomationProperties.Name="Choose Patrix"/>
+    <Button x:Name="AlacrityPackButton" Content="Alacrity" Command="{Binding ChooseTexturePackCommand}" CommandParameter="Alacrity" Margin="0,0,10,10" AutomationProperties.Name="Choose Alacrity"/>
    </WrapPanel>
    <TextBlock Text="{Binding TextureChoiceLabel}" Margin="0,0,0,4"/>
    <TextBlock Text="{Binding TextureHint}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>

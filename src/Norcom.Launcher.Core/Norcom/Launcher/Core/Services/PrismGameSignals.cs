@@ -17,7 +17,7 @@ public interface IGameProcessLookup
 	int? TryGameProcessId(int? prismProcessId);
 }
 
-public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid);
+public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid, string WorkingDirectory = "");
 
 public static class PrismGameSignals
 {
@@ -63,6 +63,29 @@ public static class PrismGameSignals
 			|| commandLine.Contains("nogui", StringComparison.OrdinalIgnoreCase)
 			|| commandLine.Contains("net.minecraft.server.Main", StringComparison.Ordinal)
 			|| commandLine.Contains("server.jar", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsPrismLauncher(string? processName)
+	{
+		string file = Path.GetFileName(processName ?? "");
+		return file.Equals("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) || file.Equals("prismlauncher", StringComparison.OrdinalIgnoreCase);
+	}
+
+	public static bool IsServerLocation(string? text)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+		string value = text.Replace('/', '\\');
+		return value.Contains("\\NORCOM\\Server", StringComparison.OrdinalIgnoreCase)
+			|| value.Contains("\\MinecraftServer", StringComparison.OrdinalIgnoreCase)
+			|| IsMinecraftServerCommand(text);
+	}
+
+	public static bool IsServerJava(string? processName, string? commandLine, string? workingDirectory = null)
+	{
+		return IsJavaProcess(processName) && (IsServerLocation(commandLine) || IsServerLocation(workingDirectory));
 	}
 
 	public static bool IsZomboidClient(string? processName, string? commandLine)
@@ -126,23 +149,51 @@ public static class PrismGameSignals
 		{
 			return null;
 		}
+		HashSet<int> prismPids = new HashSet<int>();
+		if (prismPid is int passed && passed > 0)
+		{
+			prismPids.Add(passed);
+		}
+		foreach (GameProcessRow row in rows)
+		{
+			if (row.Pid > 0 && IsPrismLauncher(row.Name))
+			{
+				prismPids.Add(row.Pid);
+			}
+		}
+		int? handedOff = null;
 		int? hinted = null;
 		foreach (GameProcessRow row in rows)
 		{
-			if (row.Pid <= 0 || !CommandLineIsGame(row.Name, row.CommandLine, instanceHint, gameDir))
+			if (row.Pid <= 0 || !IsJavaProcess(row.Name) || IsServerJava(row.Name, row.CommandLine, row.WorkingDirectory))
 			{
 				continue;
 			}
-			if (prismPid is int parent && parent > 0 && row.ParentPid == parent)
+			bool atInstance = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
+			bool clientLine = CommandLineIsGame(row.Name, row.CommandLine, instanceHint, gameDir);
+			if (prismPid is int parent && parent > 0 && row.ParentPid == parent && (clientLine || atInstance))
 			{
 				return row.Pid;
 			}
-			if (hinted == null)
+			if (prismPids.Contains(row.ParentPid) && atInstance && handedOff == null)
+			{
+				handedOff = row.Pid;
+			}
+			if (clientLine && hinted == null)
 			{
 				hinted = row.Pid;
 			}
 		}
-		return hinted;
+		return handedOff ?? hinted;
+	}
+
+	private static bool PointsAtInstance(string? text, string? instanceHint, string? gameDir)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+		return ContainsPath(text, instanceHint) || ContainsPath(text, gameDir);
 	}
 
 	private static bool ContainsPath(string commandLine, string? path)
@@ -210,7 +261,7 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			{
 				return null;
 			}
-			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe'", "Name", "CommandLine", "ProcessId", "ParentProcessId");
+			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId, ParentProcessId, Name, CommandLine FROM Win32_Process WHERE Name='javaw.exe' OR Name='java.exe' OR Name='prismlauncher.exe'", "Name", "CommandLine", "ProcessId", "ParentProcessId");
 			if (found == null)
 			{
 				return null;
@@ -218,7 +269,10 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			List<GameProcessRow> rows = new List<GameProcessRow>();
 			foreach (Dictionary<string, object?> item in found)
 			{
-				rows.Add(new GameProcessRow(WmiQuery.Text(item, "Name"), WmiQuery.Text(item, "CommandLine"), ToPid(WmiQuery.Number(item, "ProcessId")), ToPid(WmiQuery.Number(item, "ParentProcessId"))));
+				string name = WmiQuery.Text(item, "Name");
+				int pid = ToPid(WmiQuery.Number(item, "ProcessId"));
+				string directory = PrismGameSignals.IsJavaProcess(name) ? ProcessWorkingDirectory.TryRead(pid) : "";
+				rows.Add(new GameProcessRow(name, WmiQuery.Text(item, "CommandLine"), pid, ToPid(WmiQuery.Number(item, "ParentProcessId")), directory));
 			}
 			return PrismGameSignals.SelectGamePid(rows, _instanceDir, prismProcessId, _gameDir);
 		}

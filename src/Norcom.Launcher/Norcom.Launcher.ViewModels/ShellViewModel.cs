@@ -204,6 +204,9 @@ public class ShellViewModel : ObservableObject
 	private RelayCommand? openPrismDownloadCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
+	private RelayCommand<string>? chooseTexturePackCommand;
+
+	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	private AsyncRelayCommand? signInBrowserCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
@@ -952,6 +955,10 @@ public class ShellViewModel : ObservableObject
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	[ExcludeFromCodeCoverage]
+	public IRelayCommand<string> ChooseTexturePackCommand => chooseTexturePackCommand ?? (chooseTexturePackCommand = new RelayCommand<string>(ChooseTexturePack));
+
+	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
+	[ExcludeFromCodeCoverage]
 	public IRelayCommand ApplyAutoCommand
 	{
 		get
@@ -1652,7 +1659,7 @@ public class ShellViewModel : ObservableObject
 		{
 			GameRunning = true;
 		}
-		if (string.Equals(ProgressLabel, "Opening Prism", StringComparison.Ordinal) || string.Equals(ProgressLabel, "Prism closed", StringComparison.Ordinal))
+		if (string.Equals(ProgressLabel, "Opening Prism", StringComparison.Ordinal) || string.Equals(ProgressLabel, "Prism closed", StringComparison.Ordinal) || string.Equals(ProgressLabel, PrismMessages.Starting, StringComparison.Ordinal))
 		{
 			ProgressLabel = "Playing";
 		}
@@ -2437,12 +2444,21 @@ public class ShellViewModel : ObservableObject
 
 		public void ArmWatch()
 		{
-			_shell._gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20);
+			_shell._gameWatchUntilUtc = DateTime.UtcNow.Add(PrismPlay.OpenBudget);
 		}
 
 		public void AttachObservers()
 		{
 			PrismPlay.GameObserved = _shell.ClearPackReady;
+			PrismPlay.StatusObserved = delegate(string text)
+			{
+				_shell.OnUi(delegate
+				{
+					_shell.StatusLine = text;
+					_shell.AccountStatus = text;
+					_shell.ProgressLabel = text;
+				});
+			};
 			PrismPlay.GameProcessObserved = delegate(int? pid)
 			{
 				if (pid is int id && id > 0)
@@ -2458,6 +2474,7 @@ public class ShellViewModel : ObservableObject
 		public void DetachObservers()
 		{
 			PrismPlay.GameObserved = null;
+			PrismPlay.StatusObserved = null;
 			PrismPlay.GameProcessObserved = null;
 		}
 

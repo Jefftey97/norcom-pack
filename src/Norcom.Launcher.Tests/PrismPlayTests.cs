@@ -63,6 +63,90 @@ public class PrismPlayTests
 	public void ProbeWaitsFifteenSeconds()
 	{
 		Assert.Equal(TimeSpan.FromSeconds(15), PrismPlay.ProbeBudget);
+		Assert.Equal(TimeSpan.FromSeconds(90), PrismPlay.OpenBudget);
+	}
+
+	[Fact]
+	public async Task AlreadyRunningPrismHandoffCountsThatPrismsClient()
+	{
+		int? seen = null;
+		List<string> failures = new List<string>();
+		Action<string> previous = PrismPlay.PlayFailed;
+		PrismPlay.GameProcessObserved = pid => seen = pid;
+		PrismPlay.PlayFailed = message => failures.Add(message);
+		try
+		{
+			Assert.Equal(40252, PrismGameSignals.SelectGamePid(HandoffRows(), InstanceHint, 99999, GameDirHint));
+			PrismPreparation result = await PrismPlay.RunAsync(Ready(), new TrackedExit(0) { ProcessId = 99999 }, CancellationToken.None, new RowSignals(HandoffRows()), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+			Assert.True(result.CanStart);
+			Assert.Equal(PrismMessages.Closed, result.Message);
+			Assert.Equal(40252, seen);
+			Assert.Empty(failures);
+		}
+		finally
+		{
+			PrismPlay.GameProcessObserved = null;
+			PrismPlay.PlayFailed = previous;
+		}
+	}
+
+	[Fact]
+	public async Task SlowJavaStartShowsStartingUntilTheClientAppears()
+	{
+		List<string> statuses = new List<string>();
+		List<string> failures = new List<string>();
+		Action<string> previous = PrismPlay.PlayFailed;
+		PrismPlay.StatusObserved = text => statuses.Add(text);
+		PrismPlay.PlayFailed = message => failures.Add(message);
+		try
+		{
+			DelayedRows signals = new DelayedRows(HandoffRows(), 2);
+			PrismPreparation result = await PrismPlay.RunAsync(Ready(), new FakeProcess(0), CancellationToken.None, signals, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+			Assert.True(result.CanStart);
+			Assert.Equal(PrismMessages.Closed, result.Message);
+			Assert.Contains(PrismMessages.Starting, statuses);
+			Assert.Empty(failures);
+			Assert.True(signals.Polls >= 3);
+		}
+		finally
+		{
+			PrismPlay.StatusObserved = null;
+			PrismPlay.PlayFailed = previous;
+		}
+	}
+
+	[Fact]
+	public async Task MissingClientAfterPrismExitsIsAFailure()
+	{
+		List<string> failures = new List<string>();
+		List<string> statuses = new List<string>();
+		Action<string> previous = PrismPlay.PlayFailed;
+		PrismPlay.PlayFailed = message => failures.Add(message);
+		PrismPlay.StatusObserved = text => statuses.Add(text);
+		try
+		{
+			PrismPreparation result = await PrismPlay.RunAsync(Ready(), new FakeProcess(0), CancellationToken.None, new RowSignals(new[] { PrismRow(), ServerRow() }), TimeSpan.FromMilliseconds(300), TimeSpan.FromMilliseconds(300));
+			Assert.False(result.CanStart);
+			Assert.Equal(PrismMessages.ClosedWithoutGame, result.Message);
+			Assert.Equal(new[] { PrismMessages.ClosedWithoutGame }, failures);
+			Assert.Contains(PrismMessages.Starting, statuses);
+		}
+		finally
+		{
+			PrismPlay.PlayFailed = previous;
+			PrismPlay.StatusObserved = null;
+		}
+	}
+
+	[Fact]
+	public void ServerJavaIsNeverTheLaunchedClient()
+	{
+		GameProcessRow server = ServerRow();
+		server = server with { ParentPid = 46764, WorkingDirectory = @"G:\NORCOM\Server" };
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { PrismRow(), server }, InstanceHint, 99999, GameDirHint));
+		Assert.Equal(40252, PrismGameSignals.SelectGamePid(HandoffRows(), InstanceHint, 99999, GameDirHint));
+		Assert.True(PrismGameSignals.IsServerJava("java.exe", @"G:\NORCOM\Server\java\java.exe", @"G:\NORCOM\Server"));
+		Assert.False(PrismGameSignals.IsServerJava("java.exe", "", GameDirHint));
 	}
 
 	[Fact]
@@ -131,6 +215,40 @@ public class PrismPlayTests
 		Assert.True(PrismGameSignals.MtimeFreshened(null, created));
 	}
 
+	private const string InstanceHint = @"C:\Prism\instances\NORCOM";
+
+	private const string GameDirHint = @"C:\Prism\instances\NORCOM\minecraft";
+
+	private static PrismPreparation Ready()
+	{
+		return new PrismPreparation
+		{
+			CanStart = true,
+			Executable = "prismlauncher.exe",
+			Message = PrismMessages.Opening
+		};
+	}
+
+	private static GameProcessRow PrismRow()
+	{
+		return new GameProcessRow("prismlauncher.exe", "prismlauncher.exe", 46764, 1000);
+	}
+
+	private static GameProcessRow ServerRow()
+	{
+		return new GameProcessRow("java.exe", @"G:\NORCOM\Server\java\jdk-25\bin\java.exe -Xmx8G -jar G:\NORCOM\Server\fabric-server-launch.jar nogui", 30920, 4, @"G:\NORCOM\Server");
+	}
+
+	private static GameProcessRow[] HandoffRows()
+	{
+		return new GameProcessRow[3]
+		{
+			PrismRow(),
+			ServerRow(),
+			new GameProcessRow("java.exe", "", 40252, 46764, GameDirHint)
+		};
+	}
+
 	private static Task<PrismPreparation> Run(int exitCode, IPrismGameSignals signals)
 	{
 		return PrismPlay.RunAsync(new PrismPreparation
@@ -193,6 +311,86 @@ public class PrismPlayTests
 		public Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
 		{
 			return _task;
+		}
+	}
+
+	private sealed class TrackedExit : ITrackedPrismProcess
+	{
+		private readonly int _code;
+
+		public TrackedExit(int code)
+		{
+			_code = code;
+		}
+
+		public int? ProcessId { get; set; }
+
+		public Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+		{
+			return Task.FromResult(_code);
+		}
+	}
+
+	private sealed class RowSignals : IPrismGameSignals, IGameProcessLookup
+	{
+		private readonly GameProcessRow[] _rows;
+
+		public RowSignals(GameProcessRow[] rows)
+		{
+			_rows = rows;
+		}
+
+		public int Polls { get; private set; }
+
+		public bool MinecraftProcessRunning()
+		{
+			return TryGameProcessId(null) != null;
+		}
+
+		public bool LogFreshenedSinceLaunch()
+		{
+			return false;
+		}
+
+		public int? TryGameProcessId(int? prismProcessId)
+		{
+			Polls++;
+			return PrismGameSignals.SelectGamePid(_rows, InstanceHint, prismProcessId, GameDirHint);
+		}
+	}
+
+	private sealed class DelayedRows : IPrismGameSignals, IGameProcessLookup
+	{
+		private readonly GameProcessRow[] _rows;
+
+		private readonly int _readyAfter;
+
+		public DelayedRows(GameProcessRow[] rows, int readyAfter)
+		{
+			_rows = rows;
+			_readyAfter = readyAfter;
+		}
+
+		public int Polls { get; private set; }
+
+		public bool MinecraftProcessRunning()
+		{
+			return false;
+		}
+
+		public bool LogFreshenedSinceLaunch()
+		{
+			return false;
+		}
+
+		public int? TryGameProcessId(int? prismProcessId)
+		{
+			Polls++;
+			if (Polls <= _readyAfter)
+			{
+				return null;
+			}
+			return PrismGameSignals.SelectGamePid(_rows, InstanceHint, prismProcessId, GameDirHint);
 		}
 	}
 

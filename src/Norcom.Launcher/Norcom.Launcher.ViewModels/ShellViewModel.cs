@@ -230,12 +230,11 @@ public class ShellViewModel : ObservableObject
 	{
 		get
 		{
-			if (QaGates.OfflineCheckRequested()) return false;
-			if (!IsBusy)
+			if (QaGates.OfflineCheckRequested() || IsBusy)
 			{
-				return !GameRunning;
+				return false;
 			}
-			return false;
+			return IsZomboid || !GameRunning;
 		}
 	}
 
@@ -1337,9 +1336,9 @@ public class ShellViewModel : ObservableObject
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
 	}
 
-	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false);
+	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false, CancellationToken.None);
 
-	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock)
+	private async Task PollLivePinCoreAsync(bool force, bool ownsPinLock, CancellationToken ct)
 	{
 		if (QaGates.OfflineCheckRequested() || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath)) return;
 		if ((IsBusy && !ownsPinLock) || BridgeRuntime.HandoffScheduled) return;
@@ -1367,7 +1366,7 @@ public class ShellViewModel : ObservableObject
 				SetPinStatus("fetching", forced ? "Fixing the live server pin" : "Checking the live server pin");
 				try
 				{
-					PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, CancellationToken.None, forced, NorcomPaths.LauncherDir).ConfigureAwait(continueOnCapturedContext: true);
+					PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(_http, NorcomPaths.GameDir, ct, forced, NorcomPaths.LauncherDir).ConfigureAwait(continueOnCapturedContext: true);
 					SetPinStatus(result.State, result.Detail);
 				}
 				catch (Exception ex)
@@ -1435,124 +1434,106 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand(CanExecute = "CanPlay")]
 	private async Task PlayAsync()
 	{
-		if (QaGates.OfflineCheckRequested()) return;
+		if (QaGates.OfflineCheckRequested())
+		{
+			StatusLine = PlayAvailability;
+			return;
+		}
 		if (string.Equals(SelectedGameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase))
 		{
 			await PlayZomboidAsync().ConfigureAwait(continueOnCapturedContext: true);
 			return;
 		}
-		if (GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		if (IsBusy || BridgeRuntime.HandoffScheduled)
 		{
-			StatusLine = "Close Minecraft and confirm its status before changing the game instance.";
+			StatusLine = PlayConductor.AlreadyStarting;
 			return;
 		}
-		if (IsBusy || BridgeRuntime.HandoffScheduled) return;
 		IsBusy = true;
 		bool ownsPinLock = false;
 		CancellationTokenSource pump = null;
 		try
 		{
-			await _pinLock.WaitAsync().ConfigureAwait(true);
+			if (!await _pinLock.WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(true))
+			{
+				ProgressLabel = "Play didn't finish";
+				StatusLine = "Another launcher task is still using the pack. Wait for it to finish, or restart NORCOM, then press Play.";
+				return;
+			}
 			ownsPinLock = true;
-		ProgressFraction = 0.02;
-		ProgressLabel = "Preparing NORCOM";
-		TransferMeter meter = new TransferMeter();
-		pump = StartPump(meter);
-			await PollLivePinCoreAsync(force: true, ownsPinLock: true).ConfigureAwait(true);
-			string java = await JavaRuntime.EnsureAsync(_http, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "java"))
+			ProgressFraction = 0.02;
+			ProgressLabel = "Preparing NORCOM";
+			TransferMeter meter = new TransferMeter();
+			pump = StartPump(meter);
+			PlayOutcome outcome = await PlayConductor.MinecraftAsync(new MinecraftPlayRequest
 			{
-				ProgressLabel = "Java 25 is ready";
-				StatusLine = "Stopped after Java. Minecraft was not started.";
-				return;
-			}
-			ProgressLabel = "Syncing the friends pack";
-			await new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			ServersDat.Ensure(NorcomPaths.GameDir, "NORCOM", "shrimp-cub.tun.ply.gg");
-			await LoadNewsAsync().ConfigureAwait(continueOnCapturedContext: true);
-			await LoadDiscordAsync().ConfigureAwait(continueOnCapturedContext: true);
-			if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "sync"))
-			{
-				ProgressLabel = "Pack ready";
-				StatusLine = "Stopped after the pack sync. Minecraft was not started.";
-				return;
-			}
-			try
-			{
-				bool applied = TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified, _settings.TexturePackPending);
-				if (_settings.TexturePackPending && applied)
+				LockPath = NorcomPaths.GameLockPath,
+				ExistingInstall = PlayInstall.HasLocalClient(NorcomPaths.GameDir),
+				PollPin = async _ =>
 				{
-					_settings.TexturePackPending = false;
-					_settings.Save(NorcomPaths.SettingsPath);
-				}
-				DistantHorizonsDefaults.EnsureFresh(NorcomPaths.GameDir, _settings.GraphicsTier);
-				OnPropertyChanged(nameof(TextureHint));
-			}
-			catch (Exception ex)
-			{
-				LauncherLog.Write("texture pack " + ex.GetType().Name);
-			}
-			try
-			{
-				string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-				if (!string.IsNullOrWhiteSpace(graphicsNote))
+					using CancellationTokenSource pin = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+					await PollLivePinCoreAsync(force: true, ownsPinLock: true, pin.Token).ConfigureAwait(true);
+				},
+				EnsureJava = async _ =>
 				{
-					LauncherLog.Write(graphicsNote);
-				}
-			}
-			catch (Exception ex)
-			{
-				LauncherLog.Write("graphics profile " + ex.GetType().Name);
-			}
-			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb, _settings.RamPending);
-			if (_settings.RamPending)
-			{
-				_settings.RamPending = false;
-				_settings.Save(NorcomPaths.SettingsPath);
-			}
-			if (!prismPreparation.CanStart || prismPreparation.Executable == null)
-			{
-				ProgressLabel = "Prism is required";
-				AccountStatus = prismPreparation.Message;
-				StatusLine = prismPreparation.Message;
-				return;
-			}
-			ProgressLabel = "Opening Prism";
-			AccountStatus = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
-			StatusLine = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
-			PrismPlay.GameObserved = ClearPackReady;
-			PrismPlay.GameProcessObserved = delegate(int? pid)
-			{
-				if (pid is int id && id > 0)
-				{
-					OnUi(delegate
+					using CancellationTokenSource java = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+					string path = await JavaRuntime.EnsureAsync(_http, meter, java.Token).ConfigureAwait(continueOnCapturedContext: true);
+					if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "java"))
 					{
-						RememberLaunchedGame(id);
-					});
-				}
-			};
-			if (LauncherSounds)
-			{
-				UiSound.Play();
-			}
-			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
-			PrismPreparation prismPreparation2 = await PrismPlay.RunAsync(prismPreparation, new PrismProcess(), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
-			_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
-			RefreshLaunchedGame();
-			ProgressFraction = 1.0;
-			if (GameRunning)
-			{
-				ProgressLabel = "Playing";
-				ProgressDetail = "";
-			}
-			else
-			{
-				ProgressLabel = (prismPreparation2.CanStart ? "Prism closed" : "Prism did not start Minecraft");
-				ProgressDetail = "";
-				AccountStatus = prismPreparation2.Message;
-				StatusLine = prismPreparation2.Message;
-			}
-			LauncherLog.Write(prismPreparation2.CanStart ? "Prism closed" : "Prism rejected");
+						throw new PlayStoppedException("Java 25 is ready", "Stopped after Java. Minecraft was not started.");
+					}
+					return path;
+				},
+				SyncPack = async _ =>
+				{
+					ProgressLabel = "Syncing the friends pack";
+					using CancellationTokenSource pack = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+					await new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, pack.Token).ConfigureAwait(continueOnCapturedContext: true);
+					ServersDat.Ensure(NorcomPaths.GameDir, "NORCOM", "shrimp-cub.tun.ply.gg");
+					await LoadNewsAsync().ConfigureAwait(continueOnCapturedContext: true);
+					await LoadDiscordAsync().ConfigureAwait(continueOnCapturedContext: true);
+					if (PlayStages.StopBeforeLaunch(NorcomPaths.DisposableProfile, Environment.GetEnvironmentVariable("NORCOM_STOP_AFTER"), "sync"))
+					{
+						throw new PlayStoppedException("Pack ready", "Stopped after the pack sync. Minecraft was not started.");
+					}
+				},
+				AfterSync = PrepareMinecraftSettings,
+				PreparePrism = java =>
+				{
+					PrismPreparation prepared = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb, _settings.RamPending);
+					if (_settings.RamPending)
+					{
+						_settings.RamPending = false;
+						_settings.Save(NorcomPaths.SettingsPath);
+					}
+					return prepared;
+				},
+				RunPrism = async (prepared, token) =>
+				{
+					ProgressLabel = "Opening Prism";
+					AccountStatus = PrismMessages.Opening;
+					StatusLine = PrismMessages.Opening;
+					PrismPlay.GameObserved = ClearPackReady;
+					PrismPlay.GameProcessObserved = delegate(int? pid)
+					{
+						if (pid is int id && id > 0)
+						{
+							OnUi(delegate
+							{
+								RememberLaunchedGame(id);
+							});
+						}
+					};
+					if (LauncherSounds)
+					{
+						UiSound.Play();
+					}
+					_gameWatchUntilUtc = DateTime.UtcNow.AddSeconds(20.0);
+					return await PrismPlay.RunAsync(prepared, new PrismProcess(), token).ConfigureAwait(continueOnCapturedContext: true);
+				},
+				ClientRunning = () => GameRunning
+			}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+			ApplyPlayOutcome(outcome);
 		}
 		catch (Exception ex)
 		{
@@ -1573,42 +1554,124 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 
+	private void PrepareMinecraftSettings()
+	{
+		try
+		{
+			bool applied = TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified, _settings.TexturePackPending);
+			if (_settings.TexturePackPending && applied)
+			{
+				_settings.TexturePackPending = false;
+				_settings.Save(NorcomPaths.SettingsPath);
+			}
+			DistantHorizonsDefaults.EnsureFresh(NorcomPaths.GameDir, _settings.GraphicsTier);
+			OnPropertyChanged(nameof(TextureHint));
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("texture pack " + ex.GetType().Name);
+		}
+		try
+		{
+			string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+			if (!string.IsNullOrWhiteSpace(graphicsNote))
+			{
+				LauncherLog.Write(graphicsNote);
+			}
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("graphics profile " + ex.GetType().Name);
+		}
+	}
+
+	private void ApplyPlayOutcome(PlayOutcome outcome)
+	{
+		ProgressFraction = outcome.Started ? 1.0 : 0.0;
+		ProgressLabel = outcome.Label;
+		ProgressDetail = "";
+		if (!string.IsNullOrWhiteSpace(outcome.Message))
+		{
+			StatusLine = outcome.Message;
+			AccountStatus = outcome.Message;
+		}
+		if (!outcome.Started && outcome.Message == PlayAdmission.AlreadyRunning)
+		{
+			GameRunning = true;
+		}
+		LauncherLog.Write(outcome.Started ? "play started" : "play blocked");
+	}
+
 	private async Task PlayZomboidAsync()
 	{
+		if (QaGates.OfflineCheckRequested())
+		{
+			StatusLine = PlayAvailability;
+			return;
+		}
 		if (IsBusy || BridgeRuntime.HandoffScheduled)
 		{
+			StatusLine = PlayConductor.AlreadyStarting;
 			return;
 		}
 		IsBusy = true;
 		try
 		{
+			if (GameSession.IsRunning(ChosenGame.Zomboid, NorcomPaths.GameLockPath))
+			{
+				ApplyPlayOutcome(PlayConductor.Zomboid(new ZomboidPlayRequest { AlreadyRunning = true }));
+				return;
+			}
 			ProgressFraction = 0.2;
 			ProgressLabel = "Checking Steam";
-			string feedJson = "";
-			try
-			{
-				feedJson = await _http.GetStringAsync(ZomboidFeed.Url).ConfigureAwait(continueOnCapturedContext: true);
-			}
-			catch (Exception ex)
-			{
-				LauncherLog.Write("zomboid feed " + ex.GetType().Name);
-			}
-			if (!string.IsNullOrWhiteSpace(feedJson))
+			string live = "";
+			using (CancellationTokenSource feed = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
 			{
 				try
 				{
-					File.WriteAllText(ZomboidFeed.CachePath(NorcomPaths.NorcomHome), feedJson);
+					live = await _http.GetStringAsync(ZomboidFeed.Url, feed.Token).ConfigureAwait(continueOnCapturedContext: true);
+				}
+				catch (Exception ex)
+				{
+					LauncherLog.Write("zomboid feed " + ex.GetType().Name);
+				}
+			}
+			string cachePath = ZomboidFeed.CachePath(NorcomPaths.NorcomHome);
+			if (!string.IsNullOrWhiteSpace(live))
+			{
+				try
+				{
+					File.WriteAllText(cachePath, live);
 				}
 				catch (Exception ex)
 				{
 					LauncherLog.Write("zomboid feed cache " + ex.GetType().Name);
 				}
 			}
+			string cached = "";
+			DateTimeOffset? cachedUtc = null;
+			try
+			{
+				if (File.Exists(cachePath))
+				{
+					cached = File.ReadAllText(cachePath);
+					cachedUtc = File.GetLastWriteTimeUtc(cachePath);
+				}
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("zomboid feed read " + ex.GetType().Name);
+			}
+			string chosen = PlayFeeds.Choose(live, cached, cachedUtc, DateTimeOffset.UtcNow, out string feedNote);
 			ProgressLabel = "Syncing Project Zomboid";
 			string localPassword = RememberZomboidPassword();
 			int zomboidRam = _settings.ZomboidRamPending ? (int)MemoryMb : 0;
-			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, zomboidRam).ConfigureAwait(continueOnCapturedContext: true);
-			if (_settings.ZomboidRamPending)
+			ZomboidLaunchPlan plan;
+			using (CancellationTokenSource prepare = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
+			{
+				plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, chosen, _http, prepare.Token, localPassword, zomboidRam).ConfigureAwait(continueOnCapturedContext: true);
+			}
+			if (plan.CanStart && _settings.ZomboidRamPending)
 			{
 				_settings.ZomboidRamPending = false;
 				_settings.Save(NorcomPaths.SettingsPath);
@@ -1618,18 +1681,12 @@ public class ShellViewModel : ObservableObject
 			{
 				LauncherLog.Write(plan.GraphicsNote);
 			}
-			if (!plan.CanStart)
+			ApplyPlayOutcome(PlayConductor.Zomboid(new ZomboidPlayRequest
 			{
-				ProgressFraction = 0.0;
-				ProgressLabel = plan.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) ? SteamLibrary.NotFound : "Project Zomboid was not started";
-				StatusLine = plan.Message;
-				return;
-			}
-			ProgressLabel = "Opening Steam";
-			StatusLine = plan.Message;
-			SteamStart.Open(plan.Url);
-			ProgressFraction = 1.0;
-			LauncherLog.Write(plan.IncludesPassword ? "zomboid steam connect" : "zomboid steam launch");
+				Plan = plan,
+				Open = SteamStart.Open,
+				FeedNote = feedNote
+			}));
 		}
 		catch (Exception ex)
 		{
@@ -1643,6 +1700,7 @@ public class ShellViewModel : ObservableObject
 			IsBusy = BridgeRuntime.HandoffScheduled;
 			OnPropertyChanged(nameof(PlayAvailability));
 			OnPropertyChanged(nameof(GamePickerDetail));
+			((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		}
 	}
 
@@ -1672,6 +1730,7 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(PlayLabel));
 		OnPropertyChanged(nameof(PlayAvailability));
 		OnPropertyChanged(nameof(GamePickerDetail));
+		((IRelayCommand)PlayCommand).NotifyCanExecuteChanged();
 		ShowGameMemory();
 	}
 

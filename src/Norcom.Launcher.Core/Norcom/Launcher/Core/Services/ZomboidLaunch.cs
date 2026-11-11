@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -163,10 +164,90 @@ public static class SteamStart
 
 	private static void DefaultOpen(string url)
 	{
+		if (SteamAppLaunch.TryBuild(url, SteamRegistry.InstallPaths(), File.Exists, out string steamExe, out IReadOnlyList<string> arguments))
+		{
+			ProcessStartInfo info = new ProcessStartInfo(steamExe)
+			{
+				UseShellExecute = false
+			};
+			for (int i = 0; i < arguments.Count; i++)
+			{
+				info.ArgumentList.Add(arguments[i]);
+			}
+			Process.Start(info);
+			return;
+		}
 		Process.Start(new ProcessStartInfo(url)
 		{
 			UseShellExecute = true
 		});
+	}
+}
+
+/// <summary>
+/// Current Steam clients can drop the arguments after "//" in a steam://rungameid link, so the game opens
+/// to its main menu without +connect. When a run link carries arguments, start steam.exe -applaunch instead,
+/// which hands the arguments to the game. Links without arguments keep using the steam:// protocol.
+/// </summary>
+public static class SteamAppLaunch
+{
+	private const string Prefix = "steam://rungameid/";
+
+	public static bool TryBuild(string url, IReadOnlyList<string> steamRoots, Func<string, bool> fileExists, out string steamExe, out IReadOnlyList<string> arguments)
+	{
+		steamExe = "";
+		arguments = Array.Empty<string>();
+		if (string.IsNullOrEmpty(url) || !url.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) || steamRoots == null || fileExists == null)
+		{
+			return false;
+		}
+		string rest = url.Substring(Prefix.Length);
+		int split = rest.IndexOf("//", StringComparison.Ordinal);
+		if (split <= 0)
+		{
+			return false;
+		}
+		string appId = rest.Substring(0, split);
+		for (int i = 0; i < appId.Length; i++)
+		{
+			if (appId[i] < '0' || appId[i] > '9')
+			{
+				return false;
+			}
+		}
+		string tail = Uri.UnescapeDataString(rest.Substring(split + 2)).Trim().TrimEnd('/');
+		string[] parts = tail.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length == 0)
+		{
+			return false;
+		}
+		for (int i = 0; i < steamRoots.Count; i++)
+		{
+			if (string.IsNullOrWhiteSpace(steamRoots[i]))
+			{
+				continue;
+			}
+			string candidate = Path.Combine(steamRoots[i].Trim().Replace('/', '\\'), "steam.exe");
+			bool exists;
+			try
+			{
+				exists = fileExists(candidate);
+			}
+			catch (Exception)
+			{
+				exists = false;
+			}
+			if (!exists)
+			{
+				continue;
+			}
+			List<string> list = new List<string> { "-applaunch", appId };
+			list.AddRange(parts);
+			steamExe = candidate;
+			arguments = list;
+			return true;
+		}
+		return false;
 	}
 }
 

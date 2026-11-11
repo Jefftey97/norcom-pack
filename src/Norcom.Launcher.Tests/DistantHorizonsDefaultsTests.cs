@@ -7,10 +7,12 @@ namespace Norcom.Launcher.Tests;
 public class DistantHorizonsDefaultsTests
 {
 	[Fact]
-	public void FreshInstallWritesMountainDefaultsAndLeavesAnEditedFileAlone()
+	public void PlayDoesNotCreateDistantHorizonsUntilAPresetIsClicked()
 	{
 		string dir = NewDir();
-		Assert.True(DistantHorizonsDefaults.EnsureFresh(dir, GraphicsTier.High));
+		Assert.False(DistantHorizonsDefaults.EnsureFresh(dir, GraphicsTier.High));
+		Assert.False(File.Exists(Path.Combine(dir, "config", "DistantHorizons.toml")));
+		DistantHorizonsDefaults.ApplyPreset(dir, GraphicsTier.High);
 		string created = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
 		Assert.Contains("enableTexturedLods = true", created);
 		Assert.Contains("maxTexturedLodDetailLevel = 4", created);

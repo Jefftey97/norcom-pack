@@ -9,13 +9,9 @@ public static class DistantHorizonsDefaults
 {
 	public static bool EnsureFresh(string gameDir, GraphicsTier tier)
 	{
-		string path = Path.Combine(gameDir, "config", "DistantHorizons.toml");
-		if (File.Exists(path))
-		{
-			return false;
-		}
-		Write(path, tier);
-		return true;
+		_ = gameDir;
+		_ = tier;
+		return false;
 	}
 
 	public static void ApplyPreset(string gameDir, GraphicsTier tier)

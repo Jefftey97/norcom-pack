@@ -45,7 +45,7 @@ public static class PrismInstance
 			["JavaPath"] = value,
 			["AutomaticJava"] = "false"
 		};
-		if (applyMemory || !File.Exists(path))
+		if (applyMemory)
 		{
 			dictionary["OverrideMemory"] = "true";
 			dictionary["MinMemAlloc"] = heapText;

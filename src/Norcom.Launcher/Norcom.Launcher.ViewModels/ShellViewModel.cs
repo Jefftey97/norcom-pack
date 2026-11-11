@@ -1264,7 +1264,7 @@ public class ShellViewModel : ObservableObject
 
     internal ShellViewModel(IGameProcessLookup gameLookup, Func<HttpClient,string,TransferMeter,CancellationToken,Task> ensureVisualAssets=null)
 	{
-        _ensureVisualAssets=ensureVisualAssets??KnownVisualAssets.EnsureAsync;
+        _ensureVisualAssets=ensureVisualAssets??((_, _, _, _) => Task.CompletedTask);
         _gameLookup=gameLookup??new LivePrismGameSignals(PrismCommand.DefaultDataDir(NorcomPaths.AppData),NorcomPaths.GameDir);
 		_http.DefaultRequestHeaders.UserAgent.ParseAdd(NorcomVersion.UserAgent);
 		_settings = LauncherSettings.Load(NorcomPaths.SettingsPath);
@@ -1564,7 +1564,6 @@ public class ShellViewModel : ObservableObject
 				_settings.TexturePackPending = false;
 				_settings.Save(NorcomPaths.SettingsPath);
 			}
-			DistantHorizonsDefaults.EnsureFresh(NorcomPaths.GameDir, _settings.GraphicsTier);
 			OnPropertyChanged(nameof(TextureHint));
 		}
 		catch (Exception ex)
@@ -2040,16 +2039,9 @@ public class ShellViewModel : ObservableObject
 			ownsPinLock = true;
 		TransferMeter meter = new TransferMeter();
 		pump = StartPump(meter);
-			GraphicsTier tier = _settings.GraphicsTier;
-			if (_settings.GraphicsAuto)
-			{
-				PcHardware pcHardware = new WmiPcProbe().TryRead();
-				tier = (((object)pcHardware == null) ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware));
-				_settings.GraphicsTier = tier;
-				_settings.Save(NorcomPaths.SettingsPath);
-			}
 			await _ensureVisualAssets(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
+			GraphicsTier tier = _settings.GraphicsTier;
 			SelectedTier = tier;
 			ProgressFraction = 1.0;
 			ProgressLabel = "Visuals repaired";

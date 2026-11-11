@@ -35,12 +35,8 @@ public static class GraphicsPlay
 		{
 			tier = GraphicsAuto.Choose(hardware);
 		}
-		bool healed = HealIfDrifted(gameDir);
-		WriteTierNote(gameDir, tier, seen3070);
-		if (!healed)
-		{
-			LauncherLog.Write("play graphics kept custom settings");
-		}
+		_ = HealIfDrifted(gameDir);
+		LauncherLog.Write("play graphics kept custom settings");
 		return tier;
 	}
 
@@ -48,20 +44,6 @@ public static class GraphicsPlay
 	{
 		_ = gameDir;
 		return false;
-	}
-
-	private static void WriteTierNote(string gameDir, GraphicsTier tier, bool seen3070)
-	{
-		string text = "tier=" + tier + "\nappliedUtc=" + DateTimeOffset.UtcNow.ToString("o") + "\n";
-		if (seen3070)
-		{
-			text += "sticky=3070\n";
-		}
-		string notePath = Path.Combine(gameDir, "norcom-graphics-tier.txt");
-		File.WriteAllText(notePath, text);
-		string config = Path.Combine(gameDir, "config");
-		Directory.CreateDirectory(config);
-		File.WriteAllText(Path.Combine(config, "norcom-tier.txt"), text);
 	}
 
 }

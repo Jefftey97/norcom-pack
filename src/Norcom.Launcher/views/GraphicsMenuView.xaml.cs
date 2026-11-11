@@ -115,7 +115,9 @@ public partial class GraphicsMenuView : UserControl
 		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, _gameId, _specs);
 		_recommendation = recommended;
 		_profile = saved;
-		RecommendationText.Text = _profile.Auto ? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason : "Using your " + _profile.Preset + " override. Recommendation was " + _recommendation.Preset + ". " + _recommendation.Reason;
+		RecommendationText.Text = string.IsNullOrEmpty(_profile.Preset)
+			? "Recommended: " + _recommendation.Preset + ". " + _recommendation.Reason + " It is not applied until you click it."
+			: "Using your " + _profile.Preset + " choice. Recommendation is " + _recommendation.Preset + ". " + _recommendation.Reason;
 	}
 
 	private void BuildPresets()
@@ -127,7 +129,7 @@ public partial class GraphicsMenuView : UserControl
 			string preset = game.Presets[i];
 			Button button = new Button
 			{
-				Content = preset,
+				Content = string.Equals(preset, _recommendation.Preset, StringComparison.OrdinalIgnoreCase) ? preset + " · recommended" : preset,
 				Margin = new Thickness(0, 0, 10, 10),
 				Tag = preset
 			};

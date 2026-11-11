@@ -23,6 +23,8 @@ public class ExistingInstallSweepTests
 		File.WriteAllText(Path.Combine(dir, "config", "DistantHorizons.toml"), "# player\nlodChunkRenderDistanceRadius = 48\n");
 		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), "profile=CUSTOM\nRP_MODE=2\n");
 		File.WriteAllText(Path.Combine(dir, "resourcepacks", "norcom_marble.zip"), "marble-bytes");
+		Directory.CreateDirectory(Path.Combine(dir, "resourcepacks", "norcom-held"));
+		File.WriteAllText(Path.Combine(dir, "resourcepacks", "norcom-held", "Alacrity.zip"), "held-alacrity");
 		Dictionary<string, byte[]> before = Snapshot(dir);
 		GraphicsPlay.Probe = () => null;
 		string? previousPack = Environment.GetEnvironmentVariable("NORCOM_PACK_URL");
@@ -49,7 +51,8 @@ public class ExistingInstallSweepTests
 			Assert.Equal(before[key], after[key]);
 		}
 		Assert.Equal("marble-bytes", File.ReadAllText(Path.Combine(dir, "resourcepacks", "norcom_marble.zip")));
-		Assert.False(Directory.Exists(Path.Combine(dir, "resourcepacks", "norcom-held")));
+		Assert.Equal("held-alacrity", File.ReadAllText(Path.Combine(dir, "resourcepacks", "norcom-held", "Alacrity.zip")));
+		Assert.False(File.Exists(Path.Combine(dir, "resourcepacks", "Alacrity.zip")));
 		string cfg = Path.Combine(dir, "instance.cfg");
 		File.WriteAllText(cfg, "[General]\nMinMemAlloc=3072\nMaxMemAlloc=3072\n");
 		PrismInstance.WriteConfig(cfg, "java", 8192, applyMemory: false);
@@ -57,6 +60,58 @@ public class ExistingInstallSweepTests
 		Assert.Contains("MinMemAlloc=3072", kept, StringComparison.Ordinal);
 		Assert.Contains("MaxMemAlloc=3072", kept, StringComparison.Ordinal);
 		Assert.DoesNotContain("8192", kept, StringComparison.Ordinal);
+		string freshCfg = Path.Combine(dir, "fresh-instance.cfg");
+		PrismInstance.WriteConfig(freshCfg, "java", 8192, applyMemory: false);
+		string created = File.ReadAllText(freshCfg);
+		Assert.DoesNotContain("MinMemAlloc", created, StringComparison.Ordinal);
+		Assert.DoesNotContain("MaxMemAlloc", created, StringComparison.Ordinal);
+		Assert.DoesNotContain("OverrideMemory", created, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public async Task FreshInstallPlayResyncUpdateAndFirstRunCreateNoSettingsFiles()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "resourcepacks", "norcom-held"));
+		File.WriteAllText(Path.Combine(dir, "resourcepacks", "norcom-held", "Patrix_26.3_32x_basic.zip"), "held");
+		GraphicsPlay.Probe = () => null;
+		string? previousPack = Environment.GetEnvironmentVariable("NORCOM_PACK_URL");
+		Environment.SetEnvironmentVariable("NORCOM_PACK_URL", "https://pack.example/pack.toml");
+		try
+		{
+			Play(dir, "");
+			await Resync(dir);
+			await UpdateFeed(dir);
+			Play(dir, TexturePackChoice.Alacrity);
+		}
+		finally
+		{
+			GraphicsPlay.Probe = null;
+			Environment.SetEnvironmentVariable("NORCOM_PACK_URL", previousPack);
+		}
+		string[] absent =
+		{
+			"options.txt",
+			"config/iris.properties",
+			"config/sodium-options.json",
+			"config/DistantHorizons.toml",
+			"config/norcom-tier.txt",
+			"norcom-graphics-tier.txt",
+			"shaderpacks/ComplementaryUnbound_r5.9.3.txt",
+			"resourcepacks/Alacrity.zip",
+			"resourcepacks/Patrix_26.3_32x_basic.zip",
+			"resourcepacks/norcom_marble.zip"
+		};
+		for (int i = 0; i < absent.Length; i++)
+		{
+			Assert.False(File.Exists(Path.Combine(dir, absent[i].Replace('/', Path.DirectorySeparatorChar))));
+		}
+		Assert.Equal("held", File.ReadAllText(Path.Combine(dir, "resourcepacks", "norcom-held", "Patrix_26.3_32x_basic.zip")));
+		string cfg = Path.Combine(dir, "instance.cfg");
+		PrismInstance.WriteConfig(cfg, "java", 6144, applyMemory: false);
+		string text = File.ReadAllText(cfg);
+		Assert.DoesNotContain("MaxMemAlloc", text, StringComparison.Ordinal);
+		Assert.DoesNotContain("MinMemAlloc", text, StringComparison.Ordinal);
 	}
 
 	[Fact]

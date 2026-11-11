@@ -56,7 +56,7 @@ public class GraphicsMenuTests
 	}
 
 	[Fact]
-	public void FirstRunSavesTheRecommendedPresetAndKeepsAManualChoice()
+	public void FirstRunShowsTheRecommendationWithoutWritingIt()
 	{
 		MachineSpecs lab = new MachineSpecs
 		{
@@ -71,16 +71,15 @@ public class GraphicsMenuTests
 		string home = NewDir();
 		(SavedGraphicsProfile minecraft, PresetChoice recommended) = GraphicsProfileStore.Resolve(home, "minecraft", lab);
 		Assert.Equal("Medium-High", recommended.Preset);
-		Assert.Equal("Medium-High", minecraft.Preset);
-		Assert.True(minecraft.Auto);
-		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("minecraft").Preset);
-		GraphicsProfileStore stale = GraphicsProfileStore.Load(home);
-		stale.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = true, Reason = "old" });
-		stale.Save(home);
+		Assert.Equal("", minecraft.Preset);
+		Assert.False(File.Exists(GraphicsProfileStore.FilePath(home)));
+		GraphicsProfileStore chosen = new GraphicsProfileStore();
+		chosen.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = true, Reason = "clicked" });
+		chosen.Save(home);
 		(SavedGraphicsProfile zomboid, _) = GraphicsProfileStore.Resolve(home, "zomboid", lab);
-		Assert.Equal("Medium-High", zomboid.Preset);
+		Assert.Equal("Low", zomboid.Preset);
 		Assert.True(zomboid.Auto);
-		Assert.Equal("Medium-High", GraphicsProfileStore.Load(home).Find("zomboid").Preset);
+		Assert.Equal("Low", GraphicsProfileStore.Load(home).Find("zomboid").Preset);
 		GraphicsProfileStore manual = GraphicsProfileStore.Load(home);
 		manual.Put("zomboid", new SavedGraphicsProfile { Preset = "Low", Auto = false, Reason = "chosen" });
 		manual.Save(home);

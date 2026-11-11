@@ -58,19 +58,12 @@ public static class TexturePackChoice
 
 	public static bool PrepareForLaunch(string gameDir, string? savedChoice, bool saved, bool pendingApply)
 	{
-		string choice = saved ? Normalize(savedChoice) : Detect(ReadEnabled(gameDir));
-		BringFilesToTop(gameDir, choice);
-		if (!File.Exists(Path.Combine(gameDir, "options.txt")))
+		if (!pendingApply)
 		{
-			ApplyListIfDifferent(gameDir, choice);
-			return true;
+			return false;
 		}
-		if (pendingApply)
-		{
-			ApplyListIfDifferent(gameDir, choice);
-			return true;
-		}
-		return false;
+		string choice = saved ? Normalize(savedChoice) : Alacrity;
+		return ApplyPicker(gameDir, choice);
 	}
 
 	public static bool ApplyPicker(string gameDir, string choice)

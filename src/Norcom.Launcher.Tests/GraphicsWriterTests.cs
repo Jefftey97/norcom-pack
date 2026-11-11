@@ -447,7 +447,7 @@ public class GraphicsWriterTests
 		Assert.Equal("renderDistance:9\nresourcePacks:[\"vanilla\",\"file/Alacrity.zip\",\"file/Patrix_26.3_32x_basic.zip\"]\n", File.ReadAllText(Path.Combine(dir, "options.txt")));
 		Assert.Equal("keep-alacrity", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
 		Assert.Equal(shader, File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
-		Assert.Contains("sticky=3070", File.ReadAllText(Path.Combine(dir, "norcom-graphics-tier.txt")));
+		Assert.False(File.Exists(Path.Combine(dir, "norcom-graphics-tier.txt")));
 	}
 
 	[Fact]

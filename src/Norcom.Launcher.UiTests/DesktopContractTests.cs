@@ -1,5 +1,4 @@
 using System.IO;
-using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -15,7 +14,6 @@ public class DesktopContractTests
     {
         OnSta(()=>
         {
-            var app=new Norcom.Launcher.App();app.InitializeComponent();
             var settingsPath=Norcom.Launcher.Core.NorcomPaths.SettingsPath;
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
             File.WriteAllText(settingsPath,"""{"RamMb":5632,"LauncherSounds":true,"ReduceMotion":true,"AnimationsPausedWhilePlaying":false,"custom":{"keep":true}}""");
@@ -74,7 +72,7 @@ public class DesktopContractTests
             scaled.Measure(new Size(1180,800));scaled.Arrange(new Rect(0,0,1180,800));Pump();
             Assert.InRange(scaled.ActualWidth,100,600);
             VerifyProgressCompletion();
-            window.Close();app.Shutdown();
+            window.Close();
         });
     }
     private static void VerifyProgressCompletion()
@@ -126,10 +124,5 @@ public class DesktopContractTests
         public int? TryGameProcessId(int? parent)=>Pid;
     }
     private static void Pump()=>Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ContextIdle);
-    private static void OnSta(Action action)
-    {
-        Exception? error=null;var thread=new Thread(()=>{try{action();}catch(Exception ex){error=ex;}finally{Dispatcher.CurrentDispatcher.InvokeShutdown();}});
-        thread.SetApartmentState(ApartmentState.STA);thread.Start();Assert.True(thread.Join(TimeSpan.FromSeconds(30)),"STA UI check timed out");
-        if(error!=null)ExceptionDispatchInfo.Capture(error).Throw();
-    }
+    private static void OnSta(Action action)=>UiTestHost.Run(action);
 }

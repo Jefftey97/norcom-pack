@@ -31,6 +31,8 @@ public class ChoiceAndDialogTests
 		Assert.Contains("WindowStartupLocation.CenterOwner", dialogs, StringComparison.Ordinal);
 		Assert.Contains("dialog.Owner = owner", dialogs, StringComparison.Ordinal);
 		Assert.Contains("owner.Closing", dialogs, StringComparison.Ordinal);
+		Assert.Contains("EnableWindow(handle, true)", dialogs, StringComparison.Ordinal);
+		Assert.Contains("dialog.Decline()", dialogs, StringComparison.Ordinal);
 		string shell = File.ReadAllText(Repo("src", "Norcom.Launcher", "views", "ShellWindow.xaml.cs"));
 		Assert.Contains("DismissOwned", shell, StringComparison.Ordinal);
 		string views = Repo("src", "Norcom.Launcher", "views");

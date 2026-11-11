@@ -12,22 +12,28 @@ public class PinFetchTests
 	private const string Published = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
 
 	[Fact]
-	public void SourceOrderIsContentsThenLiveCommitThenJsDelivrThenBustedRaw()
+	public void SourceOrderIsContentsThenRawThenJsDelivrThenBakedCommit()
 	{
 		PinFetch.ResetForTests();
 		IReadOnlyList<PinSource> sources = PinFetch.Sources("norcom-mod-pin.json", PinFetch.KnownTip, "42");
 		Assert.Equal(4, sources.Count);
 		Assert.Equal("contents-api", sources[0].Kind);
 		Assert.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json?ref=main", sources[0].Url);
-		Assert.Equal("commit-ref", sources[1].Kind);
-		Assert.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json", sources[1].Url);
-		Assert.Equal("bd13a9ce9c6fcc7bdf3cd1945e83c3884df65056", PinFetch.KnownTip);
+		Assert.Equal("raw-busted", sources[1].Kind);
+		Assert.Contains("?t=42", sources[1].Url);
 		Assert.Equal("jsdelivr", sources[2].Kind);
 		Assert.Contains("cdn.jsdelivr.net/gh/Jefftey97/norcom-pack@main/meta/norcom-mod-pin.json", sources[2].Url);
-		Assert.Equal("raw-busted", sources[3].Kind);
-		Assert.Contains("?t=42", sources[3].Url);
+		Assert.Equal("commit-ref", sources[3].Kind);
+		Assert.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json", sources[3].Url);
+		Assert.Equal("e8b586664e6d9cfd0e2d49bd338c0b02ae797739", PinFetch.KnownTip);
 		Assert.DoesNotContain(sources, source => source.Url == PinFetch.BareRawMain("norcom-mod-pin.json"));
-		Assert.DoesNotContain(sources, source => source.Url.Contains("/0e94a8e6ceac5c52b683b3e51c48e4f2a170f641/"));
+		Assert.DoesNotContain(sources, source => source.Url.Contains("/bd13a9ce9c6fcc7bdf3cd1945e83c3884df65056/"));
+		string live = new string('a', 40);
+		IReadOnlyList<PinSource> tipped = PinFetch.Sources("norcom-mod-pin.json", live, "7");
+		Assert.Equal("commit-ref", tipped[1].Kind);
+		Assert.Contains("/" + live + "/meta/norcom-mod-pin.json", tipped[1].Url);
+		Assert.Equal("raw-busted", tipped[2].Kind);
+		Assert.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json", tipped[4].Url);
 	}
 
 	[Fact]
@@ -53,7 +59,7 @@ public class PinFetchTests
 	}
 
 	[Fact]
-	public async Task FixFallsThroughJsDelivrThenContentsAndStillSkipsBareRaw()
+	public async Task FixFallsThroughRawThenJsDelivrAndStillSkipsBareRaw()
 	{
 		PinFetch.ResetForTests();
 		List<string> urls = new List<string>();
@@ -64,10 +70,11 @@ public class PinFetchTests
 		Assert.Equal("correct", result.State);
 		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
 		int api = urls.FindIndex(url => url.Contains("api.github.com/repos/Jefftey97/norcom-pack/contents/meta/norcom-mod-pin.json"));
-		int commit = urls.FindIndex(url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
+		int raw = urls.FindIndex(url => url.Contains("/main/meta/norcom-mod-pin.json?t="));
 		int js = urls.FindIndex(url => url.Contains("cdn.jsdelivr.net/gh/Jefftey97/norcom-pack@main/meta/norcom-mod-pin.json"));
-		Assert.True(api >= 0 && commit > api && js > commit);
-		Assert.DoesNotContain(urls, url => url.Contains("/main/meta/norcom-mod-pin.json?t="));
+		int commit = urls.FindIndex(url => url.Contains("/" + PinFetch.KnownTip + "/meta/norcom-mod-pin.json"));
+		Assert.True(api >= 0 && raw > api && js > raw);
+		Assert.True(commit < 0);
 		Assert.DoesNotContain(urls, url => url == PinFetch.BareRawMain("norcom-mod-pin.json"));
 	}
 

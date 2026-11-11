@@ -8,9 +8,9 @@ namespace Norcom.Launcher.Tests;
 
 public class PinSyncHealTests
 {
-	private const string LivePin = "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48";
+	private const string LivePin = "d3e28ef8030f985e6cac28981ed96a2d170baf300f50f52de87fa6020da61e63";
 
-	private const string LiveMarble = "3566420dd6cfc2a104c4b7b17bfeebedb20551d2f32b1502fe03748ca9728c48";
+	private const string LiveMarble = "f99e1504c866d6f9a88565fce1f00043242e59333d69032b7e17842fedd4df50";
 
 	private const string JarUrl = "https://pins.test/mods/norcom-marble-1.0.0.jar";
 

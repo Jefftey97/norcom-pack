@@ -32,6 +32,7 @@ public sealed class PackSyncService
 		meter.SetPhase("Reading pack", 0.02, 0.05);
 		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
 		bool packSynced = HasSyncRecord(gameDir, managedPath);
+		bool instancePresent = PrismInstance.HasNorcomInstance(PrismCommand.DefaultDataDir(NorcomPaths.AppData));
 		await PinHeal.RunAsync(_http, gameDir, doc, packUrl, async _ =>
 		{
 		meter.SetPhase("Repair: resyncing the pack", 0.08, 0.8);
@@ -99,7 +100,9 @@ public sealed class PackSyncService
 			}
 			rel = null;
 		}
-		string quarantineDir = Path.Combine(Path.GetDirectoryName(managedPath) ?? gameDir, "recovery", "pack-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+		string home = Path.GetDirectoryName(managedPath) ?? gameDir;
+		PackUpgrade.RetireSaved(Path.Combine(home, "Launcher"), gameDir, managed.Select(entry => entry.RelativePath).ToList(), PinGate.PublishedJarNames);
+		string quarantineDir = Path.Combine(home, "recovery", "pack-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
 		if (File.Exists(managedPath))
 		{
 			QuarantinePrevious(gameDir, quarantineDir, managedPath, managed);
@@ -120,7 +123,7 @@ public sealed class PackSyncService
 		meter.SetPhase("Pack ready", 0.92, 0.0);
 		LauncherLog.Write("Pack sync complete files=" + managed.Count);
 		meter.HandOff();
-		}, ct, packSynced).ConfigureAwait(continueOnCapturedContext: false);
+		}, ct, packSynced, instancePresent).ConfigureAwait(continueOnCapturedContext: false);
 		RequireMods(gameDir, managedPath);
 	}
 

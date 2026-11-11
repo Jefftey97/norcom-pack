@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-
-using Norcom.Launcher.Core.Games.Minecraft;
-using Norcom.Launcher.Core.Games.Zomboid;
+using Norcom.Launcher.Core.Games;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -56,15 +54,42 @@ public static class GameGraphicsCatalog
 {
 	public const long Gib = 1073741824L;
 
-	public static IReadOnlyList<GameDefinition> Games { get; } = new GameDefinition[2] { MinecraftGraphics.Definition, ZomboidGraphics.Definition };
+	private static readonly List<GameDefinition> Registered = new List<GameDefinition>();
+
+	public static IReadOnlyList<GameDefinition> Games
+	{
+		get
+		{
+			GameHost.Ensure();
+			return Registered;
+		}
+	}
+
+	public static void Register(GameDefinition definition)
+	{
+		if (definition == null || string.IsNullOrWhiteSpace(definition.Id))
+		{
+			return;
+		}
+		for (int i = 0; i < Registered.Count; i++)
+		{
+			if (string.Equals(Registered[i].Id, definition.Id, StringComparison.OrdinalIgnoreCase))
+			{
+				Registered[i] = definition;
+				return;
+			}
+		}
+		Registered.Add(definition);
+	}
 
 	public static GameDefinition Require(string id)
 	{
-		for (int i = 0; i < Games.Count; i++)
+		GameHost.Ensure();
+		for (int i = 0; i < Registered.Count; i++)
 		{
-			if (string.Equals(Games[i].Id, id, StringComparison.OrdinalIgnoreCase))
+			if (string.Equals(Registered[i].Id, id, StringComparison.OrdinalIgnoreCase))
 			{
-				return Games[i];
+				return Registered[i];
 			}
 		}
 		throw new InvalidOperationException("Unknown game profile: " + id);

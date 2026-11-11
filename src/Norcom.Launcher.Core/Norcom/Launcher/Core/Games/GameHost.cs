@@ -29,6 +29,8 @@ public static class GameHost
 		Games[Zomboid.Id] = Zomboid;
 		Sessions[Minecraft.Id] = MinecraftRunGate.Running;
 		Sessions[Zomboid.Id] = ZomboidSession.Running;
+		GameGraphicsCatalog.Register(Minecraft.Board.Definition);
+		GameGraphicsCatalog.Register(Zomboid.Board.Definition);
 	}
 
 	public static IGame Require(string id)

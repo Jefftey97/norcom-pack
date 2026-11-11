@@ -15,7 +15,7 @@ public static class PrismPlay
 
 	public static Action<int?>? GameProcessObserved { get; set; }
 
-	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb)
+	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		try
 		{
@@ -65,7 +65,7 @@ public static class PrismPlay
 		{
 			LauncherLog.Write("play heap " + ex.GetType().Name);
 		}
-		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap);
+		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap, applyMemory);
 		FriendsEndpoint endpoint = FriendsServer.Resolve();
 		IReadOnlyList<string> arguments = PrismCommand.Build(endpoint.Host, endpoint.Port);
 		return new PrismPreparation

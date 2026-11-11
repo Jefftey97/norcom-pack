@@ -196,7 +196,7 @@ public partial class GraphicsMenuView : UserControl
 		}
 		if (setting.Kind == "choice")
 		{
-			ComboBox combo = new ComboBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Left, Tag = setting.Key };
+			ComboBox combo = new ComboBox { MinWidth = 160, MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left, Tag = setting.Key };
 			for (int i = 0; i < setting.Choices.Length; i++)
 			{
 				combo.Items.Add(setting.Choices[i]);

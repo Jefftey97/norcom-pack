@@ -11,7 +11,7 @@ public static class PrismInstance
 {
 	public const string MarkerName = "norcom-managed.txt";
 
-	public static void Ensure(string dataDir, string gameDir, string javaPath, int ramMb)
+	public static void Ensure(string dataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		string text = Path.Combine(dataDir, "instances", "NORCOM");
 		if (Overlaps(text, gameDir))
@@ -25,12 +25,12 @@ public static class PrismInstance
 			LauncherLog.Write("prism " + PrismMessages.Claimed);
 		}
 		File.WriteAllText(Path.Combine(text, "norcom-managed.txt"), "NORCOM");
-		WriteConfig(Path.Combine(text, "instance.cfg"), javaPath, ramMb);
+		WriteConfig(Path.Combine(text, "instance.cfg"), javaPath, ramMb, applyMemory);
 		WritePack(Path.Combine(text, "mmc-pack.json"));
 		EnsureGameLink(Path.Combine(text, "minecraft"), gameDir);
 	}
 
-	public static void WriteConfig(string path, string javaPath, int ramMb)
+	public static void WriteConfig(string path, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		string value = javaPath.Replace('\\', '/');
 		int heap = Math.Max(512, ramMb);
@@ -42,11 +42,14 @@ public static class PrismInstance
 			["name"] = "NORCOM",
 			["OverrideJavaLocation"] = "true",
 			["JavaPath"] = value,
-			["AutomaticJava"] = "false",
-			["OverrideMemory"] = "true",
-			["MinMemAlloc"] = heapText,
-			["MaxMemAlloc"] = heapText
+			["AutomaticJava"] = "false"
 		};
+		if (applyMemory || !File.Exists(path))
+		{
+			dictionary["OverrideMemory"] = "true";
+			dictionary["MinMemAlloc"] = heapText;
+			dictionary["MaxMemAlloc"] = heapText;
+		}
 		List<string> list = new List<string>();
 		if (File.Exists(path))
 		{

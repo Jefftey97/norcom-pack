@@ -1504,7 +1504,12 @@ public class ShellViewModel : ObservableObject
 			{
 				LauncherLog.Write("graphics profile " + ex.GetType().Name);
 			}
-			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb);
+			PrismPreparation prismPreparation = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb, _settings.RamPending);
+			if (_settings.RamPending)
+			{
+				_settings.RamPending = false;
+				_settings.Save(NorcomPaths.SettingsPath);
+			}
 			if (!prismPreparation.CanStart || prismPreparation.Executable == null)
 			{
 				ProgressLabel = "Prism is required";
@@ -1601,7 +1606,13 @@ public class ShellViewModel : ObservableObject
 			}
 			ProgressLabel = "Syncing Project Zomboid";
 			string localPassword = RememberZomboidPassword();
-			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, (int)MemoryMb).ConfigureAwait(continueOnCapturedContext: true);
+			int zomboidRam = _settings.ZomboidRamPending ? (int)MemoryMb : 0;
+			ZomboidLaunchPlan plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, feedJson, _http, CancellationToken.None, localPassword, zomboidRam).ConfigureAwait(continueOnCapturedContext: true);
+			if (_settings.ZomboidRamPending)
+			{
+				_settings.ZomboidRamPending = false;
+				_settings.Save(NorcomPaths.SettingsPath);
+			}
 			RefreshGamePicker();
 			if (!string.IsNullOrWhiteSpace(plan.GraphicsNote))
 			{
@@ -2527,11 +2538,13 @@ public class ShellViewModel : ObservableObject
 		{
 			_settings.ZomboidRamMb = budget.ChosenMb;
 			_settings.ZomboidRamSpecified = true;
+			_settings.ZomboidRamPending = true;
 		}
 		else
 		{
 			_settings.RamMb = budget.ChosenMb;
 			_settings.RamSpecified = true;
+			_settings.RamPending = true;
 		}
 		_settings.Save(NorcomPaths.SettingsPath);
 		NotifyRam();

@@ -37,3 +37,11 @@ Those tests cover the checked-in source (Launcher on net10.0, Admin on net8.0). 
 - Cursor cloud results are Linux-only. Windows/WPF behavior is verified on the owner's PC.
 - If a credential is missing, stop and ask. No workarounds.
 - Small PRs, one goal each.
+
+## Pack and pin must agree (publish gate)
+
+Every jar the pack serves (the `mods/*.pw.toml` download and the `mods/<name>.jar` copy that launcher heal fetches by filename) must have the same sha256 as `meta/norcom-mod-pin.json`, and the pin must match the live server. If they differ, the launcher blocks Play for every friend with `pin jar drift`, and heal can't fix it. That happened on Nov 10, 2026, when marble 47fe426d was served while the pin said f99e1504.
+
+- CI: `.github/workflows/pack-pin-check.yml` runs `python3 tools/check_pack_pin.py` on every PR and push that touches `mods/`, `meta/`, `pack.toml` or `index.toml`. Do not merge on red.
+- When a server jar changes (for example a new NORCOM Marble build), update `mods/<jar>`, its `.pw.toml` (pinned raw URL and hash), `index.toml` and `pack.toml` in the same change that republishes the pin. Ship the server jar, the pin and the pack together, never one alone.
+- Before publishing a pin from Admin, or a launcher release, run this on the owner PC: `python tools/check_pack_pin.py --server-mods G:\NORCOM\Server\mods`. It must report 0 errors.

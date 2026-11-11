@@ -1,0 +1,47 @@
+name: pack-pin-check
+
+# Fails when any jar the friends pack serves (packwiz download or the mods/
+# heal copy) differs from meta/norcom-mod-pin.json. A mismatch blocks Play for
+# every friend with "pin jar drift" and the launcher heal cannot fix it.
+on:
+  pull_request:
+    paths: ["mods/**", "meta/**", "pack.toml", "index.toml", "tools/check_pack_pin.py", ".github/workflows/pack-pin-check.yml"]
+  push:
+    branches: [main]
+    paths: ["mods/**", "meta/**", "pack.toml", "index.toml", "tools/check_pack_pin.py", ".github/workflows/pack-pin-check.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Every served jar matches the published pin
+        run: python3 tools/check_pack_pin.py
+      - name: pack.toml and index.toml hashes are consistent
+        run: |
+          python3 - <<'PY'
+          import hashlib, re, sys
+          pack = open("pack.toml").read()
+          want = re.search(r'\[index\][^\[]*?hash = "([0-9a-f]+)"', pack).group(1)
+          got = hashlib.sha256(open("index.toml", "rb").read()).hexdigest()
+          idx = open("index.toml").read()
+          bad = []
+          for m in re.finditer(r'file = "([^"]+)"\nhash = "([0-9a-f]+)"', idx):
+              path, h = m.groups()
+              try:
+                  if hashlib.sha256(open(path, "rb").read()).hexdigest() != h:
+                      bad.append(path)
+              except FileNotFoundError:
+                  bad.append(path + " (missing)")
+          if got != want: bad.append("index.toml hash != pack.toml [index].hash")
+          print("\n".join(bad) or "index ok")
+          sys.exit(1 if bad else 0)
+          PY

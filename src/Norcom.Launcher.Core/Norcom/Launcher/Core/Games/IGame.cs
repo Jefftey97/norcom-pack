@@ -42,6 +42,8 @@ public interface IGame
 
 	int StoredRamMb();
 
+	RamBudget DisplayBudget(long totalBytes, long freeBytes);
+
 	void CommitRam(int megabytes, long totalBytes, long freeBytes);
 
 	void SetPassword(string password);

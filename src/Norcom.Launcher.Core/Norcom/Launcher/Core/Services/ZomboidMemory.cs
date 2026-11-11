@@ -12,6 +12,8 @@ public static class ZomboidMemory
 
 	public const string BackupName = "ProjectZomboid64.json.norcom-backup";
 
+	public const int GameDefaultMb = 3072;
+
 	public static string Apply(string userZomboidDir, string installDir, int ramMb)
 	{
 		if (ramMb < 512)
@@ -50,6 +52,58 @@ public static class ZomboidMemory
 			WriteIndented = true
 		}));
 		return dest;
+	}
+
+	public static int ReadCurrentMb(string jsonPath)
+	{
+		if (string.IsNullOrWhiteSpace(jsonPath) || !File.Exists(jsonPath))
+		{
+			return GameDefaultMb;
+		}
+		try
+		{
+			JsonObject root = Parse(File.ReadAllText(jsonPath));
+			if (root == null)
+			{
+				return GameDefaultMb;
+			}
+			int windows = ReadXmx(root["windows"] as JsonObject);
+			if (windows > 0)
+			{
+				return windows;
+			}
+			int shared = ReadXmx(root);
+			return shared > 0 ? shared : GameDefaultMb;
+		}
+		catch (Exception ex) when (ex is IOException or JsonException)
+		{
+			return GameDefaultMb;
+		}
+	}
+
+	private static int ReadXmx(JsonObject obj)
+	{
+		if (obj?["vmArgs"] is not JsonArray array)
+		{
+			return 0;
+		}
+		for (int i = 0; i < array.Count; i++)
+		{
+			if (array[i] is not JsonValue value || !value.TryGetValue<string>(out string text) || text == null)
+			{
+				continue;
+			}
+			if (!text.StartsWith("-Xmx", StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			string digits = text.Substring(4).TrimEnd('m', 'M');
+			if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int mb) && mb > 0)
+			{
+				return mb;
+			}
+		}
+		return 0;
 	}
 
 	public static string WithHeap(string url, int ramMb)

@@ -98,6 +98,22 @@ public sealed class ZomboidGame : IGame
 		return state.RamSpecified ? state.RamMb : 0;
 	}
 
+	public RamBudget DisplayBudget(long totalBytes, long freeBytes)
+	{
+		string json = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Zomboid", ZomboidMemory.FileName);
+		return DisplayBudget(totalBytes, freeBytes, json);
+	}
+
+	public RamBudget DisplayBudget(long totalBytes, long freeBytes, string jsonPath)
+	{
+		ZomboidState state = State();
+		if (state.RamSpecified)
+		{
+			return RamBudget.Create(totalBytes, freeBytes, state.RamMb);
+		}
+		return RamBudget.ForUnchangedSlider(totalBytes, freeBytes, ZomboidMemory.ReadCurrentMb(jsonPath));
+	}
+
 	public void CommitRam(int megabytes, long totalBytes, long freeBytes)
 	{
 		RamBudget budget = RamBudget.Create(totalBytes, freeBytes, megabytes);

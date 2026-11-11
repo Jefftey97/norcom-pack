@@ -286,12 +286,12 @@ public class ShellViewModel : ObservableObject
 	public string PinDetail => _pinDetail;
 
 	public string MemoryLabel => $"{(int)MemoryMb} MB";
-	private RamBudget GameBudget(int requested) => RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, requested);
-	public int RamFloorMb => GameBudget(0).FloorMb;
-	public int RamSafeMaxMb => GameBudget(0).SafeMaxMb;
-	public int RamTotalMb => GameBudget(0).TotalMb;
-	public string RamScaleCaption => GameBudget((int)MemoryMb).Caption;
-	public string RamWarning => GameBudget((int)MemoryMb).Warning;
+	private RamBudget ShownBudget() => Active.DisplayBudget(_specs.RamBytes, _specs.FreeRamBytes);
+	public int RamFloorMb => ShownBudget().FloorMb;
+	public int RamSafeMaxMb => ShownBudget().SafeMaxMb;
+	public int RamTotalMb => ShownBudget().TotalMb;
+	public string RamScaleCaption => ShownBudget().Caption;
+	public string RamWarning => ShownBudget().Warning;
 	public string SpecGpu => string.IsNullOrWhiteSpace(_specs.GpuName) ? "GPU: not detected on this PC" : "GPU: " + _specs.GpuName.Trim();
 	public string SpecVram => _specs.VramBytes > 0 ? "Video memory: " + RamBudget.FormatBytes(_specs.VramBytes) : "Video memory: not detected on this PC";
 	public string SpecRam => _specs.RamBytes > 0 ? "Memory: " + RamBudget.FormatBytes(_specs.RamBytes) + (_specs.FreeRamBytes > 0 ? " (" + RamBudget.FormatBytes(_specs.FreeRamBytes) + " free)" : "") : "Memory: not detected on this PC";
@@ -1474,9 +1474,8 @@ public class ShellViewModel : ObservableObject
 
 	private void ShowGameMemory()
 	{
-		int requested = Active.StoredRamMb();
 		_syncingRam = true;
-		MemoryMb = GameBudget(requested).ChosenMb;
+		MemoryMb = ShownBudget().ChosenMb;
 		_syncingRam = false;
 		NotifyRam();
 	}
@@ -2293,7 +2292,7 @@ public class ShellViewModel : ObservableObject
 	{
 		OnPropertyChanged("MemoryLabel");
         if(_loadingSettings || _syncingRam)return;
-		RamBudget budget = GameBudget((int)value);
+		RamBudget budget = RamBudget.Create(_specs.RamBytes, _specs.FreeRamBytes, (int)value);
 		if (budget.ChosenMb != (int)value)
 		{
 			_syncingRam = true;

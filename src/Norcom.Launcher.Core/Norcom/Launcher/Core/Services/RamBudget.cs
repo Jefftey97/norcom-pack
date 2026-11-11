@@ -61,12 +61,8 @@ public sealed class RamBudget
 		}
 		int chosen = requestedMb <= 0 ? recommend : Math.Clamp(requestedMb, floor, Math.Max(floor, safe));
 		int availableMb = availableBytes <= 0 ? 0 : (int)Math.Min(int.MaxValue, availableBytes / (1024L * 1024L));
-		string warning = availableMb > 0 && chosen > availableMb
-			? "This choice is larger than the memory free right now (" + FormatBytes(availableBytes) + " free)."
-			: "";
-		string caption = safe == 0
-			? "This PC does not have a safe amount of memory to dedicate. " + FormatMb(reserve) + " stays with the system."
-			: "Usable up to " + FormatMb(safe) + ". " + FormatMb(reserve) + " stays with the system.";
+		string warning = WarningFor(chosen, availableMb, availableBytes, safe);
+		string caption = CaptionFor(totalMb, safe, reserve);
 		return new RamBudget
 		{
 			Known = true,
@@ -80,6 +76,60 @@ public sealed class RamBudget
 			Warning = warning,
 			Caption = caption
 		};
+	}
+
+	public static RamBudget ForUnchangedSlider(long totalBytes, long availableBytes, int actualMb)
+	{
+		int snapped = Snap(actualMb);
+		RamBudget shape = Create(totalBytes, availableBytes, snapped <= 0 ? 1 : snapped);
+		int floor = shape.FloorMb;
+		if (snapped > 0 && snapped < floor)
+		{
+			floor = snapped;
+		}
+		int cap = Math.Max(floor, shape.SafeMaxMb);
+		int chosen = snapped <= 0 ? floor : Math.Clamp(snapped, floor, cap);
+		return new RamBudget
+		{
+			Known = shape.Known,
+			TotalMb = shape.TotalMb,
+			AvailableMb = shape.AvailableMb,
+			ReserveMb = shape.ReserveMb,
+			SafeMaxMb = shape.SafeMaxMb,
+			FloorMb = floor,
+			RecommendedMb = shape.RecommendedMb,
+			ChosenMb = chosen,
+			Warning = WarningFor(chosen, shape.AvailableMb, availableBytes, shape.SafeMaxMb),
+			Caption = shape.Caption
+		};
+	}
+
+	private static int Snap(int mb)
+	{
+		if (mb <= 0)
+		{
+			return 0;
+		}
+		int snapped = (int)(Math.Round(mb / (double)StepMb, MidpointRounding.AwayFromZero) * StepMb);
+		return Math.Max(StepMb, snapped);
+	}
+
+	private static string CaptionFor(int totalMb, int safe, int reserve)
+	{
+		if (safe == 0)
+		{
+			return "Installed memory does not leave a safe amount to dedicate. " + FormatMb(reserve) + " stays reserved for the operating system. Memory other programs are using right now does not change this.";
+		}
+		return "Installed memory is " + FormatMb(totalMb) + ". The slider can use up to " + FormatMb(safe) + ". " + FormatMb(reserve) + " stays reserved for the operating system. Memory other programs are using right now does not lower this cap.";
+	}
+
+	private static string WarningFor(int chosenMb, int availableMb, long availableBytes, int safeMb)
+	{
+		if (availableMb <= 0 || chosenMb <= availableMb)
+		{
+			return "";
+		}
+		return "Only " + FormatBytes(availableBytes) + " is free right now because other programs are using memory. That is not a permanent limit. The slider still goes up to " + FormatMb(safeMb) + " of the installed memory.";
 	}
 
 	public static string FormatMb(int mb)

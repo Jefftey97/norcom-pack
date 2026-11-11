@@ -84,6 +84,21 @@ public sealed class MinecraftGame : IGame
 		return state.RamSpecified ? state.RamMb : 0;
 	}
 
+	public RamBudget DisplayBudget(long totalBytes, long freeBytes)
+	{
+		return DisplayBudget(totalBytes, freeBytes, MinecraftRam.InstanceCfg(NorcomPaths.AppData));
+	}
+
+	public RamBudget DisplayBudget(long totalBytes, long freeBytes, string instanceCfgPath)
+	{
+		MinecraftState state = State();
+		if (state.RamSpecified)
+		{
+			return RamBudget.Create(totalBytes, freeBytes, state.RamMb);
+		}
+		return RamBudget.ForUnchangedSlider(totalBytes, freeBytes, MinecraftRam.ReadMaxMb(instanceCfgPath));
+	}
+
 	public void CommitRam(int megabytes, long totalBytes, long freeBytes)
 	{
 		RamBudget budget = RamBudget.Create(totalBytes, freeBytes, megabytes);

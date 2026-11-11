@@ -5,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using Norcom.Launcher.Core;
@@ -26,6 +27,8 @@ public partial class GraphicsMenuView : UserControl
 	private SavedGraphicsProfile _profile = new SavedGraphicsProfile();
 
 	private bool _building;
+
+	private ShellViewModel _shell;
 
 	public static readonly DependencyProperty GameIdProperty = DependencyProperty.Register(nameof(GameId), typeof(string), typeof(GraphicsMenuView), new PropertyMetadata("minecraft", OnGameIdChanged));
 
@@ -50,6 +53,7 @@ public partial class GraphicsMenuView : UserControl
 		};
 		DataContextChanged += delegate
 		{
+			WatchShell();
 			Refresh();
 		};
 	}
@@ -83,6 +87,40 @@ public partial class GraphicsMenuView : UserControl
 		BuildManual();
 		BuildMods();
 		board.RefreshFeed(BuildMods);
+		ShowTextureChoice();
+	}
+
+	private void WatchShell()
+	{
+		if (_shell != null)
+		{
+			_shell.PropertyChanged -= OnShellChanged;
+		}
+		_shell = DataContext as ShellViewModel;
+		if (_shell != null)
+		{
+			_shell.PropertyChanged += OnShellChanged;
+		}
+	}
+
+	private void OnShellChanged(object sender, PropertyChangedEventArgs args)
+	{
+		if (args.PropertyName == nameof(ShellViewModel.ActiveTexturePack) || string.IsNullOrEmpty(args.PropertyName))
+		{
+			ShowTextureChoice();
+		}
+	}
+
+	private void ShowTextureChoice()
+	{
+		if (PatrixPackButton == null || AlacrityPackButton == null)
+		{
+			return;
+		}
+		string choice = _shell?.ActiveTexturePack ?? "";
+		Style selected = TryFindResource("SelectedChoiceButton") as Style;
+		PatrixPackButton.Style = string.Equals(choice, TexturePackChoice.Patrix, StringComparison.OrdinalIgnoreCase) ? selected : null;
+		AlacrityPackButton.Style = string.Equals(choice, TexturePackChoice.Alacrity, StringComparison.OrdinalIgnoreCase) ? selected : null;
 	}
 
 	private void LoadProfile()

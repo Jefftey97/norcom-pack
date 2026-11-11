@@ -17,6 +17,10 @@ public static class PrismPlay
 
 	public static Action<int?>? GameProcessObserved { get; set; }
 
+	public static Action<string>? StatusObserved { get; set; }
+
+	public static Action<string> PlayFailed { get; set; } = ReportPlayFailure;
+
 	public static PrismPreparation Prepare(string? prismEnvironment, IEnumerable<string> prismCandidates, string prismDataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		try
@@ -99,6 +103,7 @@ public static class PrismPlay
 		}
 		Task<int> run = process.RunAsync(prepared.Executable, prepared.Arguments, cancellationToken);
 		Stopwatch open = Stopwatch.StartNew();
+		bool announced = false;
 		while (!run.IsCompleted)
 		{
 			if (SeenGame(signals, process, out int? gamePid))
@@ -112,6 +117,7 @@ public static class PrismPlay
 			if (open.Elapsed >= openBudget)
 			{
 				LauncherLog.Write("prism open without minecraft");
+				NoteFailure(PrismMessages.NotDetected);
 				Observe(run);
 				return new PrismPreparation
 				{
@@ -120,6 +126,11 @@ public static class PrismPlay
 					Executable = prepared.Executable,
 					Arguments = prepared.Arguments
 				};
+			}
+			if (!announced)
+			{
+				announced = true;
+				NoteStatus(PrismMessages.Starting);
 			}
 			TimeSpan slice = openBudget - open.Elapsed;
 			if (slice > TimeSpan.FromMilliseconds(500))
@@ -142,9 +153,11 @@ public static class PrismPlay
 				Arguments = prepared.Arguments
 			};
 		}
-		if (!await GameStartedAsync(signals, probeBudget, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
+		TimeSpan handoff = openBudget > probeBudget ? openBudget : probeBudget;
+		if (!await GameStartedAsync(signals, handoff, cancellationToken, process).ConfigureAwait(continueOnCapturedContext: false))
 		{
 			LauncherLog.Write("prism closed without minecraft");
+			NoteFailure(PrismMessages.ClosedWithoutGame);
 			return new PrismPreparation
 			{
 				CanStart = false,
@@ -166,6 +179,42 @@ public static class PrismPlay
 		catch (Exception ex)
 		{
 			LauncherLog.Write("game observed " + ex.GetType().Name);
+		}
+	}
+
+	private static void NoteStatus(string text)
+	{
+		try
+		{
+			StatusObserved?.Invoke(text);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play status " + ex.GetType().Name);
+		}
+	}
+
+	private static void NoteFailure(string message)
+	{
+		try
+		{
+			PlayFailed?.Invoke(message);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play report " + ex.GetType().Name);
+		}
+	}
+
+	private static void ReportPlayFailure(string message)
+	{
+		try
+		{
+			CrashReportService.Queue("play", message, null);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("play report " + ex.GetType().Name);
 		}
 	}
 
@@ -229,6 +278,7 @@ public static class PrismPlay
 	public static async Task<bool> GameStartedAsync(IPrismGameSignals signals, TimeSpan budget, CancellationToken cancellationToken, IPrismProcess process = null)
 	{
 		Stopwatch watch = Stopwatch.StartNew();
+		bool announced = false;
 		while (true)
 		{
 			if (SeenGame(signals, process, out int? gamePid))
@@ -240,6 +290,11 @@ public static class PrismPlay
 			if (watch.Elapsed >= budget)
 			{
 				return false;
+			}
+			if (!announced)
+			{
+				announced = true;
+				NoteStatus(PrismMessages.Starting);
 			}
 			TimeSpan remaining = budget - watch.Elapsed;
 			TimeSpan slice = TimeSpan.FromMilliseconds(500);

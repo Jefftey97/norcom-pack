@@ -11,55 +11,13 @@ public static class GameSession
 {
 	public static Func<string, bool>? Probe { get; set; }
 
-	public static bool IsRunning(string gameId, string minecraftLockPath)
+	public static bool IsRunning(string gameId, string lockPath)
 	{
 		if (Probe != null)
 		{
 			return Probe(gameId);
 		}
-		try
-		{
-			if (string.Equals(gameId, "minecraft", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(minecraftLockPath) && GameUpdateGuard.IsBlocked(minecraftLockPath))
-			{
-				return true;
-			}
-			if (!OperatingSystem.IsWindows())
-			{
-				return false;
-			}
-			if (string.Equals(gameId, "zomboid", StringComparison.OrdinalIgnoreCase))
-			{
-				System.Diagnostics.Process[] found = System.Diagnostics.Process.GetProcessesByName("ProjectZomboid64");
-				try
-				{
-					for (int i = 0; i < found.Length; i++)
-					{
-						StartupHeal.TryReadProcessCommand(found[i].Id, out string name, out string commandLine);
-						if (string.IsNullOrEmpty(name))
-						{
-							name = found[i].ProcessName;
-						}
-						if (PrismGameSignals.IsZomboidClient(name, commandLine))
-						{
-							return true;
-						}
-					}
-				}
-				finally
-				{
-					for (int i = 0; i < found.Length; i++)
-					{
-						found[i].Dispose();
-					}
-				}
-				return false;
-			}
-			return false;
-		}
-		catch (Exception)
-		{
-			return true;
-		}
+		return Games.GameHost.SessionRunning(gameId, lockPath);
 	}
 }
 
@@ -84,45 +42,11 @@ public static class GameSettingsWriter
 {
 	public static string Apply(GameDefinition game, SavedGraphicsProfile profile, string gameDir, string userProfile)
 	{
-		Dictionary<string, string> values = GameGraphicsCatalog.EffectiveValues(game, profile);
-		List<string> wrote = new List<string>();
-		if (string.Equals(game.Id, "minecraft", StringComparison.OrdinalIgnoreCase))
-		{
-			string optionsError = WriteOptions(gameDir, ValuesFor(game, values, "options"), wrote);
-			if (optionsError.Length > 0)
-			{
-				return optionsError;
-			}
-			if (ModInstalled(gameDir, "sodium"))
-			{
-				string sodiumError = WriteJson(gameDir, "config/sodium-options.json", ValuesFor(game, values, "sodium"), wrote);
-				if (sodiumError.Length > 0)
-				{
-					return sodiumError;
-				}
-			}
-			if (ModInstalled(gameDir, "iris"))
-			{
-				string irisError = WriteProperties(gameDir, "config/iris.properties", ValuesFor(game, values, "iris"), wrote);
-				if (irisError.Length > 0)
-				{
-					return irisError;
-				}
-			}
-		}
-		else if (string.Equals(game.Id, "zomboid", StringComparison.OrdinalIgnoreCase))
-		{
-			string folder = Path.Combine(userProfile, "Zomboid");
-			if (!Directory.Exists(folder))
-			{
-				return "Project Zomboid settings were not written because " + folder + " does not exist.";
-			}
-			string zomboidError = WriteProperties(folder, "options.ini", ValuesFor(game, values, "zomboid"), wrote);
-			if (zomboidError.Length > 0)
-			{
-				return zomboidError;
-			}
-		}
+		return Games.GameHost.Apply(game, profile, gameDir, userProfile);
+	}
+
+	internal static string Finish(GameDefinition game, SavedGraphicsProfile profile, List<string> wrote)
+	{
 		if (wrote.Count == 0)
 		{
 			return game.Name + " " + profile.Preset + " had no config files to update.";
@@ -130,7 +54,7 @@ public static class GameSettingsWriter
 		return game.Name + " " + profile.Preset + " applied to " + string.Join(", ", wrote) + ".";
 	}
 
-	private static Dictionary<string, string> ValuesFor(GameDefinition game, Dictionary<string, string> values, string target)
+	internal static Dictionary<string, string> ValuesFor(GameDefinition game, Dictionary<string, string> values, string target)
 	{
 		Dictionary<string, string> picked = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		for (int i = 0; i < game.Settings.Length; i++)
@@ -148,7 +72,7 @@ public static class GameSettingsWriter
 		return picked;
 	}
 
-	private static string WriteOptions(string gameDir, Dictionary<string, string> values, List<string> wrote)
+	internal static string WriteOptions(string gameDir, Dictionary<string, string> values, List<string> wrote)
 	{
 		if (values.Count == 0)
 		{
@@ -166,7 +90,7 @@ public static class GameSettingsWriter
 		return Commit(gameDir, "options.txt", updated, "options.txt", wrote);
 	}
 
-	private static string WriteProperties(string root, string relative, Dictionary<string, string> values, List<string> wrote)
+	internal static string WriteProperties(string root, string relative, Dictionary<string, string> values, List<string> wrote)
 	{
 		if (values.Count == 0)
 		{
@@ -183,7 +107,7 @@ public static class GameSettingsWriter
 		return Commit(root, relative, updated, Path.GetFileName(relative.Replace('\\', '/')), wrote);
 	}
 
-	private static string WriteJson(string root, string relative, Dictionary<string, string> values, List<string> wrote)
+	internal static string WriteJson(string root, string relative, Dictionary<string, string> values, List<string> wrote)
 	{
 		if (values.Count == 0)
 		{

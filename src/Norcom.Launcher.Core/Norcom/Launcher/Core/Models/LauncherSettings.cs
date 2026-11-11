@@ -9,9 +9,9 @@ namespace Norcom.Launcher.Core.Models;
 
 public sealed class LauncherSettings
 {
-	private static readonly string[] KnownKeys = new string[30]
+	private static readonly string[] KnownKeys = new string[32]
 	{
-		"RamMb", "ramMb", "ZomboidRamMb", "zomboidRamMb", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
+		"RamMb", "ramMb", "ZomboidRamMb", "zomboidRamMb", "TexturePack", "texturePack", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
 		"ReduceMotion", "reduceMotion", "AnimationsPausedWhilePlaying", "animationsPausedWhilePlaying", "PlayerName", "playerName", "UseLocalName", "useLocalName", "DiscordInviteUrl", "discordInviteUrl",
 		"CrashWebhookUrl", "crashWebhookUrl", "WindowW", "windowW", "WindowH", "windowH", "LastNewsPackVersion", "lastNewsPackVersion"
 	};
@@ -23,6 +23,10 @@ public sealed class LauncherSettings
 	public int ZomboidRamMb { get; set; }
 
 	public bool ZomboidRamSpecified { get; set; }
+
+	public string TexturePack { get; set; } = "";
+
+	public bool TexturePackSpecified { get; set; }
 
 
 	public GraphicsTier GraphicsTier { get; set; } = GraphicsTier.High;
@@ -76,12 +80,15 @@ public sealed class LauncherSettings
 			}
 			int? savedRam = ReadInt(jsonObject, "RamMb", "ramMb");
 			int? savedZomboidRam = ReadInt(jsonObject, "ZomboidRamMb", "zomboidRamMb");
+			string? savedTexture = ReadString(jsonObject, "TexturePack", "texturePack");
 			LauncherSettings launcherSettings = new LauncherSettings
 			{
 				RamMb = savedRam.GetValueOrDefault(8192),
 				RamSpecified = savedRam.HasValue,
 				ZomboidRamMb = savedZomboidRam.GetValueOrDefault(),
 				ZomboidRamSpecified = savedZomboidRam.HasValue,
+				TexturePack = savedTexture ?? "",
+				TexturePackSpecified = !string.IsNullOrWhiteSpace(savedTexture),
 				GraphicsTier = ReadTier(jsonObject).GetValueOrDefault(GraphicsTier.High),
 				GraphicsAuto = ReadBool(jsonObject, "GraphicsAuto", "graphicsAuto").GetValueOrDefault(),
 				LauncherSounds = ReadBool(jsonObject, "LauncherSounds", "launcherSounds").GetValueOrDefault(),
@@ -136,6 +143,10 @@ public sealed class LauncherSettings
 		if (ZomboidRamSpecified)
 		{
 			jsonObject["ZomboidRamMb"] = ZomboidRamMb;
+		}
+		if (TexturePackSpecified)
+		{
+			jsonObject["TexturePack"] = TexturePack;
 		}
 		jsonObject["GraphicsTier"] = GraphicsTier.ToString();
 		jsonObject["GraphicsAuto"] = GraphicsAuto;

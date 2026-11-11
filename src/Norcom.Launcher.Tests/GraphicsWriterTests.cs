@@ -325,8 +325,8 @@ public class GraphicsWriterTests
 		Assert.DoesNotContain("FreshAnimations", options);
 		Assert.DoesNotContain("Patrix", options);
 		Assert.Equal("keep-alacrity", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
-		Assert.False(File.Exists(Path.Combine(packs, "FreshAnimations.zip")));
-		Assert.Equal("stacked", File.ReadAllText(Path.Combine(packs, "norcom-held", "FreshAnimations.zip")));
+		Assert.Equal("stacked", File.ReadAllText(Path.Combine(packs, "FreshAnimations.zip")));
+		Assert.False(File.Exists(Path.Combine(packs, "norcom-held", "FreshAnimations.zip")));
 	}
 
 	[Theory]
@@ -420,14 +420,7 @@ public class GraphicsWriterTests
 		{
 			GraphicsPlay.Probe = null;
 		}
-		string healed = File.ReadAllText(Path.Combine(dir, "options.txt"));
-		Assert.Contains("renderDistance:9", healed);
-		Assert.Contains("maxFps:260", healed);
-		Assert.Contains("file/Patrix_26.3_32x_basic.zip", healed);
-		Assert.Contains("continuity:default", healed);
-		Assert.Contains("file/norcom_marble.zip", healed);
-		Assert.DoesNotContain("file/Alacrity.zip", healed);
-		Assert.Contains("key_key.attack:key.mouse.left", healed);
+		Assert.Equal(options, File.ReadAllText(Path.Combine(dir, "options.txt")));
 	}
 
 	[Fact]
@@ -450,15 +443,7 @@ public class GraphicsWriterTests
 		{
 			GraphicsPlay.Probe = null;
 		}
-		string options = File.ReadAllText(Path.Combine(dir, "options.txt"));
-		Assert.Contains("renderDistance:9", options);
-		string list = ReadOptions(Path.Combine(dir, "options.txt"))["resourcePacks"];
-		int alacrity = list.IndexOf("file/Alacrity.zip", StringComparison.Ordinal);
-		int candle = list.IndexOf("file/" + GraphicsPack.OverlayFile, StringComparison.Ordinal);
-		int marbleAt = list.IndexOf("file/" + GraphicsPack.MarbleFile, StringComparison.Ordinal);
-		Assert.True(alacrity >= 0 && alacrity < candle && candle < marbleAt);
-		Assert.Contains("continuity:default", list);
-		Assert.DoesNotContain("Patrix", list);
+		Assert.Equal("renderDistance:9\nresourcePacks:[\"vanilla\",\"file/Alacrity.zip\",\"file/Patrix_26.3_32x_basic.zip\"]\n", File.ReadAllText(Path.Combine(dir, "options.txt")));
 		Assert.Equal("keep-alacrity", File.ReadAllText(Path.Combine(packs, "Alacrity.zip")));
 		Assert.Equal(shader, File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
 		Assert.Contains("sticky=3070", File.ReadAllText(Path.Combine(dir, "norcom-graphics-tier.txt")));
@@ -483,11 +468,8 @@ public class GraphicsWriterTests
 		{
 			GraphicsPlay.Probe = null;
 		}
-		string shader = File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"));
-		Assert.Contains("RAIN_STYLE=1", shader);
-		Assert.DoesNotContain("RAIN_STYLE=false", shader);
-		Assert.Contains("shadowDistance=40.0", shader);
-		Assert.Contains("renderDistance:8", File.ReadAllText(Path.Combine(dir, "options.txt")));
+		Assert.Equal("profile=HIGH\nRAIN_STYLE=false\nshadowDistance=40.0\n", File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
+		Assert.Equal("renderDistance:8\nresourcePacks:" + GraphicsPack.AlacrityPacks + "\n", File.ReadAllText(Path.Combine(dir, "options.txt")));
 	}
 
 	[Fact]

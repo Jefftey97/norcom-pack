@@ -252,6 +252,9 @@ public class ShellViewModel : ObservableObject
 	public string AccountFine => IsZomboid ? "Workshop mods are subscribed in Steam." : "Prism Launcher is a separate GPL program.";
 	public string AccountAction => IsZomboid ? "Open Steam" : "Get Prism Launcher";
 	public string ClientPackDetail => IsZomboid ? "Project Zomboid files are checked when you press Play." : PinDetail;
+	public string TextureChoiceLabel => "Using " + EffectiveTexturePack + ".";
+	public string TextureHint => TexturePackChoice.Hint(NorcomPaths.GameDir, EffectiveTexturePack);
+	private string EffectiveTexturePack => _settings.TexturePackSpecified ? TexturePackChoice.Normalize(_settings.TexturePack) : TexturePackChoice.Detect(TexturePackChoice.ReadEnabled(NorcomPaths.GameDir));
 	private string _pendingZomboidPassword = "";
 	private bool _zomboidPasswordTouched;
 	public void SetPendingZomboidPassword(string password)
@@ -1476,6 +1479,15 @@ public class ShellViewModel : ObservableObject
 			}
 			try
 			{
+				TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified);
+				OnPropertyChanged(nameof(TextureHint));
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("texture pack " + ex.GetType().Name);
+			}
+			try
+			{
 				string graphicsNote = GameLaunchGraphics.ApplyBeforeLaunch("minecraft", NorcomPaths.GameDir, NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 				if (!string.IsNullOrWhiteSpace(graphicsNote))
 				{
@@ -1873,6 +1885,32 @@ public class ShellViewModel : ObservableObject
 	}
 
 	[RelayCommand]
+	private void ChooseTexturePack(string choice)
+	{
+		if (!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			StatusLine = "Close Minecraft before changing the texture pack.";
+			return;
+		}
+		choice = TexturePackChoice.Normalize(choice);
+		_settings.TexturePack = choice;
+		_settings.TexturePackSpecified = true;
+		_settings.Save(NorcomPaths.SettingsPath);
+		try
+		{
+			TexturePackChoice.BringFilesToTop(NorcomPaths.GameDir, choice);
+			TexturePackChoice.ApplyListIfDifferent(NorcomPaths.GameDir, choice);
+			StatusLine = choice + " is the texture pack.";
+		}
+		catch (Exception ex)
+		{
+			StatusLine = "The texture pack could not be changed. " + Redactor.Clean(ex.Message);
+		}
+		OnPropertyChanged(nameof(TextureChoiceLabel));
+		OnPropertyChanged(nameof(TextureHint));
+	}
+
+	[RelayCommand]
 	private void ApplyTier(GraphicsTier tier)
 	{
 		ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
@@ -1932,14 +1970,13 @@ public class ShellViewModel : ObservableObject
 				_settings.GraphicsTier = tier;
 				_settings.Save(NorcomPaths.SettingsPath);
 			}
-			string backup = _graphics.BackupAndReset(NorcomPaths.GameDir, tier);
 			await _ensureVisualAssets(_http, NorcomPaths.GameDir, meter, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			IReadOnlyList<string> readOnlyList = _graphics.ClearShaderCache(NorcomPaths.GameDir);
 			SelectedTier = tier;
 			ProgressFraction = 1.0;
 			ProgressLabel = "Visuals repaired";
 			ProgressDetail = "";
-			StatusLine = "Reset to " + GraphicsPresets.TierLabel(tier) + ". Cache entries removed: " + readOnlyList.Count + ". Backup: " + backup;
+			StatusLine = "In-game settings were left as they are. Cache entries removed: " + readOnlyList.Count + ".";
 		}
 		catch (Exception ex)
 		{

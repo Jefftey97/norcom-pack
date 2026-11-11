@@ -66,9 +66,14 @@ public partial class GraphicsMenuView : UserControl
 	private void Refresh()
 	{
 		_gameId = string.IsNullOrWhiteSpace(GameId) ? "minecraft" : GameId;
+		bool zomboid = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase);
 		if (Heading != null)
 		{
-			Heading.Text = string.Equals(_gameId, ChosenGame.Zomboid, StringComparison.OrdinalIgnoreCase) ? "Project Zomboid" : "Minecraft";
+			Heading.Text = zomboid ? "Project Zomboid" : "Minecraft";
+		}
+		if (TexturePanel != null)
+		{
+			TexturePanel.Visibility = zomboid ? Visibility.Collapsed : Visibility.Visible;
 		}
 		_specs = MachineSpecsProbe.Read();
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);

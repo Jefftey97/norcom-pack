@@ -69,11 +69,14 @@ public static class GameLaunchGraphics
 	{
 		GameDefinition game = GameGraphicsCatalog.Require(gameId);
 		(SavedGraphicsProfile saved, _) = GraphicsProfileStore.Resolve(launcherHome, gameId, MachineSpecsProbe.Read());
+		_ = saved;
+		_ = gameDir;
+		_ = userProfile;
 		if (GameSession.IsRunning(gameId, minecraftLockPath))
 		{
 			return "Skipped " + game.Name + " graphics because the game is running.";
 		}
-		return GameSettingsWriter.Apply(game, saved, gameDir, userProfile);
+		return game.Name + " settings were left as they are in the game.";
 	}
 }
 

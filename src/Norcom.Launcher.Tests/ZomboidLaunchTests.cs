@@ -81,9 +81,8 @@ public class ZomboidLaunchTests
 			Assert.DoesNotContain("+connect", plan.Url, StringComparison.Ordinal);
 			Assert.Contains("Workshop", plan.Message);
 			string ini = File.ReadAllText(Path.Combine(user, "Zomboid", "options.ini"));
-			Assert.Contains("language=EN", ini);
-			Assert.Contains("frameRate=60", ini);
-			Assert.True(File.Exists(Path.Combine(user, "Zomboid", "options.ini.norcom-backup")));
+			Assert.Equal("language=EN\nframeRate=144\n", ini);
+			Assert.False(File.Exists(Path.Combine(user, "Zomboid", "options.ini.norcom-backup")));
 			SteamStart.Open(plan.Url);
 			Assert.Equal(plan.Url, opened);
 		}

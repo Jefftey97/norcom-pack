@@ -123,19 +123,18 @@ public static class PrismGameSignals
 
 	public static bool ShouldForgetLockedProcess(string? processName, string? commandLine)
 	{
-		if (string.IsNullOrWhiteSpace(commandLine))
+		// game.lock belongs to the Minecraft client NORCOM launched. Keep it only while the pid is
+		// still a java/javaw Minecraft client. Any other program that reused the pid (a browser,
+		// a Project Zomboid client or server, a Minecraft server) releases it.
+		if (IsJavaProcess(processName))
 		{
-			return false;
+			if (string.IsNullOrWhiteSpace(commandLine))
+			{
+				return false;
+			}
+			return !(HasClientMain(commandLine) && !IsMinecraftServerCommand(commandLine));
 		}
-		if (IsZomboidClient(processName, commandLine))
-		{
-			return false;
-		}
-		if (IsJavaProcess(processName) && HasClientMain(commandLine) && !IsMinecraftServerCommand(commandLine))
-		{
-			return false;
-		}
-		return IsJavaProcess(processName) || IsZomboidServer(processName, commandLine);
+		return !string.IsNullOrWhiteSpace(processName);
 	}
 
 	public static IEnumerable<string> LatestLogs(string? prismDataDir, string? gameDir)

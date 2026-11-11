@@ -1309,7 +1309,6 @@ public class ShellViewModel : ObservableObject
 		StartupHeal.ReleaseForeignClientLock(NorcomPaths.GameLockPath);
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
-		PlayAccount.Install(this);
         _loadingSettings=false;
 	}
 
@@ -1586,6 +1585,12 @@ public class ShellViewModel : ObservableObject
 
 	public void StopLaunchedGame()
 	{
+		if (!string.Equals(Active.Id, Norcom.Launcher.Core.Games.Minecraft.MinecraftGraphics.Id, StringComparison.Ordinal))
+		{
+			// Each game stops only its own process. Stop never reaches Minecraft from another game's page.
+			StatusLine = "Close " + Active.Title + " from its own menu.";
+			return;
+		}
 		int? pid = _launchedGamePid ?? StartupHeal.ReadGamePid(NorcomPaths.GameLockPath);
 		if (!(pid is int id) || id <= 0)
 		{

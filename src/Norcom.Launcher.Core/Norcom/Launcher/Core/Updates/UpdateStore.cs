@@ -87,6 +87,21 @@ public sealed class UpdateStore
         }
         return state;
     }
+    /// <summary>
+    /// Called by Install-NORCOM.exe under the installation lock after it replaced NorcomLauncher.exe.
+    /// Records the new bootstrap so the next start does not treat the reinstall as tampering.
+    /// Returns false when there is no state yet or the hash already matches.
+    /// </summary>
+    public bool RefreshBootstrapHash()
+    {
+        Guard();
+        if(!File.Exists(StatePath))return false;
+        var state=Read();
+        var hash=FileHash(BootstrapPath);
+        if(string.Equals(state.BootstrapHash,hash,StringComparison.Ordinal))return false;
+        Save(state with{BootstrapHash=hash});
+        return true;
+    }
     public void Accept(VerifiedRelease release)
     {
         Guard();

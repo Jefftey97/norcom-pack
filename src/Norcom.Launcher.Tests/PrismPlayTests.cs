@@ -72,13 +72,24 @@ public class PrismPlayTests
 		Assert.True(signals.Polls > 4);
 		Assert.False(gate.Task.IsCompleted);
 		signals.Hold = true;
-		signals.BusyPolls = 0;
+		signals.BusyPolls = 1;
 		signals.Polls = 0;
 		CountingHang second = new CountingHang(gate.Task);
 		PrismPreparation again = await PrismPlay.RunAsync(Ready(), second, CancellationToken.None, signals, TimeSpan.FromMilliseconds(120), TimeSpan.FromMilliseconds(120));
 		Assert.Equal(0, second.Starts);
 		Assert.Equal(PrismMessages.NotDetected, again.Message);
 		Assert.False(gate.Task.IsCompleted);
+	}
+
+	[Fact]
+	public async Task OpenIdlePrismStillGetsTheLaunchArguments()
+	{
+		TaskCompletionSource<int> gate = new TaskCompletionSource<int>();
+		DownloadWork signals = new DownloadWork { Hold = true, BusyPolls = 0 };
+		CountingHang process = new CountingHang(gate.Task);
+		PrismPreparation result = await PrismPlay.RunAsync(Ready(), process, CancellationToken.None, signals, TimeSpan.FromMilliseconds(120), TimeSpan.FromMilliseconds(120));
+		Assert.Equal(1, process.Starts);
+		Assert.Equal(PrismMessages.NotDetected, result.Message);
 	}
 
 	[Fact]

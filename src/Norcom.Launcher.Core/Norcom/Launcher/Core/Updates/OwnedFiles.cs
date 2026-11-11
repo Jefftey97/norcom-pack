@@ -49,10 +49,26 @@ internal static class OwnedFiles
         if (input.Length > 65536) throw new InvalidDataException("Launcher update state exceeds its limit.");
         using var doc = JsonDocument.Parse(input);
         RejectDuplicateProperties(doc.RootElement);
+        // Tolerant shape, strict content: a field added by a newer launcher is ignored, and a field
+        // with a constructor default (added later, e.g. DeferredRetry, Recovery, CoordinatorPid) may be
+        // missing. Every other field is still required, and UpdateStore.Read validates every value,
+        // hash and signature exactly as before.
         var resolver=new DefaultJsonTypeInfoResolver();
-        resolver.Modifiers.Add(info=>{foreach(var property in info.Properties)property.IsRequired=true;});
-        var options=new JsonSerializerOptions{UnmappedMemberHandling=JsonUnmappedMemberHandling.Disallow,TypeInfoResolver=resolver};
+        resolver.Modifiers.Add(info=>{
+            if(info.Kind!=JsonTypeInfoKind.Object)return;
+            var optional=OptionalNames(info.Type);
+            foreach(var property in info.Properties)property.IsRequired=!optional.Contains(property.Name);
+        });
+        var options=new JsonSerializerOptions{UnmappedMemberHandling=JsonUnmappedMemberHandling.Skip,TypeInfoResolver=resolver};
         return doc.RootElement.Deserialize<T>(options) ?? throw new InvalidDataException("Launcher update state is empty.");
+    }
+    private static HashSet<string> OptionalNames(Type type)
+    {
+        var names=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var constructor in type.GetConstructors())
+            foreach(var parameter in constructor.GetParameters())
+                if(parameter.HasDefaultValue && parameter.Name!=null)names.Add(parameter.Name);
+        return names;
     }
     private static void RejectDuplicateProperties(JsonElement element)
     {

@@ -20,10 +20,9 @@ public class WmiProbeTests
         return n;
     }
 
-    [Fact]
+    [WindowsFact]
     public void HostRamProbeReadsRealWmi()
     {
-        Assert.True(OperatingSystem.IsWindows());
         Assert.NotNull(Type.GetType(SearcherType));
         Assert.True(HardwareProbe.TryHostRamBytes() > 0);
     }
@@ -58,7 +57,7 @@ public class WmiProbeTests
         finally { HardwareProbe.Reader = saved; }
     }
 
-    [Fact]
+    [WindowsFact]
     public void SearcherGetLookupIsUnambiguousAndReadsThisProcess()
     {
         Type searcher = Type.GetType(SearcherType)!;

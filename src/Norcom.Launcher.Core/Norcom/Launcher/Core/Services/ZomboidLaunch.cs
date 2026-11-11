@@ -20,6 +20,8 @@ public sealed class ZomboidLaunchPlan
 	public string GamePath { get; init; } = "";
 
 	public bool IncludesPassword { get; init; }
+
+	public bool Applied { get; init; }
 }
 
 public static class ZomboidLaunch
@@ -66,11 +68,13 @@ public static class ZomboidLaunch
 			note = "Zomboid graphics were not applied (" + ex.GetType().Name + ").";
 		}
 		string memoryNote = "";
+		bool applied = false;
 		if (ramMb >= 512)
 		{
 			try
 			{
 				ZomboidMemory.Apply(zomboidRoot, install.GamePath, ramMb);
+				applied = true;
 				memoryNote = "Memory for Project Zomboid is " + ramMb.ToString(System.Globalization.CultureInfo.InvariantCulture) + " MB, saved in your Zomboid folder.";
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
@@ -100,7 +104,8 @@ public static class ZomboidLaunch
 			Message = message,
 			GraphicsNote = note,
 			GamePath = install.GamePath,
-			IncludesPassword = url.Contains("+password", StringComparison.Ordinal)
+			IncludesPassword = url.Contains("+password", StringComparison.Ordinal),
+			Applied = applied
 		};
 	}
 
@@ -127,7 +132,8 @@ public static class ZomboidLaunch
 				CanStart = false,
 				Message = ex.Message,
 				GraphicsNote = plan.GraphicsNote,
-				GamePath = plan.GamePath
+				GamePath = plan.GamePath,
+				Applied = plan.Applied
 			};
 		}
 		return plan;

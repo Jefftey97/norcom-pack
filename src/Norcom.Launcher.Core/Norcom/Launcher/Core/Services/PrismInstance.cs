@@ -11,7 +11,7 @@ public static class PrismInstance
 {
 	public const string MarkerName = "norcom-managed.txt";
 
-	public static void Ensure(string dataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
+	public static bool Ensure(string dataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		string text = Path.Combine(dataDir, "instances", "NORCOM");
 		if (Overlaps(text, gameDir))
@@ -28,6 +28,7 @@ public static class PrismInstance
 		WriteConfig(Path.Combine(text, "instance.cfg"), javaPath, ramMb, applyMemory);
 		WritePack(Path.Combine(text, "mmc-pack.json"));
 		EnsureGameLink(Path.Combine(text, "minecraft"), gameDir);
+		return applyMemory;
 	}
 
 	public static void WriteConfig(string path, string javaPath, int ramMb, bool applyMemory = false)

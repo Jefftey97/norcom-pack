@@ -67,12 +67,13 @@ public static class PrismPlay
 		{
 			LauncherLog.Write("play heap " + ex.GetType().Name);
 		}
-		PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap, applyMemory);
+		bool applied = PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap, applyMemory);
 		FriendsEndpoint endpoint = FriendsServer.Resolve();
 		IReadOnlyList<string> arguments = PrismCommand.Build(endpoint.Host, endpoint.Port);
 		return new PrismPreparation
 		{
 			CanStart = true,
+			Applied = applied,
 			Message = PrismMessages.Opening,
 			Executable = text,
 			Arguments = arguments

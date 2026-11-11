@@ -13,14 +13,14 @@ public sealed class ActivationProcessTests:IDisposable
     private readonly string root=Path.Combine(Path.GetTempPath(),"norcom-activation-"+Guid.NewGuid().ToString("N"),"NORCOM","Launcher");
     private readonly ECDsa key=ECDsa.Create(ECCurve.NamedCurves.nistP256);
     public ActivationProcessTests()=>Directory.CreateDirectory(root);
-    [Fact] public async Task SingleInstanceShutdownReleasesListenerAndMutex()
+    [FixtureFact] public async Task SingleInstanceShutdownReleasesListenerAndMutex()
     {
         var fixture=Environment.GetEnvironmentVariable("LAUNCHER_TEST_FIXTURE");
         Assert.True(File.Exists(fixture));
         using var process=Process.Start(new ProcessStartInfo(fixture!,"--fixture-instance-cycle"){UseShellExecute=false,CreateNoWindow=true})!;
         await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));Assert.Equal(0,process.ExitCode);
     }
-    [Theory][InlineData("healthy",true)][InlineData("crash-before-main",false)]
+    [FixtureTheory][InlineData("healthy",true)][InlineData("crash-before-main",false)]
     [InlineData("crash-after-authorized",false)][InlineData("wrong-nonce",false)][InlineData("hang-after-authorized",false)]
     [InlineData("invalid-native-image",false)]
     public async Task NativeCandidateMustCompleteExactStartupHandshake(string mode,bool expected)
@@ -40,7 +40,7 @@ public sealed class ActivationProcessTests:IDisposable
         if(expected)await WaitUntilAsync(()=>File.Exists(Path.Combine(root,"fixture-committed.txt")),TimeSpan.FromSeconds(10));
         await AssertChildExitedAsync();
     }
-    [Theory][InlineData("prepared")][InlineData("authorized")]
+    [FixtureTheory][InlineData("prepared")][InlineData("authorized")]
     public async Task CoordinatorDeathIsRecoveredWithoutLeavingAnUnreadyProcess(string phase)
     {
         var (store,identity,fixture)=PrepareFixture("hang-after-authorized");
@@ -75,7 +75,7 @@ public sealed class ActivationProcessTests:IDisposable
             if(!coordinator.HasExited){coordinator.Kill(entireProcessTree:true);await coordinator.WaitForExitAsync();}
         }
     }
-    [Fact] public async Task LostCommitAcknowledgementNeverKillsAnAlreadyCommittedCandidate()
+    [FixtureFact] public async Task LostCommitAcknowledgementNeverKillsAnAlreadyCommittedCandidate()
     {
         var (store,identity,_)=PrepareFixture("disconnect-after-ready");using var held=store.Acquire();
         var outcome=await new ActivationCoordinator().LaunchPendingAsync(store,TimeSpan.FromSeconds(30),CancellationToken.None);
@@ -84,7 +84,7 @@ public sealed class ActivationProcessTests:IDisposable
         await WaitUntilAsync(()=>File.Exists(Path.Combine(root,"fixture-survived-disconnect.txt")),TimeSpan.FromSeconds(10));
         await AssertChildExitedAsync();
     }
-    [Fact] public async Task ErrorAfterDurableCommitDoesNotStopOrRestoreTheHealthyCandidate()
+    [FixtureFact] public async Task ErrorAfterDurableCommitDoesNotStopOrRestoreTheHealthyCandidate()
     {
         var (store,identity,_)=PrepareFixture("healthy");using var held=store.Acquire();
         var coordinator=new ActivationCoordinator((s,a,c)=>

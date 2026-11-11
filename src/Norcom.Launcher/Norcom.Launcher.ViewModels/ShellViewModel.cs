@@ -1501,7 +1501,7 @@ public class ShellViewModel : ObservableObject
 				PreparePrism = java =>
 				{
 					PrismPreparation prepared = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, (int)MemoryMb, _settings.RamPending);
-					if (_settings.RamPending)
+					if (prepared.Applied && _settings.RamPending)
 					{
 						_settings.RamPending = false;
 						_settings.Save(NorcomPaths.SettingsPath);
@@ -1671,7 +1671,7 @@ public class ShellViewModel : ObservableObject
 			{
 				plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, chosen, _http, prepare.Token, localPassword, zomboidRam).ConfigureAwait(continueOnCapturedContext: true);
 			}
-			if (plan.CanStart && _settings.ZomboidRamPending)
+			if (plan.Applied && _settings.ZomboidRamPending)
 			{
 				_settings.ZomboidRamPending = false;
 				_settings.Save(NorcomPaths.SettingsPath);

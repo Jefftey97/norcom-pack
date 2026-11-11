@@ -43,7 +43,7 @@ public class GraphicsWriterTests
 		string sodium = File.ReadAllText(Path.Combine(dir, "config", "sodium-options.json"));
 		Assert.Contains("\"chunk_builder_threads\": 0", sodium);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
-		Assert.Contains("enableSsao = false", dh);
+		Assert.Contains(tier == GraphicsTier.Low || tier == GraphicsTier.Medium ? "enableSsao = false" : "enableSsao = true", dh);
 		AssertSameTierNote(dir, tier);
 	}
 
@@ -90,10 +90,10 @@ public class GraphicsWriterTests
 		Assert.Contains("TAA_SMOOTHING=2", shader);
 		Assert.Equal("7", ReadProperties(Path.Combine(dir, "config", "iris.properties"))["maxShadowRenderDistance"]);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
-		Assert.Contains("lodChunkRenderDistanceRadius = 160", dh);
-		Assert.Contains("horizontalQuality = \"MEDIUM\"", dh);
-		Assert.Contains("verticalQuality = \"MEDIUM\"", dh);
-		Assert.Contains("enableSsao = false", dh);
+		Assert.Contains("horizontalQuality = \"HIGH\"", dh);
+		Assert.Contains("verticalQuality = \"HIGH\"", dh);
+		Assert.Contains("maxTexturedLodDetailLevel = 4", dh);
+		Assert.Contains("enableSsao = true", dh);
 	}
 
 	[Fact]
@@ -116,8 +116,9 @@ public class GraphicsWriterTests
 		Dictionary<string, string> iris = ReadProperties(Path.Combine(dir, "config", "iris.properties"));
 		Assert.Equal("14", iris["maxShadowRenderDistance"]);
 		string dh = File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml"));
-		Assert.Contains("lodChunkRenderDistanceRadius = 256", dh);
 		Assert.Contains("horizontalQuality = \"HIGH\"", dh);
+		Assert.Contains("verticalQuality = \"HIGH\"", dh);
+		Assert.Contains("enableSsao = true", dh);
 	}
 
 	[Fact]

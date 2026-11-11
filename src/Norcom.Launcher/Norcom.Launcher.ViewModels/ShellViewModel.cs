@@ -1480,6 +1480,7 @@ public class ShellViewModel : ObservableObject
 			try
 			{
 				TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified);
+				DistantHorizonsDefaults.EnsureFresh(NorcomPaths.GameDir, _settings.GraphicsTier);
 				OnPropertyChanged(nameof(TextureHint));
 			}
 			catch (Exception ex)

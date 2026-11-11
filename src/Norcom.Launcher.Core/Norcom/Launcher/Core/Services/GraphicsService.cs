@@ -40,7 +40,7 @@ public sealed class GraphicsService
 		string shaderZip = ShaderScale.Coerce(GraphicsPack.ReadText(folder + "/ComplementaryUnbound_r5.9.3.zip.txt"), tier);
 		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
 		File.WriteAllText(Path.Combine(gameDir, "shaderpacks", "ComplementaryUnbound_r5.9.3.zip.txt"), shaderZip);
-		WriteDistantHorizons(Path.Combine(gameDir, "config", "DistantHorizons.toml"), GraphicsPack.ReadJsonMap(folder + "/dh-patches.json"));
+		DistantHorizonsDefaults.ApplyPreset(gameDir, tier);
 		MergeSodium(Path.Combine(gameDir, "config", "sodium-options.json"), GraphicsPack.ReadJsonElements(folder + "/sodium-patches.json"));
 		string tierNote = "tier=" + tier.ToString() + "\nappliedUtc=" + DateTimeOffset.UtcNow.ToString("o") + "\n";
 		File.WriteAllText(Path.Combine(gameDir, "config", "norcom-tier.txt"), tierNote);
@@ -215,30 +215,6 @@ public sealed class GraphicsService
 		return actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
 	}
 
-	private static void WriteDistantHorizons(string path, IReadOnlyDictionary<string, string> patches)
-	{
-		Directory.CreateDirectory(Path.GetDirectoryName(path));
-		string text = File.Exists(path) ? File.ReadAllText(path) : "[client]\n[client.advanced]\n[client.advanced.graphics]\n[client.advanced.graphics.quality]\n";
-		foreach (KeyValuePair<string, string> patch in patches)
-		{
-			text = ReplaceToml(text, patch.Key, TomlValue(patch.Value));
-		}
-		File.WriteAllText(path, text);
-	}
-
-	private static string TomlValue(string value)
-	{
-		if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
-		{
-			return value.ToLowerInvariant();
-		}
-		if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
-		{
-			return value;
-		}
-		return "\"" + value + "\"";
-	}
-
 	private static void MergeSodium(string path, IReadOnlyDictionary<string, JsonElement> patches)
 	{
 		Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -272,35 +248,6 @@ public sealed class GraphicsService
 			cursor[parts[parts.Length - 1]] = JsonNode.Parse(patch.Value.GetRawText());
 		}
 		File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-	}
-
-	private static string ReplaceToml(string text, string key, string value)
-	{
-		string[] array = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-		bool flag = false;
-		for (int i = 0; i < array.Length; i++)
-		{
-			string text2 = array[i].TrimStart();
-			if (text2.StartsWith(key, StringComparison.Ordinal))
-			{
-				string text3 = text2;
-				int length = key.Length;
-				if (text3.Substring(length, text3.Length - length).TrimStart().StartsWith('='))
-				{
-					text3 = array[i];
-					length = text2.Length;
-					string text4 = text3.Substring(0, text3.Length - length);
-					array[i] = text4 + key + " = " + value;
-					flag = true;
-				}
-			}
-		}
-		string text5 = string.Join('\n', array);
-		if (!flag)
-		{
-			text5 = text5.TrimEnd() + "\n" + key + " = " + value + "\n";
-		}
-		return text5;
 	}
 
 }

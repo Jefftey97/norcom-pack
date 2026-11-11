@@ -43,6 +43,7 @@ public class PromptCloseTests
 				owner.Show();
 				unblock.Start();
 				bool confirmed = LauncherDialogs.Confirm("Send a redacted launcher report?", "Send diagnostics");
+				Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.Background);
 				if (confirmed)
 				{
 					sent = true;

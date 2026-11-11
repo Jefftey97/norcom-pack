@@ -66,7 +66,24 @@ public static class LauncherDialogs
 		{
 			dialog.Owner = owner;
 			dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-			CancelEventHandler closing = (_, _) => dialog.Decline();
+			bool finishing = false;
+			CancelEventHandler closing = (_, args) =>
+			{
+				if (finishing || !dialog.IsVisible)
+				{
+					return;
+				}
+				args.Cancel = true;
+				dialog.Decline();
+				finishing = true;
+				owner.Dispatcher.BeginInvoke(new Action(() =>
+				{
+					if (owner.IsLoaded)
+					{
+						owner.Close();
+					}
+				}));
+			};
 			KeyEventHandler blockKeys = (_, args) =>
 			{
 				if (args.Key == Key.System && args.SystemKey == Key.F4)

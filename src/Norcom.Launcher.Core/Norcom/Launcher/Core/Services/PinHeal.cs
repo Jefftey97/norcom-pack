@@ -84,7 +84,7 @@ public static class PinHeal
 		return hint;
 	}
 
-	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct)
+	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct, bool packSynced = false)
 	{
 		RepairTrace.Begin();
 		string appliedBefore = PinGate.ReadAppliedPin(gameDir) ?? "";
@@ -103,7 +103,6 @@ public static class PinHeal
 			RepairTrace.SetStage("Java");
 			await NoteJavaAsync(http, ct).ConfigureAwait(false);
 		}
-		RepairTrace.SetStage("pack resync");
 		int max = MaxAttempts(hint.RepairAction);
 		for (int attempt = 1; attempt <= max; attempt++)
 		{
@@ -113,12 +112,14 @@ public static class PinHeal
 			}
 		if (check == PinGate.PinCheck.Open || check == PinGate.PinCheck.Match)
 			{
-				if (check == PinGate.PinCheck.Match && !PinGate.DeferAppliedWrite && !string.IsNullOrWhiteSpace(appliedBefore))
+				if (check == PinGate.PinCheck.Match && !PinGate.DeferAppliedWrite && !string.IsNullOrWhiteSpace(appliedBefore) && packSynced)
 				{
+					LauncherLog.Write("pack resync skipped");
 					return;
 				}
 				try
 				{
+					RepairTrace.SetStage("pack resync");
 					await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
 					return;
 				}
@@ -135,6 +136,7 @@ public static class PinHeal
 			LauncherLog.Write("pin heal attempt " + attempt + " " + hint.RepairAction);
 			try
 			{
+				RepairTrace.SetStage("pack resync");
 				await ResyncAsync(resync, gameDir, ct).ConfigureAwait(false);
 			}
 			catch (Exception ex) when (ex is not PinMismatchException)

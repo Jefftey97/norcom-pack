@@ -116,6 +116,17 @@ public class PrismPlayTests
 	}
 
 	[Fact]
+	public void FirstLaunchCountsANestedNorcomClientAndNotServerJava()
+	{
+		GameProcessRow server = ServerRow() with { ParentPid = 5100 };
+		GameProcessRow wrapper = new GameProcessRow("java.exe", "", 6000, 5100, "");
+		GameProcessRow client = new GameProcessRow("javaw.exe", "javaw net.fabricmc.loader.impl.launch.knot.KnotClient --gameDir " + GameDirHint, 7002, 6000, "");
+		Assert.Equal(7002, PrismGameSignals.SelectGamePid(new[] { server, wrapper, client }, InstanceHint, 5100, GameDirHint));
+		Assert.Equal(6000, PrismGameSignals.SelectGamePid(new[] { server, wrapper }, InstanceHint, 5100, GameDirHint));
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { server }, InstanceHint, 5100, GameDirHint));
+	}
+
+	[Fact]
 	public async Task PrismThatStaysOpenCountsTheNorcomChild()
 	{
 		TaskCompletionSource<int> gate = new TaskCompletionSource<int>();

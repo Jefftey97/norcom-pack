@@ -14,6 +14,7 @@ public class DesktopContractTests
     {
         OnSta(()=>
         {
+            Environment.SetEnvironmentVariable("NORCOM_QA_OFFLINE","1");
             var settingsPath=Norcom.Launcher.Core.NorcomPaths.SettingsPath;
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
             File.WriteAllText(settingsPath,"""{"RamMb":5632,"LauncherSounds":true,"ReduceMotion":true,"AnimationsPausedWhilePlaying":false,"custom":{"keep":true}}""");

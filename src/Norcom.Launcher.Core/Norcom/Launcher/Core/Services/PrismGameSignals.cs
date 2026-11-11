@@ -149,40 +149,67 @@ public static class PrismGameSignals
 		{
 			return null;
 		}
+		List<GameProcessRow> list = new List<GameProcessRow>(rows);
+		Dictionary<int, int> parents = new Dictionary<int, int>();
 		HashSet<int> prismPids = new HashSet<int>();
 		if (prismPid is int passed && passed > 0)
 		{
 			prismPids.Add(passed);
 		}
-		foreach (GameProcessRow row in rows)
+		foreach (GameProcessRow row in list)
 		{
+			if (row.Pid > 0)
+			{
+				parents[row.Pid] = row.ParentPid;
+			}
 			if (row.Pid > 0 && IsPrismLauncher(row.Name))
 			{
 				prismPids.Add(row.Pid);
 			}
 		}
-		int? handedOff = null;
-		foreach (GameProcessRow row in rows)
+		int? atInstance = null;
+		int? startedChild = null;
+		foreach (GameProcessRow row in list)
 		{
 			if (row.Pid <= 0 || !IsJavaProcess(row.Name) || IsServerJava(row.Name, row.CommandLine, row.WorkingDirectory))
 			{
 				continue;
 			}
-			bool atInstance = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
-			if (!atInstance || !prismPids.Contains(row.ParentPid))
-			{
-				continue;
-			}
-			if (prismPid is int parent && parent > 0 && row.ParentPid == parent)
+			bool here = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
+			bool direct = prismPid is int parent && parent > 0 && row.ParentPid == parent;
+			if (direct && here)
 			{
 				return row.Pid;
 			}
-			if (handedOff == null)
+			if (here && OwnedByPrism(row.ParentPid, parents, prismPids) && atInstance == null)
 			{
-				handedOff = row.Pid;
+				atInstance = row.Pid;
+			}
+			if (direct && startedChild == null && (HasClientMain(row.CommandLine) || string.IsNullOrWhiteSpace(row.CommandLine)))
+			{
+				startedChild = row.Pid;
 			}
 		}
-		return handedOff;
+		return atInstance ?? startedChild;
+	}
+
+	private static bool OwnedByPrism(int parentPid, Dictionary<int, int> parents, HashSet<int> prismPids)
+	{
+		int pid = parentPid;
+		HashSet<int> seen = new HashSet<int>();
+		while (pid > 0 && seen.Add(pid))
+		{
+			if (prismPids.Contains(pid))
+			{
+				return true;
+			}
+			if (!parents.TryGetValue(pid, out int next))
+			{
+				return false;
+			}
+			pid = next;
+		}
+		return false;
 	}
 
 	private static bool PointsAtInstance(string? text, string? instanceHint, string? gameDir)

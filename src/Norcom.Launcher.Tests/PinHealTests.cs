@@ -106,9 +106,24 @@ public class PinHealTests
 		{
 			calls++;
 			return Task.CompletedTask;
-		}, CancellationToken.None);
+		}, CancellationToken.None, packSynced: true);
 		Assert.Equal(0, calls);
 		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+	}
+
+	[Fact]
+	public async Task MatchingPinWithoutASyncRecordStillResyncs()
+	{
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+		int calls = 0;
+		using HttpClient http = new(new PinHttp(Slim()));
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			calls++;
+			return Task.CompletedTask;
+		}, CancellationToken.None);
+		Assert.Equal(1, calls);
 	}
 
 	[Fact]

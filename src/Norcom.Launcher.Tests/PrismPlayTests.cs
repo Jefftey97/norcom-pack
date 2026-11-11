@@ -60,6 +60,28 @@ public class PrismPlayTests
 	}
 
 	[Fact]
+	public async Task BusyDownloadHoldsTheSamePrismUntilItIsIdle()
+	{
+		TaskCompletionSource<int> gate = new TaskCompletionSource<int>();
+		CountingHang process = new CountingHang(gate.Task);
+		DownloadWork signals = new DownloadWork { BusyPolls = 4 };
+		PrismPreparation result = await PrismPlay.RunAsync(Ready(), process, CancellationToken.None, signals, TimeSpan.FromMilliseconds(150), TimeSpan.FromMilliseconds(150));
+		Assert.False(result.CanStart);
+		Assert.Equal(PrismMessages.NotDetected, result.Message);
+		Assert.Equal(1, process.Starts);
+		Assert.True(signals.Polls > 4);
+		Assert.False(gate.Task.IsCompleted);
+		signals.Hold = true;
+		signals.BusyPolls = 0;
+		signals.Polls = 0;
+		CountingHang second = new CountingHang(gate.Task);
+		PrismPreparation again = await PrismPlay.RunAsync(Ready(), second, CancellationToken.None, signals, TimeSpan.FromMilliseconds(120), TimeSpan.FromMilliseconds(120));
+		Assert.Equal(0, second.Starts);
+		Assert.Equal(PrismMessages.NotDetected, again.Message);
+		Assert.False(gate.Task.IsCompleted);
+	}
+
+	[Fact]
 	public void ProbeWaitsFifteenSeconds()
 	{
 		Assert.Equal(TimeSpan.FromSeconds(15), PrismPlay.ProbeBudget);
@@ -352,6 +374,54 @@ public class PrismPlayTests
 		{
 			SeenPrism = prismProcessId;
 			return Pid;
+		}
+	}
+
+	private sealed class CountingHang : IPrismProcess
+	{
+		private readonly Task<int> _task;
+
+		public CountingHang(Task<int> task)
+		{
+			_task = task;
+		}
+
+		public int Starts { get; private set; }
+
+		public Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+		{
+			Starts++;
+			return _task;
+		}
+	}
+
+	private sealed class DownloadWork : IPrismGameSignals, IPrismWork
+	{
+		public int BusyPolls { get; set; }
+
+		public int Polls { get; set; }
+
+		public bool Hold { get; set; }
+
+		public bool MinecraftProcessRunning()
+		{
+			return false;
+		}
+
+		public bool LogFreshenedSinceLaunch()
+		{
+			return false;
+		}
+
+		public bool LauncherAlreadyRunning()
+		{
+			return Hold;
+		}
+
+		public bool DownloadMoving()
+		{
+			Polls++;
+			return Polls <= BusyPolls;
 		}
 	}
 

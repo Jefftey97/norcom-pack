@@ -17,6 +17,13 @@ public interface IGameProcessLookup
 	int? TryGameProcessId(int? prismProcessId);
 }
 
+public interface IPrismWork
+{
+	bool LauncherAlreadyRunning();
+
+	bool DownloadMoving();
+}
+
 public readonly record struct GameProcessRow(string Name, string CommandLine, int Pid, int ParentPid, string WorkingDirectory = "");
 
 public static class PrismGameSignals
@@ -254,17 +261,22 @@ public static class PrismGameSignals
 	}
 }
 
-public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
+public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup, IPrismWork
 {
+	private readonly string _dataDir;
+
 	private readonly string _instanceDir;
 
 	private readonly string _gameDir;
 
 	private readonly List<(string Path, DateTime? BaselineUtc)> _logs = new List<(string, DateTime?)>();
 
+	private long _downloadStamp;
+
 	public LivePrismGameSignals(string prismDataDir, string gameDir)
 	{
-		_instanceDir = Path.Combine(prismDataDir ?? "", "instances", PrismCommand.InstanceId);
+		_dataDir = prismDataDir ?? "";
+		_instanceDir = Path.Combine(_dataDir, "instances", PrismCommand.InstanceId);
 		_gameDir = gameDir ?? "";
 		foreach (string path in PrismGameSignals.LatestLogs(prismDataDir, gameDir))
 		{
@@ -318,6 +330,70 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			}
 		}
 		return false;
+	}
+
+	public bool LauncherAlreadyRunning()
+	{
+		try
+		{
+			if (!OperatingSystem.IsWindows())
+			{
+				return false;
+			}
+			List<Dictionary<string, object?>>? found = WmiQuery.Rows("SELECT ProcessId FROM Win32_Process WHERE Name='prismlauncher.exe'", "ProcessId");
+			return found != null && found.Count > 0;
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("prism already " + ex.GetType().Name);
+			return false;
+		}
+	}
+
+	public bool DownloadMoving()
+	{
+		long stamp = DownloadStamp(_dataDir, _instanceDir, _gameDir);
+		bool moved = _downloadStamp > 0 && stamp > _downloadStamp;
+		if (stamp > _downloadStamp)
+		{
+			_downloadStamp = stamp;
+		}
+		return moved;
+	}
+
+	private static long DownloadStamp(string dataDir, string instanceDir, string gameDir)
+	{
+		long max = 0;
+		void Note(string path)
+		{
+			try
+			{
+				if (File.Exists(path))
+				{
+					max = Math.Max(max, File.GetLastWriteTimeUtc(path).Ticks);
+				}
+				else if (Directory.Exists(path))
+				{
+					max = Math.Max(max, Directory.GetLastWriteTimeUtc(path).Ticks);
+				}
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+			}
+		}
+		Note(Path.Combine(dataDir, "logs"));
+		Note(Path.Combine(dataDir, "logs", "PrismLauncher-0.log"));
+		Note(Path.Combine(dataDir, "assets"));
+		Note(Path.Combine(dataDir, "libraries"));
+		Note(Path.Combine(dataDir, "meta"));
+		Note(Path.Combine(dataDir, "cache"));
+		Note(Path.Combine(instanceDir, "minecraft", "assets"));
+		Note(Path.Combine(instanceDir, "minecraft", "libraries"));
+		Note(Path.Combine(instanceDir, "minecraft", "logs", "latest.log"));
+		Note(Path.Combine(gameDir, "assets"));
+		Note(Path.Combine(gameDir, "libraries"));
+		Note(Path.Combine(gameDir, "logs", "latest.log"));
+		return max;
 	}
 
 	private static int ToPid(long value)

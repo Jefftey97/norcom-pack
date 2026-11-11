@@ -1,3 +1,4 @@
+using Norcom.Launcher.Core.Models;
 using Norcom.Launcher.Core.Services;
 using Xunit;
 
@@ -13,23 +14,55 @@ public class TexturePackTests
 		Assert.Equal(TexturePackChoice.Patrix, TexturePackChoice.Detect("[\"vanilla\",\"continuity:default\",\"file/Patrix_26.3_32x_basic.zip\"]"));
 	}
 
-	[Fact]
-	public void LaunchAndResyncLeaveEditedOptionsAndShadersUntouched()
+	[Theory]
+	[InlineData(TexturePackChoice.Patrix)]
+	[InlineData(TexturePackChoice.Alacrity)]
+	public async Task PlayAndResyncLeaveAnEditedGameUntouched(string savedChoice)
 	{
 		string dir = NewDir();
 		Directory.CreateDirectory(Path.Combine(dir, "shaderpacks"));
-		string options = "renderDistance:11\nmaxFps:90\nresourcePacks:[\"vanilla\",\"continuity:default\",\"file/Patrix_26.3_32x_basic.zip\",\"file/norcom_marble.zip\"]\nkey_key.attack:key.mouse.left\n";
+		Directory.CreateDirectory(Path.Combine(dir, "config"));
+		string options = "renderDistance:11\nmaxFps:90\nresourcePacks:[\"vanilla\",\"continuity:default\",\"file/SomeOtherPack.zip\",\"file/norcom_marble.zip\"]\nkey_key.attack:key.mouse.left\n";
 		string shader = "profile=CUSTOM\nRP_MODE=3\nshadowDistance=12.0\n";
+		string iris = "shaderPack=ComplementaryUnbound_r5.9.3.zip\nmaxShadowRenderDistance=3\n";
+		string horizons = "# edited\nlodChunkRenderDistanceRadius = 40\n[client.advanced.graphics.quality]\nhorizontalQuality = \"LOW\"\n";
 		File.WriteAllText(Path.Combine(dir, "options.txt"), options);
 		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), shader);
+		File.WriteAllText(Path.Combine(dir, "config", "iris.properties"), iris);
+		File.WriteAllText(Path.Combine(dir, "config", "DistantHorizons.toml"), horizons);
 		for (int i = 0; i < 2; i++)
 		{
-			GraphicsPlay.ApplyAuto(dir);
-			GameLaunchGraphics.ApplyBeforeLaunch("minecraft", dir, NewDir(), "", NewDir());
-			TexturePackChoice.PrepareForLaunch(dir, "", saved: false);
+			await Resync(dir);
+			Play(dir, savedChoice, pending: false);
 		}
 		Assert.Equal(options, File.ReadAllText(Path.Combine(dir, "options.txt")));
 		Assert.Equal(shader, File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
+		Assert.Equal(iris, File.ReadAllText(Path.Combine(dir, "config", "iris.properties")));
+		Assert.Equal(horizons, File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml")));
+	}
+
+	[Fact]
+	public async Task PickerAppliesOnceAndTheNextPlayDoesNot()
+	{
+		string dir = NewDir();
+		Directory.CreateDirectory(Path.Combine(dir, "shaderpacks"));
+		Directory.CreateDirectory(Path.Combine(dir, "config"));
+		File.WriteAllText(Path.Combine(dir, "options.txt"), "renderDistance:15\nresourcePacks:[\"vanilla\",\"file/Alacrity.zip\"]\nkey_key.attack:key.mouse.left\n");
+		File.WriteAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt"), "profile=CUSTOM\n");
+		File.WriteAllText(Path.Combine(dir, "config", "iris.properties"), "shaderPack=ComplementaryUnbound_r5.9.3.zip\n");
+		File.WriteAllText(Path.Combine(dir, "config", "DistantHorizons.toml"), "lodChunkRenderDistanceRadius = 20\n");
+		Assert.True(TexturePackChoice.ApplyPicker(dir, TexturePackChoice.Patrix));
+		string applied = File.ReadAllText(Path.Combine(dir, "options.txt"));
+		Assert.Contains("file/Patrix_26.3_models.zip", applied);
+		string edited = applied.Replace("renderDistance:15", "renderDistance:4", StringComparison.Ordinal).Replace("file/Patrix_26.3_models.zip", "file/InGamePack.zip", StringComparison.Ordinal);
+		File.WriteAllText(Path.Combine(dir, "options.txt"), edited);
+		await Resync(dir);
+		Play(dir, TexturePackChoice.Patrix, pending: false);
+		Play(dir, TexturePackChoice.Patrix, pending: false);
+		Assert.Equal(edited, File.ReadAllText(Path.Combine(dir, "options.txt")));
+		Assert.Equal("profile=CUSTOM\n", File.ReadAllText(Path.Combine(dir, "shaderpacks", "ComplementaryUnbound_r5.9.3.txt")));
+		Assert.Equal("shaderPack=ComplementaryUnbound_r5.9.3.zip\n", File.ReadAllText(Path.Combine(dir, "config", "iris.properties")));
+		Assert.Equal("lodChunkRenderDistanceRadius = 20\n", File.ReadAllText(Path.Combine(dir, "config", "DistantHorizons.toml")));
 	}
 
 	[Fact]
@@ -71,6 +104,51 @@ public class TexturePackTests
 		Assert.Equal(updated, File.ReadAllText(Path.Combine(dir, "options.txt")));
 		Assert.Equal(TexturePackChoice.LabPbrHint, TexturePackChoice.Hint(dir, TexturePackChoice.Patrix));
 		Assert.Equal("shaderPack=ComplementaryUnbound_r5.9.3.zip\nmaxShadowRenderDistance=8\n", File.ReadAllText(Path.Combine(dir, "config", "iris.properties")));
+	}
+
+	private static void Play(string dir, string savedChoice, bool pending)
+	{
+		TexturePackChoice.PrepareForLaunch(dir, savedChoice, saved: true, pending);
+		DistantHorizonsDefaults.EnsureFresh(dir, GraphicsTier.High);
+		GameLaunchGraphics.ApplyBeforeLaunch("minecraft", dir, NewDir(), "", NewDir());
+		GraphicsPlay.ApplyAuto(dir);
+		PrismPlay.Prepare(null, Array.Empty<string>(), NewDir(), dir, "java", 4096);
+	}
+
+	private static async Task Resync(string dir)
+	{
+		string root = NewDir();
+		byte[] index = System.Text.Encoding.UTF8.GetBytes("hash-format = \"sha256\"\n");
+		string indexHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(index)).ToLowerInvariant();
+		string pack = "name = \"NORCOM\"\nversion = \"1\"\n[index]\nfile = \"index.toml\"\nhash-format = \"sha256\"\nhash = \"" + indexHash + "\"\n[versions]\nminecraft = \"26.3\"\nfabric = \"0.20.1\"\n";
+		using HttpClient http = new HttpClient(new PackHandler(pack, index));
+		await new PackSyncService(http).SyncAsync(dir, Path.Combine(root, "managed.json"), Path.Combine(root, "cache"), "https://pack.example/pack.toml", new TransferMeter(), CancellationToken.None);
+	}
+
+	private sealed class PackHandler : HttpMessageHandler
+	{
+		private readonly byte[] _pack;
+		private readonly byte[] _index;
+
+		public PackHandler(string pack, byte[] index)
+		{
+			_pack = System.Text.Encoding.UTF8.GetBytes(pack);
+			_index = index;
+		}
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			string url = request.RequestUri?.AbsoluteUri ?? "";
+			if (url.EndsWith("pack.toml", StringComparison.Ordinal))
+			{
+				return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(_pack) });
+			}
+			if (url.EndsWith("index.toml", StringComparison.Ordinal))
+			{
+				return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(_index) });
+			}
+			return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+		}
 	}
 
 	private static string Read(string options, string key)

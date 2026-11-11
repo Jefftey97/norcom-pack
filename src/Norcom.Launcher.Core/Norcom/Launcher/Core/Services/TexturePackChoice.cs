@@ -56,14 +56,28 @@ public static class TexturePackChoice
 		return ReadKey(ReadOptions(gameDir), "resourcePacks");
 	}
 
-	public static void PrepareForLaunch(string gameDir, string? savedChoice, bool saved)
+	public static bool PrepareForLaunch(string gameDir, string? savedChoice, bool saved, bool pendingApply)
 	{
 		string choice = saved ? Normalize(savedChoice) : Detect(ReadEnabled(gameDir));
 		BringFilesToTop(gameDir, choice);
-		if (saved)
+		if (!File.Exists(Path.Combine(gameDir, "options.txt")))
 		{
 			ApplyListIfDifferent(gameDir, choice);
+			return true;
 		}
+		if (pendingApply)
+		{
+			ApplyListIfDifferent(gameDir, choice);
+			return true;
+		}
+		return false;
+	}
+
+	public static bool ApplyPicker(string gameDir, string choice)
+	{
+		choice = Normalize(choice);
+		BringFilesToTop(gameDir, choice);
+		return ApplyListIfDifferent(gameDir, choice);
 	}
 
 	public static bool ApplyListIfDifferent(string gameDir, string choice)

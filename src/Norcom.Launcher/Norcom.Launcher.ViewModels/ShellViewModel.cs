@@ -1479,7 +1479,12 @@ public class ShellViewModel : ObservableObject
 			}
 			try
 			{
-				TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified);
+				bool applied = TexturePackChoice.PrepareForLaunch(NorcomPaths.GameDir, _settings.TexturePack, _settings.TexturePackSpecified, _settings.TexturePackPending);
+				if (_settings.TexturePackPending && applied)
+				{
+					_settings.TexturePackPending = false;
+					_settings.Save(NorcomPaths.SettingsPath);
+				}
 				DistantHorizonsDefaults.EnsureFresh(NorcomPaths.GameDir, _settings.GraphicsTier);
 				OnPropertyChanged(nameof(TextureHint));
 			}
@@ -1896,11 +1901,13 @@ public class ShellViewModel : ObservableObject
 		choice = TexturePackChoice.Normalize(choice);
 		_settings.TexturePack = choice;
 		_settings.TexturePackSpecified = true;
+		_settings.TexturePackPending = true;
 		_settings.Save(NorcomPaths.SettingsPath);
 		try
 		{
-			TexturePackChoice.BringFilesToTop(NorcomPaths.GameDir, choice);
-			TexturePackChoice.ApplyListIfDifferent(NorcomPaths.GameDir, choice);
+			TexturePackChoice.ApplyPicker(NorcomPaths.GameDir, choice);
+			_settings.TexturePackPending = false;
+			_settings.Save(NorcomPaths.SettingsPath);
 			StatusLine = choice + " is the texture pack.";
 		}
 		catch (Exception ex)

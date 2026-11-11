@@ -9,9 +9,9 @@ namespace Norcom.Launcher.Core.Models;
 
 public sealed class LauncherSettings
 {
-	private static readonly string[] KnownKeys = new string[32]
+	private static readonly string[] KnownKeys = new string[34]
 	{
-		"RamMb", "ramMb", "ZomboidRamMb", "zomboidRamMb", "TexturePack", "texturePack", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
+		"RamMb", "ramMb", "ZomboidRamMb", "zomboidRamMb", "TexturePack", "texturePack", "TexturePackPending", "texturePackPending", "GraphicsTier", "graphicsTier", "GraphicsAuto", "graphicsAuto", "LauncherSounds", "launcherSounds", "CloseToTray", "closeToTray",
 		"ReduceMotion", "reduceMotion", "AnimationsPausedWhilePlaying", "animationsPausedWhilePlaying", "PlayerName", "playerName", "UseLocalName", "useLocalName", "DiscordInviteUrl", "discordInviteUrl",
 		"CrashWebhookUrl", "crashWebhookUrl", "WindowW", "windowW", "WindowH", "windowH", "LastNewsPackVersion", "lastNewsPackVersion"
 	};
@@ -27,6 +27,8 @@ public sealed class LauncherSettings
 	public string TexturePack { get; set; } = "";
 
 	public bool TexturePackSpecified { get; set; }
+
+	public bool TexturePackPending { get; set; }
 
 
 	public GraphicsTier GraphicsTier { get; set; } = GraphicsTier.High;
@@ -89,6 +91,7 @@ public sealed class LauncherSettings
 				ZomboidRamSpecified = savedZomboidRam.HasValue,
 				TexturePack = savedTexture ?? "",
 				TexturePackSpecified = !string.IsNullOrWhiteSpace(savedTexture),
+				TexturePackPending = ReadBool(jsonObject, "TexturePackPending", "texturePackPending").GetValueOrDefault(),
 				GraphicsTier = ReadTier(jsonObject).GetValueOrDefault(GraphicsTier.High),
 				GraphicsAuto = ReadBool(jsonObject, "GraphicsAuto", "graphicsAuto").GetValueOrDefault(),
 				LauncherSounds = ReadBool(jsonObject, "LauncherSounds", "launcherSounds").GetValueOrDefault(),
@@ -148,6 +151,7 @@ public sealed class LauncherSettings
 		{
 			jsonObject["TexturePack"] = TexturePack;
 		}
+		jsonObject["TexturePackPending"] = TexturePackPending;
 		jsonObject["GraphicsTier"] = GraphicsTier.ToString();
 		jsonObject["GraphicsAuto"] = GraphicsAuto;
 		jsonObject["LauncherSounds"] = LauncherSounds;

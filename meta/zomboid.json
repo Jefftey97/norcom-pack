@@ -1,6 +1,238 @@
 {
   "schema": 1,
-  "workshop": [],
+  "workshop": [
+    {
+      "workshopId": "3619862853",
+      "modId": "ZombieBuddy"
+    },
+    {
+      "workshopId": "3809306528",
+      "modId": "Viewpoint"
+    },
+    {
+      "workshopId": "3817294484",
+      "modId": "ViewpointRoofs"
+    },
+    {
+      "workshopId": "3829712469",
+      "modId": "RealUSA"
+    },
+    {
+      "workshopId": "3829712469",
+      "modId": "RealUSA_ViewpointRelief"
+    },
+    {
+      "workshopId": "3171167894",
+      "modId": "damnlib"
+    },
+    {
+      "workshopId": "3330403100",
+      "modId": "KI5trailers"
+    },
+    {
+      "workshopId": "3670064951",
+      "modId": "KI5campers"
+    },
+    {
+      "workshopId": "2625625421",
+      "modId": "isoContainers"
+    },
+    {
+      "workshopId": "2942793445",
+      "modId": "90pierceArrow"
+    },
+    {
+      "workshopId": "2952802178",
+      "modId": "90fordF350ambulance"
+    },
+    {
+      "workshopId": "3110913021",
+      "modId": "90bmwE30"
+    },
+    {
+      "workshopId": "2409333430",
+      "modId": "91range"
+    },
+    {
+      "workshopId": "3008795514",
+      "modId": "91geoMetro"
+    },
+    {
+      "workshopId": "3366300557",
+      "modId": "91fordLTD"
+    },
+    {
+      "workshopId": "3504401781",
+      "modId": "91nissan240sx"
+    },
+    {
+      "workshopId": "3539691958",
+      "modId": "91fordRanger"
+    },
+    {
+      "workshopId": "3770890864",
+      "modId": "91lexusLS400"
+    },
+    {
+      "workshopId": "2642541073",
+      "modId": "92amgeneralM998"
+    },
+    {
+      "workshopId": "2962175696",
+      "modId": "92fordCVPI"
+    },
+    {
+      "workshopId": "3287727378",
+      "modId": "92jeepYJ"
+    },
+    {
+      "workshopId": "3812024929",
+      "modId": "92vwGolfMk2"
+    },
+    {
+      "workshopId": "2932547723",
+      "modId": "93townCar"
+    },
+    {
+      "workshopId": "2969343830",
+      "modId": "93fordElgin"
+    },
+    {
+      "workshopId": "3001592312",
+      "modId": "93mustangSSP"
+    },
+    {
+      "workshopId": "3073430075",
+      "modId": "93fordF350"
+    },
+    {
+      "workshopId": "3088951320",
+      "modId": "93fordTaurus"
+    },
+    {
+      "workshopId": "3152529790",
+      "modId": "93chevySuburban"
+    },
+    {
+      "workshopId": "3152529790",
+      "modId": "93chevySuburbanExpanded"
+    },
+    {
+      "workshopId": "2785549133",
+      "modId": "74amgeneralM151A2"
+    },
+    {
+      "workshopId": "2618213077",
+      "modId": "82oshkoshM911"
+    },
+    {
+      "workshopId": "2811383142",
+      "modId": "83amgeneralM923"
+    },
+    {
+      "workshopId": "2566953935",
+      "modId": "86oshkoshP19A"
+    },
+    {
+      "workshopId": "2900580391",
+      "modId": "49powerWagon"
+    },
+    {
+      "workshopId": "3631989559",
+      "modId": "69charger"
+    },
+    {
+      "workshopId": "3161951724",
+      "modId": "76chevyKseries"
+    },
+    {
+      "workshopId": "3161951724",
+      "modId": "76chevyKseriesExpanded"
+    },
+    {
+      "workshopId": "2799152995",
+      "modId": "78amgeneralM35A2"
+    },
+    {
+      "workshopId": "2799152995",
+      "modId": "78amgeneralM35A2extra"
+    },
+    {
+      "workshopId": "2799152995",
+      "modId": "78amgeneralM49A2C"
+    },
+    {
+      "workshopId": "2799152995",
+      "modId": "78amgeneralM50A3"
+    },
+    {
+      "workshopId": "2799152995",
+      "modId": "78amgeneralM62"
+    },
+    {
+      "workshopId": "3703948448",
+      "modId": "79camaro"
+    },
+    {
+      "workshopId": "2886832257",
+      "modId": "82jeepJ10"
+    },
+    {
+      "workshopId": "3614034284",
+      "modId": "85chevyStepVan"
+    },
+    {
+      "workshopId": "3614034284",
+      "modId": "85chevyStepVanexpanded"
+    },
+    {
+      "workshopId": "3428008364",
+      "modId": "86chevyCUCV"
+    },
+    {
+      "workshopId": "2870394916",
+      "modId": "86fordE150"
+    },
+    {
+      "workshopId": "2870394916",
+      "modId": "86fordE150expanded"
+    },
+    {
+      "workshopId": "3110911330",
+      "modId": "87fordB700"
+    },
+    {
+      "workshopId": "2886832936",
+      "modId": "88chevyS10"
+    },
+    {
+      "workshopId": "2886833398",
+      "modId": "89fordBronco"
+    },
+    {
+      "workshopId": "3570973322",
+      "modId": "89defender"
+    },
+    {
+      "workshopId": "3183820077",
+      "modId": "guns93"
+    },
+    {
+      "workshopId": "2757712197",
+      "modId": "VehicleRepairOverhaul"
+    },
+    {
+      "workshopId": "2757712197",
+      "modId": "VehicleSalvageOverhaulB42"
+    },
+    {
+      "workshopId": "3777958977",
+      "modId": "undying_optimizer"
+    }
+  ],
   "files": [],
-  "connect": {}
+  "connect": {
+    "host": "69.9.178.16",
+    "port": 27758
+  }
 }

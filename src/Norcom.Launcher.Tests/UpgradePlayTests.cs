@@ -30,7 +30,7 @@ public class UpgradePlayTests
 
 		IReadOnlyList<string> deleted = PackUpgrade.OnStartup(home, game, launcher, NorcomVersion.Current, keepNames, keepPaths);
 
-		Assert.Equal("3.0.8", File.ReadAllText(Path.Combine(launcher, PackUpgrade.VersionFileName)).Trim());
+		Assert.Equal(NorcomVersion.Current, File.ReadAllText(Path.Combine(launcher, PackUpgrade.VersionFileName)).Trim());
 		Assert.DoesNotContain(deleted, path => IsPlayerFile(game, home, path));
 		Assert.Contains(Path.Combine(home, "cache", "packwiz", "index.toml"), deleted);
 		Assert.Contains(Path.Combine(home, "managed-files.json"), deleted);

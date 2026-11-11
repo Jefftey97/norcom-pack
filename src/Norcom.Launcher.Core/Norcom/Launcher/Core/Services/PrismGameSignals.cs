@@ -174,6 +174,7 @@ public static class PrismGameSignals
 				prismPids.Add(row.Pid);
 			}
 		}
+		bool prismKnown = prismPids.Count > 0;
 		int? atInstance = null;
 		int? startedChild = null;
 		foreach (GameProcessRow row in list)
@@ -184,6 +185,11 @@ public static class PrismGameSignals
 			}
 			bool here = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
 			bool direct = prismPid is int parent && parent > 0 && row.ParentPid == parent;
+			// The first client is often reparented after Prism's helper exits. It still names this instance.
+			if (here && HasClientMain(row.CommandLine) && prismKnown)
+			{
+				return row.Pid;
+			}
 			if (direct && here)
 			{
 				return row.Pid;
@@ -283,6 +289,7 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 			DateTime? baseline = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
 			_logs.Add((path, baseline));
 		}
+		_downloadStamp = DownloadStamp(_dataDir, _instanceDir, _gameDir);
 	}
 
 	public bool MinecraftProcessRunning()
@@ -353,8 +360,8 @@ public sealed class LivePrismGameSignals : IPrismGameSignals, IGameProcessLookup
 	public bool DownloadMoving()
 	{
 		long stamp = DownloadStamp(_dataDir, _instanceDir, _gameDir);
-		bool moved = _downloadStamp > 0 && stamp > _downloadStamp;
-		if (stamp > _downloadStamp)
+		bool moved = stamp > _downloadStamp;
+		if (moved)
 		{
 			_downloadStamp = stamp;
 		}

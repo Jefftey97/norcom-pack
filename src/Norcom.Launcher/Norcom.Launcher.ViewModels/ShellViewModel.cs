@@ -1277,6 +1277,14 @@ public class ShellViewModel : ObservableObject
 		Directory.CreateDirectory(NorcomPaths.LauncherDir);
 		try
 		{
+			PackUpgrade.OnStartup(NorcomPaths.NorcomHome, NorcomPaths.GameDir, NorcomPaths.LauncherDir, NorcomVersion.Current);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("upgrade sweep " + ex.GetType().Name);
+		}
+		try
+		{
 			_specs = MachineSpecsProbe.Read();
 		}
 		catch (Exception ex)

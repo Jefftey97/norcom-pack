@@ -33,7 +33,7 @@ public class PinHealTests
 	}
 
 	private const string LiveHint = """
-		{"schema":1,"pin":"0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48","mc":"26.3","loader":"0.20.1","minLauncher":"2.0.1","repairAction":"resync-pack","updatedUtc":"2026-11-06T02:46:16Z","source":"admin"}
+		{"schema":1,"pin":"d3e28ef8030f985e6cac28981ed96a2d170baf300f50f52de87fa6020da61e63","mc":"26.3","loader":"0.20.1","minLauncher":"2.0.1","repairAction":"resync-pack","updatedUtc":"2026-11-06T02:46:16Z","source":"admin"}
 		""";
 
 	[Fact]

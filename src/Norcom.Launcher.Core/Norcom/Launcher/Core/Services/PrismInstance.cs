@@ -11,6 +11,16 @@ public static class PrismInstance
 {
 	public const string MarkerName = "norcom-managed.txt";
 
+	public static bool HasNorcomInstance(string? dataDir)
+	{
+		if (string.IsNullOrWhiteSpace(dataDir))
+		{
+			return false;
+		}
+		string instance = Path.Combine(dataDir, "instances", "NORCOM");
+		return File.Exists(Path.Combine(instance, "instance.cfg"));
+	}
+
 	public static bool Ensure(string dataDir, string gameDir, string javaPath, int ramMb, bool applyMemory = false)
 	{
 		string text = Path.Combine(dataDir, "instances", "NORCOM");

@@ -13,7 +13,7 @@ dotnet test src/Norcom.Launcher.Tests/Norcom.Launcher.Tests.csproj
 dotnet test src/Norcom.Admin/Norcom.Admin.Tests/Norcom.Admin.Tests.csproj
 ```
 
-Those tests exercise the checked-in source (launcher projects are version 3.0.3; Launcher on net10.0, Admin on net8.0). They do not execute the published `launcher/NorcomWpf-*.zip` packages.
+Those tests exercise the checked-in source (launcher projects are version 3.0.8; Launcher on net10.0, Admin on net8.0). They do not execute the published `launcher/NorcomWpf-*.zip` packages.
 
 ## Cannot run here
 

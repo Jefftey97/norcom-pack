@@ -42,15 +42,19 @@ public static class PinGate
 
 	public const string DefaultPackUrl = "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml";
 
-	public const string LivePin = "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48";
+	public const string LivePin = "d3e28ef8030f985e6cac28981ed96a2d170baf300f50f52de87fa6020da61e63";
 
-	public const string LivePinGeneratedAt = "2026-11-06T13:04:44-07:00";
+	public const string LivePinGeneratedAt = "2026-11-06T14:25:17-07:00";
 
-	public const string PreviousPin = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
+	public const string PreviousPin = "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48";
 
-	public const string LiveMarbleSha = "3566420dd6cfc2a104c4b7b17bfeebedb20551d2f32b1502fe03748ca9728c48";
+	public const string LiveMarbleSha = "f99e1504c866d6f9a88565fce1f00043242e59333d69032b7e17842fedd4df50";
+
+	private const string RetiredPin = "49ff8e68f03f40d4eacdb98ad9848d17f977ef1bf2cc1f08a1e8b216c70bb9d1";
 
 	public static string? PublishedPin { get; private set; }
+
+	public static IReadOnlyList<string> PublishedJarNames { get; private set; } = Array.Empty<string>();
 
 	public static bool DeferAppliedWrite { get; private set; }
 
@@ -141,6 +145,7 @@ public static class PinGate
 		LastWarning = null;
 		AcceptedPinJson = null;
 		PublishedPin = null;
+		PublishedJarNames = Array.Empty<string>();
 		DeferAppliedWrite = false;
 		// Friends use the published channel. An unrelated owner installation on
 		// the same PC must not silently replace it with a stale private pin.
@@ -192,6 +197,7 @@ public static class PinGate
 		LastWarning = null;
 		AcceptedPinJson = null;
 		PublishedPin = null;
+		PublishedJarNames = Array.Empty<string>();
 		DeferAppliedWrite = false;
 		string? body = await TryFetchTextAsync(http, pinUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
 		if (body == null)
@@ -259,11 +265,28 @@ public static class PinGate
 			string minecraft = First(root, "minecraft", "mc");
 			string loader = First(root, "fabric_loader", "loader");
 			string pinSha = First(root, "pin_sha256", "pin");
-			if (!root.TryGetProperty("jars", out var jars) || jars.ValueKind != JsonValueKind.Array)
+			string generatedAt = Optional(root, "generated_at") ?? "";
+			bool jarsOk = root.TryGetProperty("jars", out var jars) && jars.ValueKind == JsonValueKind.Array;
+			List<(string Name, string Sha256, long Size)> parsed = new List<(string, string, long)>();
+			if (jarsOk)
+			{
+				try
+				{
+					parsed = ReadJars(jars);
+				}
+				catch (PinMismatchException) when (IsStaleAuthority(pinSha, generatedAt))
+				{
+					parsed = new List<(string, string, long)>();
+				}
+			}
+			if (ReleaseStalePin(pinSha, generatedAt, gameDir, parsed))
+			{
+				return;
+			}
+			if (!jarsOk)
 			{
 				throw new PinMismatchException("Server pin could not be read. Play was not started.");
 			}
-			List<(string Name, string Sha256, long Size)> parsed = ReadJars(jars);
 			int dualSided = 0;
 			int serverOnly = 0;
 			foreach ((string name, string _, long _) in parsed)
@@ -288,6 +311,7 @@ public static class PinGate
 				LauncherLog.Write("pin jar-set diff expected=" + pinSha + " actual=" + applied + " " + JarDiffSummary(gameDir, parsed));
 			}
 			RequirePack(minecraft, loader, pinSha, gameDir, pack, source);
+			PublishedJarNames = parsed.Select(jar => Path.GetFileName(jar.Name.Replace('\\', '/'))).ToArray();
 			if (!string.IsNullOrWhiteSpace(slimJson))
 			{
 				RequireSamePin(slimJson, pinSha);
@@ -316,6 +340,11 @@ public static class PinGate
 			string mc = First(root, "mc", "minecraft");
 			string loader = First(root, "loader", "fabric_loader");
 			string pin = First(root, "pin", "pin_sha256");
+			string generatedAt = Optional(root, "generated_at") ?? "";
+			if (ReleaseStalePin(pin, generatedAt, gameDir, new List<(string, string, long)>()))
+			{
+				return;
+			}
 			RequirePack(mc, loader, pin, gameDir, pack, source);
 			if (!string.IsNullOrWhiteSpace(compatJson))
 			{
@@ -467,7 +496,7 @@ public static class PinGate
 		{
 			return false;
 		}
-		if (string.Equals(text, PreviousPin, StringComparison.OrdinalIgnoreCase))
+		if (string.Equals(text, PreviousPin, StringComparison.OrdinalIgnoreCase) || string.Equals(text, RetiredPin, StringComparison.OrdinalIgnoreCase))
 		{
 			return true;
 		}
@@ -476,6 +505,28 @@ public static class PinGate
 			return published <= baked;
 		}
 		return false;
+	}
+
+	public static bool IsStaleAuthority(string? pin, string? generatedAt)
+	{
+		return IsDowngrade(pin, generatedAt);
+	}
+
+	// A baked, KnownTip, or older pin must not block Play when it disagrees with the pack.
+	private static bool ReleaseStalePin(string pinSha, string generatedAt, string gameDir, List<(string Name, string Sha256, long Size)> parsed)
+	{
+		bool stale = IsStaleAuthority(pinSha, generatedAt);
+		bool bakedDrift = string.Equals(pinSha, LivePin, StringComparison.OrdinalIgnoreCase) && PresentJarDiffers(gameDir, parsed);
+		if (!stale && !bakedDrift)
+		{
+			return false;
+		}
+		LauncherLog.Write("pin stale ignored pin_sha256=" + pinSha);
+		PublishedPin = null;
+		PublishedJarNames = Array.Empty<string>();
+		DeferAppliedWrite = false;
+		Warn(bakedDrift ? "baked pin disagrees with the pack" : "stale pin");
+		return true;
 	}
 
 	public static bool IsTemporaryPin(string? pin)
@@ -609,6 +660,14 @@ public static class PinGate
 		LauncherLog.Write("pin adopted " + PublishedPin + " game=" + gameDir);
 	}
 
+	public static void NoteTrustedPack()
+	{
+		if (string.IsNullOrWhiteSpace(PublishedPin))
+		{
+			PublishedPin = LivePin;
+		}
+	}
+
 	public static void AdoptPublished(string gameDir)
 	{
 		if (string.IsNullOrWhiteSpace(PublishedPin))
@@ -666,6 +725,11 @@ public static class PinGate
 			string pin = First(slim.RootElement, "pin", "pin_sha256");
 			if (!string.Equals(pin, pinSha, StringComparison.OrdinalIgnoreCase))
 			{
+				if (IsStaleAuthority(pin, Optional(slim.RootElement, "generated_at")))
+				{
+					LauncherLog.Write("pin slim stale ignored pin=" + pin + " pin_sha256=" + pinSha);
+					return;
+				}
 				LauncherLog.Write("pin slim mismatch pin=" + pin + " pin_sha256=" + pinSha);
 				throw new PinMismatchException(BlockCopy + " Expected pin " + pinSha + ". Slim pin " + pin + ".");
 			}
@@ -683,8 +747,15 @@ public static class PinGate
 				string compatPin = (pinValue.GetString() ?? "").Trim();
 				if (compatPin.Length > 0 && !string.Equals(compatPin, expectedPin, StringComparison.OrdinalIgnoreCase))
 				{
-					LauncherLog.Write("pin compat mismatch expected=" + expectedPin + " compat=" + compatPin);
-					throw new PinMismatchException(BlockCopy + " Expected pin " + expectedPin + ". Compat pin " + compatPin + ".");
+					if (IsStaleAuthority(compatPin, Optional(root, "generated_at")))
+					{
+						LauncherLog.Write("pin compat stale ignored expected=" + expectedPin + " compat=" + compatPin);
+					}
+					else
+					{
+						LauncherLog.Write("pin compat mismatch expected=" + expectedPin + " compat=" + compatPin);
+						throw new PinMismatchException(BlockCopy + " Expected pin " + expectedPin + ". Compat pin " + compatPin + ".");
+					}
 				}
 			}
 			if (!root.TryGetProperty("both", out var both) || both.ValueKind != JsonValueKind.Object)

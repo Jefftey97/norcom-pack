@@ -29,20 +29,20 @@ public class LauncherAuditRegressionTests
 		await File.WriteAllBytesAsync(Path.Combine(dir, "mods", "alexsmobs.jar"), current);
 		Directory.CreateDirectory(primary);
 		// Legacy stamp written by 3.0.1: no generated_at.
-		string legacyStamp = "{\"schema\":1,\"pin\":\"" + NewerPin + "\",\"pin_sha256\":\"" + NewerPin + "\",\"appliedUtc\":\"2026-11-10T02:24:47Z\"}";
+		string legacyStamp = "{\"schema\":1,\"pin\":\"" + PinGate.LivePin + "\",\"pin_sha256\":\"" + PinGate.LivePin + "\",\"appliedUtc\":\"2026-11-10T02:24:47Z\"}";
 		await File.WriteAllTextAsync(Path.Combine(primary, PinGate.PrimaryAppliedPinFile), legacyStamp);
-		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), NewerPin + "\n");
-		string baked = Doc(PinGate.LivePin, PinGate.LivePinGeneratedAt, "alexsmobs.jar", older, "https://pins.test/old/alexsmobs.jar");
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+		string baked = Doc(PinGate.PreviousPin, "2026-11-06T13:04:44-07:00", "alexsmobs.jar", older, "https://pins.test/old/alexsmobs.jar");
 		Handler handler = new Handler { ArchivalBody = baked, JarBytes = older };
 		using HttpClient http = new(handler);
 
 		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, dir, CancellationToken.None, forceTip: false, primary);
 
 		Assert.Equal("mismatch", result.State);
-		Assert.Equal(NewerPin, result.Pin);
+		Assert.Equal(PinGate.LivePin, result.Pin);
 		Assert.Equal(current, await File.ReadAllBytesAsync(Path.Combine(dir, "mods", "alexsmobs.jar")));
 		Assert.Equal(legacyStamp, await File.ReadAllTextAsync(Path.Combine(primary, PinGate.PrimaryAppliedPinFile)));
-		Assert.Equal(NewerPin, PinGate.ReadAppliedPin(dir));
+		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
 		Assert.DoesNotContain(handler.Urls, url => url.Contains("pins.test", StringComparison.Ordinal));
 		// The archival copy was skipped and the fresh fallbacks were still asked.
 		Assert.Contains(handler.Urls, url => url.Contains("cdn.jsdelivr.net", StringComparison.Ordinal));
@@ -77,20 +77,21 @@ public class LauncherAuditRegressionTests
 	{
 		(string dir, string primary) = Roots();
 		Directory.CreateDirectory(primary);
+		string future = new string('c', 64);
 		File.WriteAllText(Path.Combine(primary, PinGate.PrimaryAppliedPinFile),
-			"{\"schema\":1,\"pin_sha256\":\"" + NewerPin + "\",\"generated_at\":\"" + NewerGeneratedAt + "\"}");
+			"{\"schema\":1,\"pin_sha256\":\"" + future + "\",\"generated_at\":\"2026-11-10T12:00:00-07:00\"}");
 		Assert.True(PinGate.IsOlderThanApplied(Doc(PinGate.LivePin, PinGate.LivePinGeneratedAt, null, null, null), primary));
 		Assert.True(PinGate.IsOlderThanApplied(Doc(new string('a', 64), "2026-11-06T14:00:00-07:00", null, null, null), primary));
-		// Deliberate owner rollback: same older pin, republished later.
-		Assert.False(PinGate.IsOlderThanApplied(Doc(PinGate.LivePin, "2026-11-09T12:00:00-07:00", null, null, null), primary));
+		// Deliberate owner rollback: an older pin, republished later than the applied stamp.
+		Assert.False(PinGate.IsOlderThanApplied(Doc(PinGate.LivePin, "2026-11-12T12:00:00-07:00", null, null, null), primary));
 		// Same pin, unknown time, malformed text and missing stamps never block.
-		Assert.False(PinGate.IsOlderThanApplied(Doc(NewerPin, "2020-01-01T00:00:00Z", null, null, null), primary));
+		Assert.False(PinGate.IsOlderThanApplied(Doc(future, "2020-01-01T00:00:00Z", null, null, null), primary));
 		Assert.False(PinGate.IsOlderThanApplied(Doc(new string('b', 64), null, null, null, null), primary));
 		Assert.False(PinGate.IsOlderThanApplied("not json", primary));
 		Assert.False(PinGate.IsOlderThanApplied(Doc(PinGate.LivePin, PinGate.LivePinGeneratedAt, null, null, null), Path.Combine(dir, "none")));
 		// A PC still on the baked pin can move to anything not older than it.
 		File.WriteAllText(Path.Combine(primary, PinGate.PrimaryAppliedPinFile), "{\"schema\":1,\"pin_sha256\":\"" + PinGate.LivePin + "\"}");
-		Assert.False(PinGate.IsOlderThanApplied(Doc(NewerPin, NewerGeneratedAt, null, null, null), primary));
+		Assert.False(PinGate.IsOlderThanApplied(Doc(future, "2026-11-10T12:00:00-07:00", null, null, null), primary));
 	}
 
 	[Fact]

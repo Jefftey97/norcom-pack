@@ -32,7 +32,7 @@ public static class PinFetch
 {
 	public const string Repo = "Jefftey97/norcom-pack";
 
-	public const string KnownTip = "bd13a9ce9c6fcc7bdf3cd1945e83c3884df65056";
+	public const string KnownTip = "e8b586664e6d9cfd0e2d49bd338c0b02ae797739";
 
 	private static readonly string[] MetaFiles = new string[4] { "norcom-mod-pin.json", "server-pin.json", "server-compat.json", "heal-hint.json" };
 
@@ -60,17 +60,19 @@ public static class PinFetch
 	{
 		string sha = string.IsNullOrWhiteSpace(tip) ? KnownTip : tip.Trim();
 		string token = string.IsNullOrWhiteSpace(bust) ? "0" : bust.Trim();
+		// Published routes first. The baked commit is only a last resort: a
+		// rate-limited contents API must not stop on a stale KnownTip pin.
 		List<PinSource> sources = new List<PinSource>
 		{
-			new PinSource("contents-api", "https://api.github.com/repos/" + Repo + "/contents/meta/" + file + "?ref=main", contents: true),
-			new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + KnownTip + "/meta/" + file, contents: false)
+			new PinSource("contents-api", "https://api.github.com/repos/" + Repo + "/contents/meta/" + file + "?ref=main", contents: true)
 		};
 		if (!sha.Equals(KnownTip, StringComparison.OrdinalIgnoreCase))
 		{
 			sources.Add(new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + sha + "/meta/" + file, contents: false));
 		}
-		sources.Add(new PinSource("jsdelivr", "https://cdn.jsdelivr.net/gh/" + Repo + "@main/meta/" + file, contents: false));
 		sources.Add(new PinSource("raw-busted", "https://raw.githubusercontent.com/" + Repo + "/main/meta/" + file + "?t=" + token, contents: false));
+		sources.Add(new PinSource("jsdelivr", "https://cdn.jsdelivr.net/gh/" + Repo + "@main/meta/" + file, contents: false));
+		sources.Add(new PinSource("commit-ref", "https://raw.githubusercontent.com/" + Repo + "/" + KnownTip + "/meta/" + file, contents: false));
 		return sources;
 	}
 
@@ -120,7 +122,7 @@ public static class PinFetch
 				LauncherLog.Write("pin fetch older-than-applied " + source.Kind + " " + file);
 				continue;
 			}
-			if (file.Equals("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) && PinGate.IsDowngradeDocument(body))
+			if (IsPinDocument(file) && PinGate.IsDowngradeDocument(body))
 			{
 				LauncherLog.Write("pin fetch stale " + source.Kind + " " + file);
 				if (stale == null)
@@ -323,6 +325,11 @@ public static class PinFetch
 		{
 			return null;
 		}
+	}
+
+	private static bool IsPinDocument(string file)
+	{
+		return file.Equals("norcom-mod-pin.json", StringComparison.OrdinalIgnoreCase) || file.Equals("server-pin.json", StringComparison.OrdinalIgnoreCase) || file.Equals("server-compat.json", StringComparison.OrdinalIgnoreCase);
 	}
 
 	private static string? MetaFile(string? url)

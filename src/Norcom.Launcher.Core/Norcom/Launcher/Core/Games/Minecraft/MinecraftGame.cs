@@ -145,11 +145,15 @@ public sealed class MinecraftGame : IGame
 		}
 	}
 
-	public string TextureLabel()
+	public string TexturePackName()
 	{
 		MinecraftState state = State();
-		string choice = state.TexturePackSpecified ? TexturePackChoice.Normalize(state.TexturePack) : TexturePackChoice.Detect(TexturePackChoice.ReadEnabled(NorcomPaths.GameDir));
-		return "Using " + choice + ".";
+		return state.TexturePackSpecified ? TexturePackChoice.Normalize(state.TexturePack) : TexturePackChoice.Detect(TexturePackChoice.ReadEnabled(NorcomPaths.GameDir));
+	}
+
+	public string TextureLabel()
+	{
+		return "Using " + TexturePackName() + ".";
 	}
 
 	public string TextureHint()

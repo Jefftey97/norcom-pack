@@ -1,0 +1,10 @@
+<Window x:Class="Norcom.Launcher.Views.PromptWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="NORCOM" SizeToContent="WidthAndHeight" ResizeMode="NoResize" WindowStyle="SingleBorderWindow" ShowInTaskbar="False" Background="{StaticResource BackgroundBrush}" Foreground="{StaticResource TextBrush}" MinWidth="360" MaxWidth="520">
+ <StackPanel Margin="24">
+  <TextBlock x:Name="MessageText" TextWrapping="Wrap" Margin="0,0,0,18"/>
+  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+   <Button x:Name="NoButton" Content="No" MinWidth="96" Margin="0,0,10,0" IsCancel="True" Click="NoClick"/>
+   <Button x:Name="YesButton" Content="Yes" MinWidth="96" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="YesClick"/>
+  </StackPanel>
+ </StackPanel>
+</Window>

@@ -43,7 +43,7 @@ public partial class HomeView : UserControl
     }
     private void StopClick(object sender,RoutedEventArgs e)
     {
-        if(DataContext is ShellViewModel vm && MessageBox.Show("Close the "+vm.StopGameTitle+" game started by NORCOM? Save your world first.","Stop game",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)vm.StopLaunchedGame();
+        if(DataContext is ShellViewModel vm && LauncherDialogs.Confirm("Close the "+vm.StopGameTitle+" game started by NORCOM? Save your world first.","Stop game"))vm.StopLaunchedGame();
     }
     private void ZomboidPasswordChanged(object sender,RoutedEventArgs e)
     {

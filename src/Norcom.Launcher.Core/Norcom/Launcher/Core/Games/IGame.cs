@@ -48,6 +48,8 @@ public interface IGame
 
 	void SetPassword(string password);
 
+	string TexturePackName();
+
 	string TextureLabel();
 
 	string TextureHint();

@@ -124,6 +124,11 @@ public sealed class ZomboidGame : IGame
 		state.Save(NorcomPaths.NorcomHome);
 	}
 
+	public string TexturePackName()
+	{
+		return "";
+	}
+
 	public string TextureLabel()
 	{
 		return "";

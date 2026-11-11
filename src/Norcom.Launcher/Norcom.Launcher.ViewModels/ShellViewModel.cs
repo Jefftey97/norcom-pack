@@ -249,6 +249,7 @@ public class ShellViewModel : ObservableObject
 	public bool ChecksPackOnPlay => Active.ChecksPackOnPlay;
 	public string PackCheckNote => Active.PackCheckNote;
 	public string StopGameTitle => Active.Title;
+	public string ActiveTexturePack => Active.TexturePackName();
 	public string TextureChoiceLabel => Active.TextureLabel();
 	public string TextureHint => Active.TextureHint();
 	private string _pendingZomboidPassword = "";
@@ -1457,6 +1458,7 @@ public class ShellViewModel : ObservableObject
 		OnPropertyChanged(nameof(SelectedGameId));
 		OnPropertyChanged(nameof(IsZomboid));
 		OnPropertyChanged(nameof(PasswordEnabled));
+		OnPropertyChanged(nameof(ActiveTexturePack));
 		OnPropertyChanged(nameof(CanStopSelectedGame));
 		OnPropertyChanged(nameof(SessionNote));
 		OnPropertyChanged(nameof(PasswordPrompt));
@@ -1703,6 +1705,7 @@ public class ShellViewModel : ObservableObject
 		{
 			StatusLine = "The texture pack could not be changed. " + Redactor.Clean(ex.Message);
 		}
+		OnPropertyChanged(nameof(ActiveTexturePack));
 		OnPropertyChanged(nameof(TextureChoiceLabel));
 		OnPropertyChanged(nameof(TextureHint));
 	}
@@ -1873,7 +1876,7 @@ public class ShellViewModel : ObservableObject
 		string reportPath = CrashReportService.Queue("manual", "Manual diagnostic from Settings", null);
 		var delivery=await DeliverCrashAsync(reportPath).ConfigureAwait(true);
         var text=delivery.Kind==CrashReportService.DeliveryKind.SendFailed?"The report stayed on this PC. Choose Send diagnostics in Settings to retry.":delivery.UserText;
-        MessageBox.Show(text,"NORCOM",MessageBoxButton.OK,MessageBoxImage.Information);
+        StatusLine = text;
 	}
 
     private async Task RefreshServerAsync()

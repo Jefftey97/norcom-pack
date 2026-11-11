@@ -102,12 +102,17 @@ public partial class GraphicsMenuView : UserControl
 		for (int i = 0; i < game.Presets.Length; i++)
 		{
 			string preset = game.Presets[i];
+			bool selected = !string.IsNullOrEmpty(_profile.Preset) && string.Equals(preset, _profile.Preset, StringComparison.OrdinalIgnoreCase);
 			Button button = new Button
 			{
 				Content = string.Equals(preset, _recommendation.Preset, StringComparison.OrdinalIgnoreCase) ? preset + " · recommended" : preset,
 				Margin = new Thickness(0, 0, 10, 10),
 				Tag = preset
 			};
+			if (selected && TryFindResource("SelectedChoiceButton") is Style selectedStyle)
+			{
+				button.Style = selectedStyle;
+			}
 			button.Click += delegate(object sender, RoutedEventArgs args)
 			{
 				ChoosePreset((string)((Button)sender).Tag, auto: false);
@@ -136,6 +141,7 @@ public partial class GraphicsMenuView : UserControl
 		_profile.Reason = auto ? _recommendation.Reason : "Chosen in the graphics menu.";
 		SaveAndApply();
 		LoadProfile();
+		BuildPresets();
 		BuildManual();
 	}
 

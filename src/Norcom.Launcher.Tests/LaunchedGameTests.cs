@@ -24,11 +24,10 @@ public class LaunchedGameTests
 		GameProcessRow server = new GameProcessRow("java.exe", serverLine, 30920, 4);
 		int? child = PrismGameSignals.SelectGamePid(new[] { other, idle, prism, server, ours }, "instances\\NORCOM", 77);
 		Assert.Equal(20, child);
-		int? hinted = PrismGameSignals.SelectGamePid(new[] { other, server, ours }, "instances\\NORCOM", null);
-		Assert.Equal(20, hinted);
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { other, server, ours }, "instances\\NORCOM", null));
 		Assert.Null(PrismGameSignals.SelectGamePid(new[] { idle, other, server }, null, null));
 		Assert.Null(PrismGameSignals.SelectGamePid(new[] { idle, prism, server }, "instances\\NORCOM", 77));
-		Assert.Equal(20, PrismGameSignals.SelectGamePid(new[] { server, ours }, null, null, "instances\\NORCOM"));
+		Assert.Null(PrismGameSignals.SelectGamePid(new[] { server, ours }, null, null, "instances\\NORCOM"));
 	}
 
 	[Fact]

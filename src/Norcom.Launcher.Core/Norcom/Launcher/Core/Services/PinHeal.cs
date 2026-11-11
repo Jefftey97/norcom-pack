@@ -87,6 +87,7 @@ public static class PinHeal
 	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct)
 	{
 		RepairTrace.Begin();
+		string appliedBefore = PinGate.ReadAppliedPin(gameDir) ?? "";
 		PinGate.PinCheck check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 		HealHint hint = await FetchHintAsync(http, ct).ConfigureAwait(false);
 		LauncherLog.Write("heal-hint " + HintUrl + " repairAction=" + hint.RepairAction + " pin=" + hint.Pin + " minLauncher=" + hint.MinLauncher + " source=" + hint.Source);
@@ -112,7 +113,7 @@ public static class PinHeal
 			}
 		if (check == PinGate.PinCheck.Open || check == PinGate.PinCheck.Match)
 			{
-				if (check == PinGate.PinCheck.Match && attempt > 1 && !PinGate.DeferAppliedWrite)
+				if (check == PinGate.PinCheck.Match && !PinGate.DeferAppliedWrite && !string.IsNullOrWhiteSpace(appliedBefore))
 				{
 					return;
 				}

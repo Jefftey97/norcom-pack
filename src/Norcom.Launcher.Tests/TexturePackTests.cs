@@ -46,6 +46,55 @@ public class TexturePackTests
 	}
 
 	[Fact]
+	public void ChoosingPatrixFromAlacrityWritesPatrixAndReloads()
+	{
+		string home = NewDir();
+		string game = NewDir();
+		string previousHome = Environment.GetEnvironmentVariable("NORCOM_STATE_DIR");
+		string previousGame = Environment.GetEnvironmentVariable("NORCOM_GAME_DIR");
+		Environment.SetEnvironmentVariable("NORCOM_STATE_DIR", home);
+		Environment.SetEnvironmentVariable("NORCOM_GAME_DIR", game);
+		try
+		{
+			string options = "renderDistance:12\nresourcePacks:[\"vanilla\",\"file/Alacrity.zip\"]\nincompatibleResourcePacks:[\"file/Patrix_26.3_models.zip\"]\nkey_key.attack:key.mouse.left\n";
+			File.WriteAllText(Path.Combine(game, "options.txt"), options);
+			Directory.CreateDirectory(Path.Combine(game, "config"));
+			File.WriteAllText(Path.Combine(game, "config", "iris.properties"), "shaderPack=ComplementaryUnbound_r5.9.3.zip\n");
+			MinecraftState pending = new MinecraftState
+			{
+				RamMb = 4096,
+				TexturePack = TexturePackChoice.Alacrity,
+				TexturePackSpecified = true,
+				TexturePackPending = true
+			};
+			pending.Save(home);
+			MinecraftGame first = new MinecraftGame();
+			Assert.Equal(TexturePackChoice.Alacrity, first.TexturePackName());
+			first.ChooseTexture(TexturePackChoice.Patrix);
+			string updated = File.ReadAllText(Path.Combine(game, "options.txt"));
+			Assert.Contains("file/Patrix_26.3_32x_basic.zip", updated, StringComparison.Ordinal);
+			Assert.Contains("file/Patrix_26.3_32x_addon.zip", updated, StringComparison.Ordinal);
+			Assert.Contains("file/Patrix_26.3_models.zip", updated, StringComparison.Ordinal);
+			Assert.DoesNotContain("file/Alacrity.zip", updated, StringComparison.Ordinal);
+			Assert.Contains("renderDistance:12", updated, StringComparison.Ordinal);
+			Assert.Contains("key_key.attack:key.mouse.left", updated, StringComparison.Ordinal);
+			Assert.DoesNotContain("Patrix_26.3_models", Read(updated, "incompatibleResourcePacks"), StringComparison.Ordinal);
+			Assert.Equal("shaderPack=ComplementaryUnbound_r5.9.3.zip\n", File.ReadAllText(Path.Combine(game, "config", "iris.properties")));
+			MinecraftState saved = MinecraftState.Load(home);
+			Assert.Equal(TexturePackChoice.Patrix, saved.TexturePack);
+			Assert.True(saved.TexturePackSpecified);
+			Assert.False(saved.TexturePackPending);
+			Assert.Equal(4096, saved.RamMb);
+			Assert.Equal(TexturePackChoice.Patrix, new MinecraftGame().TexturePackName());
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable("NORCOM_STATE_DIR", previousHome);
+			Environment.SetEnvironmentVariable("NORCOM_GAME_DIR", previousGame);
+		}
+	}
+
+	[Fact]
 	public void MissingChoiceDefaultsToAlacrityAndPatrixWinsWhenItIsEnabled()
 	{
 		Assert.Equal(TexturePackChoice.Alacrity, TexturePackChoice.Detect(""));

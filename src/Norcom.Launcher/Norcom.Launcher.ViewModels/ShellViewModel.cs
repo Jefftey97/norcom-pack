@@ -1673,7 +1673,22 @@ public class ShellViewModel : ObservableObject
 			action();
 			return;
 		}
-		((DispatcherObject)current).Dispatcher.BeginInvoke((Delegate)action, Array.Empty<object>());
+		((DispatcherObject)current).Dispatcher.Invoke(action);
+	}
+
+	private Task OnUi(Func<Task> action)
+	{
+		Application current = Application.Current;
+		if (current == null || ((DispatcherObject)current).Dispatcher.CheckAccess())
+		{
+			return action();
+		}
+		return ((DispatcherObject)current).Dispatcher.InvokeAsync(action).Task.Unwrap();
+	}
+
+	internal Task PlayActiveAsync()
+	{
+		return Active.PlayAsync(new ShellPlayContext(this));
 	}
 
 	private void ClearPackReady()
@@ -2355,37 +2370,37 @@ public class ShellViewModel : ObservableObject
 
 		public void SetBusy(bool value)
 		{
-			_shell.IsBusy = value;
+			_shell.OnUi(() => _shell.IsBusy = value);
 		}
 
 		public double ProgressFraction
 		{
 			get => _shell.ProgressFraction;
-			set => _shell.ProgressFraction = value;
+			set => _shell.OnUi(() => _shell.ProgressFraction = value);
 		}
 
 		public string ProgressLabel
 		{
 			get => _shell.ProgressLabel;
-			set => _shell.ProgressLabel = value;
+			set => _shell.OnUi(() => _shell.ProgressLabel = value);
 		}
 
 		public string ProgressDetail
 		{
 			get => _shell.ProgressDetail;
-			set => _shell.ProgressDetail = value;
+			set => _shell.OnUi(() => _shell.ProgressDetail = value);
 		}
 
 		public string StatusLine
 		{
 			get => _shell.StatusLine;
-			set => _shell.StatusLine = value;
+			set => _shell.OnUi(() => _shell.StatusLine = value);
 		}
 
 		public string AccountStatus
 		{
 			get => _shell.AccountStatus;
-			set => _shell.AccountStatus = value;
+			set => _shell.OnUi(() => _shell.AccountStatus = value);
 		}
 
 		public bool LauncherSounds => _shell.LauncherSounds;
@@ -2401,7 +2416,7 @@ public class ShellViewModel : ObservableObject
 
 		public void SetGameRunning(bool value)
 		{
-			_shell.GameRunning = value;
+			_shell.OnUi(() => _shell.GameRunning = value);
 		}
 
 		public CancellationTokenSource StartMeter(TransferMeter meter)
@@ -2429,17 +2444,17 @@ public class ShellViewModel : ObservableObject
 
 		public Task PollPin(CancellationToken ct)
 		{
-			return _shell.PollLivePinCoreAsync(true, true, ct);
+			return _shell.OnUi(() => _shell.PollLivePinCoreAsync(true, true, ct));
 		}
 
 		public Task LoadNews()
 		{
-			return _shell.LoadNewsAsync();
+			return _shell.OnUi(() => _shell.LoadNewsAsync());
 		}
 
 		public Task LoadDiscord()
 		{
-			return _shell.LoadDiscordAsync();
+			return _shell.OnUi(() => _shell.LoadDiscordAsync());
 		}
 
 		public void ArmWatch()
@@ -2480,31 +2495,37 @@ public class ShellViewModel : ObservableObject
 
 		public void RefreshLaunched()
 		{
-			_shell.RefreshLaunchedGame();
+			_shell.OnUi(_shell.RefreshLaunchedGame);
 		}
 
 		public void Apply(PlayOutcome outcome)
 		{
-			_shell.ProgressFraction = outcome.Started ? 1.0 : 0.0;
-			_shell.ProgressLabel = outcome.Label;
-			_shell.ProgressDetail = "";
-			if (!string.IsNullOrWhiteSpace(outcome.Message))
+			_shell.OnUi(delegate
 			{
-				_shell.StatusLine = outcome.Message;
-				_shell.AccountStatus = outcome.Message;
-			}
-			if (!outcome.Started && outcome.Message == PlayAdmission.AlreadyRunning)
-			{
-				_shell.GameRunning = true;
-			}
-			LauncherLog.Write(outcome.Started ? "play started" : "play blocked");
+				_shell.ProgressFraction = outcome.Started ? 1.0 : 0.0;
+				_shell.ProgressLabel = outcome.Label;
+				_shell.ProgressDetail = "";
+				if (!string.IsNullOrWhiteSpace(outcome.Message))
+				{
+					_shell.StatusLine = outcome.Message;
+					_shell.AccountStatus = outcome.Message;
+				}
+				if (!outcome.Started && outcome.Message == PlayAdmission.AlreadyRunning)
+				{
+					_shell.GameRunning = true;
+				}
+				LauncherLog.Write(outcome.Started ? "play started" : "play blocked");
+			});
 		}
 
 		public void NotifyCommands()
 		{
-			_shell.OnPropertyChanged(nameof(PlayAvailability));
-			_shell.OnPropertyChanged(nameof(GamePickerDetail));
-			((IRelayCommand)_shell.PlayCommand).NotifyCanExecuteChanged();
+			_shell.OnUi(delegate
+			{
+				_shell.OnPropertyChanged(nameof(PlayAvailability));
+				_shell.OnPropertyChanged(nameof(GamePickerDetail));
+				((IRelayCommand)_shell.PlayCommand).NotifyCanExecuteChanged();
+			});
 		}
 
 		public string AvailabilityText()

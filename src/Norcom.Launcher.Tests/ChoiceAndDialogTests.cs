@@ -13,13 +13,12 @@ public class ChoiceAndDialogTests
 		string menu = File.ReadAllText(Repo("src", "Norcom.Launcher", "views", "GraphicsMenuView.xaml"));
 		Assert.Contains("x:Name=\"PatrixPackButton\"", menu, StringComparison.Ordinal);
 		Assert.Contains("x:Name=\"AlacrityPackButton\"", menu, StringComparison.Ordinal);
-		Assert.Contains("Command=\"{Binding ChooseTexturePackCommand}\"", menu, StringComparison.Ordinal);
-		Assert.Contains("CommandParameter=\"Patrix\"", menu, StringComparison.Ordinal);
-		Assert.Contains("CommandParameter=\"Alacrity\"", menu, StringComparison.Ordinal);
+		Assert.Contains("Click=\"ChoosePatrix\"", menu, StringComparison.Ordinal);
+		Assert.Contains("Click=\"ChooseAlacrity\"", menu, StringComparison.Ordinal);
 		string code = File.ReadAllText(Repo("src", "Norcom.Launcher", "views", "GraphicsMenuView.xaml.cs"));
 		Assert.Contains("SelectedChoiceButton", code, StringComparison.Ordinal);
-		Assert.Contains("TexturePackChoice.Patrix", code, StringComparison.Ordinal);
-		Assert.Contains("TexturePackChoice.Alacrity", code, StringComparison.Ordinal);
+		Assert.Contains("Choose(TexturePackChoice.Patrix)", code, StringComparison.Ordinal);
+		Assert.Contains("Choose(TexturePackChoice.Alacrity)", code, StringComparison.Ordinal);
 		Assert.Contains("nameof(ShellViewModel.ActiveTexturePack)", code, StringComparison.Ordinal);
 		Assert.Contains("_profile.Preset", code, StringComparison.Ordinal);
 		string shell = File.ReadAllText(Repo("src", "Norcom.Launcher", "Norcom.Launcher.ViewModels", "ShellViewModel.cs"));

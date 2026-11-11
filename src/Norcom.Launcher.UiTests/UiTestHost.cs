@@ -49,12 +49,14 @@ internal static class UiTestHost
 			{
 				try
 				{
-					Application app = Application.Current ?? new Norcom.Launcher.App();
-					if (app.Resources == null || app.Resources.MergedDictionaries.Count == 0)
+					Application app = new Application
 					{
-						((Norcom.Launcher.App)app).InitializeComponent();
-					}
-					app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+						ShutdownMode = ShutdownMode.OnExplicitShutdown
+					};
+					app.Resources.MergedDictionaries.Add(new ResourceDictionary
+					{
+						Source = new Uri("/NorcomLauncher;component/Theme/Norcom.xaml", UriKind.Relative)
+					});
 					dispatcher = app.Dispatcher;
 				}
 				catch (Exception ex)

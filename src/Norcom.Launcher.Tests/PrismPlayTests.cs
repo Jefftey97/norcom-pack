@@ -26,11 +26,11 @@ public class PrismPlayTests
 	}
 
 	[Fact]
-	public async Task ExitZeroWithAFreshLogKeepsClosed()
+	public async Task ExitZeroWithOnlyAFreshLogIsNotAStart()
 	{
 		PrismPreparation result = await Run(0, new FakeSignals { Freshened = true });
-		Assert.True(result.CanStart);
-		Assert.Equal(PrismMessages.Closed, result.Message);
+		Assert.False(result.CanStart);
+		Assert.Equal(PrismMessages.ClosedWithoutGame, result.Message);
 	}
 
 	[Fact]
@@ -87,6 +87,51 @@ public class PrismPlayTests
 		{
 			PrismPlay.GameProcessObserved = null;
 			PrismPlay.PlayFailed = previous;
+		}
+	}
+
+	[Fact]
+	public async Task PrismThatIsNotRunningStillCountsTheChildItStarted()
+	{
+		GameProcessRow child = new GameProcessRow("java.exe", "", 7001, 5100, GameDirHint);
+		int? seen = null;
+		List<string> failures = new List<string>();
+		Action<string> previous = PrismPlay.PlayFailed;
+		PrismPlay.GameProcessObserved = pid => seen = pid;
+		PrismPlay.PlayFailed = message => failures.Add(message);
+		try
+		{
+			DelayedRows signals = new DelayedRows(new[] { ServerRow(), child }, 2);
+			PrismPreparation result = await PrismPlay.RunAsync(Ready(), new TrackedExit(0) { ProcessId = 5100 }, CancellationToken.None, signals, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+			Assert.True(result.CanStart);
+			Assert.Equal(PrismMessages.Closed, result.Message);
+			Assert.Equal(7001, seen);
+			Assert.Empty(failures);
+		}
+		finally
+		{
+			PrismPlay.GameProcessObserved = null;
+			PrismPlay.PlayFailed = previous;
+		}
+	}
+
+	[Fact]
+	public async Task PrismThatStaysOpenCountsTheNorcomChild()
+	{
+		TaskCompletionSource<int> gate = new TaskCompletionSource<int>();
+		GameProcessRow child = new GameProcessRow("javaw.exe", "javaw net.fabricmc.loader.impl.launch.knot.KnotClient --gameDir " + GameDirHint, 7002, 5100, "");
+		int? seen = null;
+		PrismPlay.GameProcessObserved = pid => seen = pid;
+		try
+		{
+			PrismPreparation result = await PrismPlay.RunAsync(Ready(), new TrackedHang(gate.Task) { ProcessId = 5100 }, CancellationToken.None, new RowSignals(new[] { ServerRow(), child }), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+			Assert.True(result.CanStart);
+			Assert.Equal(7002, seen);
+			Assert.False(gate.Task.IsCompleted);
+		}
+		finally
+		{
+			PrismPlay.GameProcessObserved = null;
 		}
 	}
 

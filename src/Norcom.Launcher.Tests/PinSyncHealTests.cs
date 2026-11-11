@@ -123,6 +123,30 @@ public class PinSyncHealTests
 	}
 
 	[Fact]
+	public async Task HealUsesThePinPathAndLeavesASameNameFileElsewhere()
+	{
+		PinFetch.ResetForTests();
+		byte[] live = Encoding.UTF8.GetBytes("mods-marble-only");
+		byte[] elsewhere = Encoding.UTF8.GetBytes("not-the-pin-jar");
+		string sha = Hex(live);
+		(string dir, string primary) roots = Roots();
+		Directory.CreateDirectory(Path.Combine(roots.dir, "mods"));
+		Directory.CreateDirectory(Path.Combine(roots.dir, "config"));
+		await File.WriteAllBytesAsync(Path.Combine(roots.dir, PinGate.MarbleJarName), elsewhere);
+		await File.WriteAllBytesAsync(Path.Combine(roots.dir, "config", PinGate.MarbleJarName), elsewhere);
+		await File.WriteAllBytesAsync(Path.Combine(roots.dir, "mods", PinGate.MarbleJarName), Encoding.UTF8.GetBytes("stale-mods-copy"));
+		HealHandler handler = new HealHandler(PinJson(LivePin, sha, live.Length, JarUrl), live);
+		using HttpClient http = new(handler);
+		PinGate.PinSyncResult result = await PinGate.SyncPublishedAsync(http, roots.dir, CancellationToken.None, forceTip: true, roots.primary);
+		Assert.Equal("correct", result.State);
+		Assert.Equal("mods-marble-only", Encoding.UTF8.GetString(await File.ReadAllBytesAsync(Path.Combine(roots.dir, "mods", PinGate.MarbleJarName))));
+		Assert.Equal("not-the-pin-jar", Encoding.UTF8.GetString(await File.ReadAllBytesAsync(Path.Combine(roots.dir, PinGate.MarbleJarName))));
+		Assert.Equal("not-the-pin-jar", Encoding.UTF8.GetString(await File.ReadAllBytesAsync(Path.Combine(roots.dir, "config", PinGate.MarbleJarName))));
+		Assert.Contains(handler.Urls, url => url == JarUrl);
+		Assert.DoesNotContain(handler.Urls, url => url.Contains("/mods/" + PinGate.MarbleJarName, StringComparison.Ordinal) && url != JarUrl);
+	}
+
+	[Fact]
 	public async Task OpenPollHealsALaggingJarAndFixUsesTheSamePath()
 	{
 		PinFetch.ResetForTests();

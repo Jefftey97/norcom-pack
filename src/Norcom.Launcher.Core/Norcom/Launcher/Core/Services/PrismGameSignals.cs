@@ -162,7 +162,6 @@ public static class PrismGameSignals
 			}
 		}
 		int? handedOff = null;
-		int? hinted = null;
 		foreach (GameProcessRow row in rows)
 		{
 			if (row.Pid <= 0 || !IsJavaProcess(row.Name) || IsServerJava(row.Name, row.CommandLine, row.WorkingDirectory))
@@ -170,21 +169,20 @@ public static class PrismGameSignals
 				continue;
 			}
 			bool atInstance = PointsAtInstance(row.CommandLine, instanceHint, gameDir) || PointsAtInstance(row.WorkingDirectory, instanceHint, gameDir);
-			bool clientLine = CommandLineIsGame(row.Name, row.CommandLine, instanceHint, gameDir);
-			if (prismPid is int parent && parent > 0 && row.ParentPid == parent && (clientLine || atInstance))
+			if (!atInstance || !prismPids.Contains(row.ParentPid))
+			{
+				continue;
+			}
+			if (prismPid is int parent && parent > 0 && row.ParentPid == parent)
 			{
 				return row.Pid;
 			}
-			if (prismPids.Contains(row.ParentPid) && atInstance && handedOff == null)
+			if (handedOff == null)
 			{
 				handedOff = row.Pid;
 			}
-			if (clientLine && hinted == null)
-			{
-				hinted = row.Pid;
-			}
 		}
-		return handedOff ?? hinted;
+		return handedOff;
 	}
 
 	private static bool PointsAtInstance(string? text, string? instanceHint, string? gameDir)

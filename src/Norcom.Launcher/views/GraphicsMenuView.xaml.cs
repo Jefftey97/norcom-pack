@@ -123,6 +123,24 @@ public partial class GraphicsMenuView : UserControl
 		AlacrityPackButton.Style = string.Equals(choice, TexturePackChoice.Alacrity, StringComparison.OrdinalIgnoreCase) ? selected : null;
 	}
 
+	private void ChoosePatrix(object sender, RoutedEventArgs args)
+	{
+		Choose(TexturePackChoice.Patrix);
+	}
+
+	private void ChooseAlacrity(object sender, RoutedEventArgs args)
+	{
+		Choose(TexturePackChoice.Alacrity);
+	}
+
+	private void Choose(string choice)
+	{
+		if (DataContext is ShellViewModel shell)
+		{
+			shell.ChooseTexturePackCommand.Execute(choice);
+		}
+	}
+
 	private void LoadProfile()
 	{
 		(SavedGraphicsProfile saved, PresetChoice recommended) = GraphicsProfileStore.Resolve(NorcomPaths.NorcomHome, GameHost.Require(_gameId).Id, _specs);

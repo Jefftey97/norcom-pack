@@ -905,7 +905,9 @@ public static class PinGate
 				{
 					request.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
 				}
-				using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(continueOnCapturedContext: false);
+				LauncherLog.Write("download " + Path.GetFileName((name ?? "").Replace('\\', '/')));
+				using CancellationTokenSource budget = HttpDownload.OpenBudget(ct);
+				using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, budget.Token).ConfigureAwait(continueOnCapturedContext: false);
 				if (!response.IsSuccessStatusCode)
 				{
 					continue;
@@ -916,7 +918,7 @@ public static class PinGate
 				{
 					continue;
 				}
-				byte[]? body = await ReadBoundedAsync(response, limit, ct).ConfigureAwait(continueOnCapturedContext: false);
+				byte[]? body = await ReadBoundedAsync(response, limit, budget).ConfigureAwait(continueOnCapturedContext: false);
 				if (body == null)
 				{
 					continue;
@@ -942,22 +944,28 @@ public static class PinGate
 				await File.WriteAllBytesAsync(temp, body, ct).ConfigureAwait(continueOnCapturedContext: false);
 				return true;
 			}
-			catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or JsonException or FormatException)
+			catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException or IOException or JsonException or FormatException or TimeoutException)
 			{
+				if (ex is OperationCanceledException or TaskCanceledException && !ct.IsCancellationRequested)
+				{
+					LauncherLog.Write("download timed out " + Path.GetFileName((name ?? "").Replace('\\', '/')));
+					return false;
+				}
 				LauncherLog.Write("pin heal fetch " + ex.GetType().Name);
 			}
 		}
 		return false;
 	}
 
-	private static async Task<byte[]?> ReadBoundedAsync(HttpResponseMessage response, long limit, CancellationToken ct)
+	private static async Task<byte[]?> ReadBoundedAsync(HttpResponseMessage response, long limit, CancellationTokenSource budget)
 	{
-		await using Stream input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
+		await using Stream input = await response.Content.ReadAsStreamAsync(budget.Token).ConfigureAwait(continueOnCapturedContext: false);
 		using MemoryStream output = new MemoryStream();
 		byte[] buffer = new byte[81920];
 		int read;
-		while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(continueOnCapturedContext: false)) > 0)
+		while ((read = await input.ReadAsync(buffer, budget.Token).ConfigureAwait(continueOnCapturedContext: false)) > 0)
 		{
+			HttpDownload.KeepAlive(budget);
 			if (output.Length + read > limit)
 			{
 				return null;
@@ -972,12 +980,14 @@ public static class PinGate
 		if (!string.IsNullOrWhiteSpace(explicitUrl))
 		{
 			yield return explicitUrl.Trim();
+			yield break;
 		}
-		string file = Uri.EscapeDataString(Path.GetFileName((name ?? "").Replace('\\', '/')));
+		string relative = EntryRelative(name);
+		string escaped = string.Join("/", relative.Split('/').Select(Uri.EscapeDataString));
 		string tip = string.IsNullOrWhiteSpace(PinFetch.ResolvedTip) ? PinFetch.KnownTip : PinFetch.ResolvedTip.Trim();
-		yield return "https://raw.githubusercontent.com/" + PinFetch.Repo + "/" + tip + "/mods/" + file;
-		yield return "https://cdn.jsdelivr.net/gh/" + PinFetch.Repo + "@" + tip + "/mods/" + file;
-		yield return "https://api.github.com/repos/" + PinFetch.Repo + "/contents/mods/" + file + "?ref=" + tip;
+		yield return "https://raw.githubusercontent.com/" + PinFetch.Repo + "/" + tip + "/" + escaped;
+		yield return "https://cdn.jsdelivr.net/gh/" + PinFetch.Repo + "@" + tip + "/" + escaped;
+		yield return "https://api.github.com/repos/" + PinFetch.Repo + "/contents/" + escaped + "?ref=" + tip;
 	}
 
 	private static byte[] DecodeContentsBytes(byte[] body)
@@ -1014,18 +1024,7 @@ public static class PinGate
 
 	private static string HealDest(string gameDir, string name)
 	{
-		string file = Path.GetFileName((name ?? "").Replace('\\', '/'));
-		string inMods = Path.Combine(gameDir, "mods", file);
-		if (File.Exists(inMods) || IsMarbleJar(name))
-		{
-			return inMods;
-		}
-		string atRoot = Path.Combine(gameDir, file);
-		if (File.Exists(atRoot))
-		{
-			return atRoot;
-		}
-		return inMods;
+		return EntryPath(gameDir, name);
 	}
 
 	private static bool CommitApplied(string gameDir, string launcherDir, string pin, string generatedAt)
@@ -1199,13 +1198,32 @@ public static class PinGate
 
 	private static string LocateJar(string gameDir, string name)
 	{
-		string file = Path.GetFileName(name.Replace('\\', '/'));
-		string inMods = Path.Combine(gameDir, "mods", file);
-		if (File.Exists(inMods))
+		return EntryPath(gameDir, name);
+	}
+
+	// A pin entry names one path. A bare file name is that jar under mods/. A same-named file in another folder is not this entry.
+	private static string EntryRelative(string name)
+	{
+		string rel = (name ?? "").Replace('\\', '/').Trim();
+		while (rel.StartsWith("./", StringComparison.Ordinal))
 		{
-			return inMods;
+			rel = rel.Substring(2);
 		}
-		return Path.Combine(gameDir, file);
+		rel = rel.TrimStart('/');
+		if (rel.Length == 0 || rel.Contains("..", StringComparison.Ordinal) || rel.IndexOf(':') >= 0)
+		{
+			throw new InvalidDataException("Pin jar path is outside the game folder.");
+		}
+		if (rel.IndexOf('/') < 0)
+		{
+			rel = "mods/" + rel;
+		}
+		return rel;
+	}
+
+	private static string EntryPath(string gameDir, string name)
+	{
+		return PackSyncService.ConfinedPath(gameDir, EntryRelative(name));
 	}
 
 	private static void Remember(string gameDir, string pin)

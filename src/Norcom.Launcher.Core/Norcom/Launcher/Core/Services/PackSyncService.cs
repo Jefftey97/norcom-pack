@@ -331,11 +331,26 @@ public sealed class PackSyncService
 		return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 	}
 
+	private async Task<bool> MatchesOnDiskAsync(string baseDir, string dest, string hash, string format, CancellationToken ct)
+	{
+		if (!File.Exists(dest))
+		{
+			return false;
+		}
+		RejectReparseEscape(baseDir, dest, createMissingParents: false);
+		return Hashing.EqualsHex(await Hashing.FileHexAsync(dest, format, ct).ConfigureAwait(continueOnCapturedContext: false), hash);
+	}
+
 	private async Task DownloadVerifiedAsync(string baseDir, string url, string dest, string hash, string format, string mismatchMessage, TransferMeter meter, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(hash))
 		{
 			throw new InvalidDataException("Pack file has no hash.");
+		}
+		if (await MatchesOnDiskAsync(baseDir, dest, hash, format, ct).ConfigureAwait(continueOnCapturedContext: false))
+		{
+			LauncherLog.Write("pack skip " + Path.GetFileName(dest));
+			return;
 		}
 		string temp = dest + "." + Guid.NewGuid().ToString("n") + ".norcom-partial";
 		bool placed = false;

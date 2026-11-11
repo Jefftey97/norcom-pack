@@ -236,16 +236,9 @@ public static class PrismPlay
 		if (signals is IGameProcessLookup lookup)
 		{
 			gamePid = lookup.TryGameProcessId(TrackedPid(process));
-			if (gamePid != null)
-			{
-				return true;
-			}
+			return gamePid != null;
 		}
-		else if (signals.MinecraftProcessRunning())
-		{
-			return true;
-		}
-		return signals.LogFreshenedSinceLaunch();
+		return signals.MinecraftProcessRunning();
 	}
 
 	private static int? TrackedPid(IPrismProcess process)

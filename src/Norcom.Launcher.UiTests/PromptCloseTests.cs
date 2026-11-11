@@ -12,8 +12,6 @@ public class PromptCloseTests
 	{
 		UiTestHost.Run(() =>
 		{
-			ShutdownMode previous = Application.Current.ShutdownMode;
-			Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 			Window owner = new Window
 			{
 				Title = "NORCOM prompt close",
@@ -64,10 +62,6 @@ public class PromptCloseTests
 			{
 				unblock.Stop();
 				LauncherDialogs.OwnerReady -= ready;
-				if (Application.Current != null)
-				{
-					Application.Current.ShutdownMode = previous;
-				}
 				if (owner.IsLoaded)
 				{
 					owner.Close();

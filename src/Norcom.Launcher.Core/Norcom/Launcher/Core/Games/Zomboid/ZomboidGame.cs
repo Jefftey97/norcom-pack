@@ -242,6 +242,18 @@ public sealed class ZomboidGame : IGame
 			{
 				LauncherLog.Write(plan.GraphicsNote);
 			}
+			try
+			{
+				if (plan.CanStart)
+				{
+					// GamePath is the install SteamLibrary already resolved from libraryfolders.vdf.
+					ZomboidClientMemory.ApplyBeforeLaunch(plan.GamePath, HostMemory.Read().Total);
+				}
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("zomboid memory " + ex.GetType().Name);
+			}
 			context.Apply(PlayConductor.Zomboid(new ZomboidPlayRequest
 			{
 				Plan = plan,

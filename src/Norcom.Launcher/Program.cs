@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using Norcom.Launcher.Core.Games.Zomboid;
 using Norcom.Launcher.Core.Text;
 using Norcom.Launcher.Services;
 
@@ -9,6 +10,12 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // One elevated edit of ProjectZomboid64.json, then exit. No window and no update check.
+        if(ZomboidClientMemory.IsElevatedRequest(args))
+        {
+            Environment.ExitCode=ZomboidClientMemory.RunElevated(args);
+            return;
+        }
         try
         {
             if(!BridgeRuntime.EnterAsync(args).GetAwaiter().GetResult())return;

@@ -4,6 +4,6 @@ side = "both"
 
 [download]
 mode = "url"
-url = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/c0958aa09a683def0482b058744fc7840ed6e7da/mods/norcom-marble-1.0.0.jar"
+url = "https://raw.githubusercontent.com/Jefftey97/norcom-pack/e9c90afa81ec38eebc187b38eea56dc1b0d312f1/mods/norcom-marble-1.0.0.jar"
 hash-format = "sha512"
-hash = "9a14950b20c4df31de17ca4cb3ed5e19f64513a86988a485fb1ecc5e50fe7bd4b3d5ad745d7cd5c24221c0cff65645f45ec0c36f86855d2a92cd7c7f1abddace"
+hash = "27f47623dd926a3efad8b275381598f2ce1b7c69b8d39c64a38eb3e33cd993795fa11fb6336d85a23e316a1308bb00f66e482fd5a0783b1d1dae9da60c950c6e"

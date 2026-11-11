@@ -3,6 +3,8 @@
  <SolidColorBrush x:Key="LineBrush" Color="#2a3549"/><SolidColorBrush x:Key="TextBrush" Color="#f2f5fa"/>
  <SolidColorBrush x:Key="MutedBrush" Color="#a3afc3"/><SolidColorBrush x:Key="BlueBrush" Color="#4db8ff"/>
  <SolidColorBrush x:Key="PinkBrush" Color="#ff4fa3"/><SolidColorBrush x:Key="FocusBrush" Color="#9edbff"/>
+ <SolidColorBrush x:Key="InputBrush" Color="#192436"/><SolidColorBrush x:Key="InputHoverBrush" Color="#243044"/>
+ <SolidColorBrush x:Key="InputSelectedBrush" Color="#153047"/><SolidColorBrush x:Key="InputOnAccentBrush" Color="#081423"/>
  <BooleanToVisibilityConverter x:Key="BooleanVisibility"/>
  <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="FontSize" Value="14"/></Style>
  <Style x:Key="Muted" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="LineHeight" Value="22"/></Style>
@@ -23,6 +25,69 @@
  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="{StaticResource BlueBrush}"/><Setter Property="Foreground" Value="#081423"/><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
  <Style x:Key="CautionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Foreground" Value="{StaticResource PinkBrush}"/><Setter Property="BorderBrush" Value="#70405c"/></Style>
  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="Margin" Value="0,10,0,10"/><Setter Property="FontSize" Value="14"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
- <Style TargetType="Slider"><Setter Property="Margin" Value="0,18,0,14"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/></Style>
+ <Style TargetType="TextBox">
+  <Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="Background" Value="{StaticResource InputBrush}"/>
+  <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/><Setter Property="BorderThickness" Value="1"/>
+  <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/><Setter Property="SelectionBrush" Value="{StaticResource BlueBrush}"/>
+  <Setter Property="SelectionTextBrush" Value="{StaticResource InputOnAccentBrush}"/>
+  <Setter Property="Padding" Value="8,6"/><Setter Property="MinHeight" Value="36"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+  <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{StaticResource MutedBrush}"/></Trigger>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style TargetType="PasswordBox">
+  <Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="Background" Value="{StaticResource InputBrush}"/>
+  <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/><Setter Property="BorderThickness" Value="1"/>
+  <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/><Setter Property="SelectionBrush" Value="{StaticResource BlueBrush}"/>
+  <Setter Property="Padding" Value="8,6"/><Setter Property="MinHeight" Value="36"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+  <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{StaticResource MutedBrush}"/></Trigger>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style TargetType="ComboBoxItem">
+  <Style.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"/></Style></Style.Resources>
+  <Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="Background" Value="{StaticResource InputBrush}"/>
+  <Setter Property="Padding" Value="10,8"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Border x:Name="Row" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource InputHoverBrush}"/></Trigger>
+    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource InputSelectedBrush}"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{StaticResource MutedBrush}"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style TargetType="ComboBox">
+  <Setter Property="Foreground" Value="{StaticResource TextBrush}"/><Setter Property="Background" Value="{StaticResource InputBrush}"/>
+  <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/><Setter Property="BorderThickness" Value="1"/>
+  <Setter Property="Padding" Value="10,8"/><Setter Property="MinHeight" Value="36"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
+   <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" HorizontalContentAlignment="Right">
+    <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8"><TextBlock Text="&#x25BE;" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextBrush}" FontSize="12"/></Border></ControlTemplate></ToggleButton.Template>
+   </ToggleButton>
+   <ContentPresenter Margin="12,6,28,6" HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}">
+    <ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"/></Style></ContentPresenter.Resources>
+   </ContentPresenter>
+   <Popup Placement="Bottom" AllowsTransparency="True" Focusable="False" IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
+    <Border Background="{StaticResource InputBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="280"><ScrollViewer><ItemsPresenter/></ScrollViewer></Border>
+   </Popup>
+  </Grid>
+  <ControlTemplate.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{StaticResource MutedBrush}"/></Trigger>
+   <Trigger Property="IsDropDownOpen" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BlueBrush}"/></Trigger>
+  </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style TargetType="Slider">
+  <Setter Property="Foreground" Value="{StaticResource BlueBrush}"/><Setter Property="Background" Value="{StaticResource InputHoverBrush}"/>
+  <Setter Property="Margin" Value="0,18,0,14"/><Setter Property="MinHeight" Value="22"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider"><Grid VerticalAlignment="Center" Height="22" Margin="0,4"><Track x:Name="PART_Track">
+   <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False" IsTabStop="False" Height="4" VerticalAlignment="Center"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{StaticResource BlueBrush}" Height="4" VerticalAlignment="Center"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
+   <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False" IsTabStop="False" Height="4" VerticalAlignment="Center"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{StaticResource InputHoverBrush}" Height="4" VerticalAlignment="Center"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
+   <Track.Thumb><Thumb Width="16" Height="16" Focusable="False"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Width="16" Height="16" CornerRadius="8" Background="{StaticResource TextBrush}" BorderBrush="{StaticResource BlueBrush}" BorderThickness="2"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+  </Track></Grid></ControlTemplate></Setter.Value></Setter>
+ </Style>
  <Style TargetType="ScrollViewer"><Setter Property="VerticalScrollBarVisibility" Value="Auto"/><Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/><Setter Property="PanningMode" Value="VerticalOnly"/></Style>
 </ResourceDictionary>

@@ -109,12 +109,8 @@ public sealed class ZomboidGame : IGame
 
 	public RamBudget DisplayBudget(long totalBytes, long freeBytes, string jsonPath)
 	{
-		ZomboidState state = State();
-		if (state.RamSpecified)
-		{
-			return RamBudget.Create(totalBytes, freeBytes, state.RamMb);
-		}
-		return RamBudget.ForUnchangedSlider(totalBytes, freeBytes, ZomboidMemory.ReadCurrentMb(jsonPath));
+		_ = jsonPath;
+		return ZomboidRam.Budget(State(), totalBytes, freeBytes);
 	}
 
 	public void CommitRam(int megabytes, long totalBytes, long freeBytes)
@@ -227,11 +223,13 @@ public sealed class ZomboidGame : IGame
 			string chosen = PlayFeeds.Choose(live, cached, cachedUtc, DateTimeOffset.UtcNow, out string feedNote);
 			context.ProgressLabel = "Syncing Project Zomboid";
 			ZomboidState state = State();
-			int ram = state.RamPending ? context.MemoryMb : 0;
+			(long hostTotal, long hostFree) = HostMemory.Read();
+			int ram = ZomboidRam.HeapForPlay(state, hostTotal, hostFree);
+			LauncherLog.Write("zomboid heap " + ram.ToString(System.Globalization.CultureInfo.InvariantCulture) + " MB" + (state.RamSpecified ? " (slider)" : " (default)"));
 			ZomboidLaunchPlan plan;
 			using (CancellationTokenSource prepare = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
 			{
-				plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, chosen, context.Http, prepare.Token, Password(), ram).ConfigureAwait(false);
+				plan = await ZomboidLaunch.PrepareAsync(SteamSources.Detect(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), NorcomPaths.NorcomHome, NorcomPaths.GameLockPath, chosen, context.Http, prepare.Token, Password(), ram, state.RamPending).ConfigureAwait(false);
 			}
 			if (plan.Applied && state.RamPending)
 			{

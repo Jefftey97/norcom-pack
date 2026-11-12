@@ -86,17 +86,34 @@ public sealed class MinecraftGame : IGame
 
 	public RamBudget DisplayBudget(long totalBytes, long freeBytes)
 	{
-		return DisplayBudget(totalBytes, freeBytes, MinecraftRam.InstanceCfg(NorcomPaths.AppData));
+		return DisplayBudget(totalBytes, freeBytes, MinecraftRam.InstanceCfg(NorcomPaths.AppData), MinecraftRam.GlobalCfg(NorcomPaths.AppData));
 	}
 
 	public RamBudget DisplayBudget(long totalBytes, long freeBytes, string instanceCfgPath)
+	{
+		return DisplayBudget(totalBytes, freeBytes, instanceCfgPath, "");
+	}
+
+	public RamBudget DisplayBudget(long totalBytes, long freeBytes, string instanceCfgPath, string globalCfgPath)
 	{
 		MinecraftState state = State();
 		if (state.RamSpecified)
 		{
 			return RamBudget.Create(totalBytes, freeBytes, state.RamMb);
 		}
-		return RamBudget.ForUnchangedSlider(totalBytes, freeBytes, MinecraftRam.ReadMaxMb(instanceCfgPath));
+		int playerSet = MinecraftRam.ReadPlayerSetMb(instanceCfgPath, globalCfgPath);
+		if (playerSet > 0)
+		{
+			return RamBudget.ForUnchangedSlider(totalBytes, freeBytes, playerSet);
+		}
+		// Never set anywhere: show the launcher's recommended amount, which Play fills in.
+		return RamBudget.Create(totalBytes, freeBytes, 0);
+	}
+
+	// True when neither the slider nor Prism has a memory value, so Play may fill in the recommended amount.
+	public static bool ShouldFillDefault(MinecraftState state, string instanceCfgPath, string globalCfgPath)
+	{
+		return state != null && !state.RamSpecified && MinecraftRam.ReadPlayerSetMb(instanceCfgPath, globalCfgPath) <= 0;
 	}
 
 	public void CommitRam(int megabytes, long totalBytes, long freeBytes)
@@ -226,7 +243,15 @@ public sealed class MinecraftGame : IGame
 				AfterSync = () => Prepare(state),
 				PreparePrism = java =>
 				{
-					PrismPreparation prepared = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, context.MemoryMb, state.RamPending);
+					bool fillDefault = ShouldFillDefault(state, MinecraftRam.InstanceCfg(NorcomPaths.AppData), MinecraftRam.GlobalCfg(NorcomPaths.AppData));
+					int heapMb = context.MemoryMb;
+					if (fillDefault)
+					{
+						(long hostTotal, long hostFree) = HostMemory.Read();
+						heapMb = RamBudget.Create(hostTotal, hostFree, 0).ChosenMb;
+						LauncherLog.Write("minecraft heap default " + heapMb.ToString(System.Globalization.CultureInfo.InvariantCulture) + " MB");
+					}
+					PrismPreparation prepared = PrismPlay.Prepare(Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), PrismCommand.DefaultDataDir(NorcomPaths.AppData), NorcomPaths.GameDir, java, heapMb, state.RamPending || fillDefault);
 					if (prepared.Applied && state.RamPending)
 					{
 						state.RamPending = false;

@@ -34,7 +34,7 @@ public static class ZomboidLaunch
 		return Prepare(sources, userProfile, launcherHome, minecraftLockPath, null);
 	}
 
-	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, string localPassword = "", int ramMb = 0)
+	public static ZomboidLaunchPlan Prepare(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, string localPassword = "", int ramMb = 0, bool saveMemory = true)
 	{
 		SteamGameLocation install = SteamLibrary.FindZomboid(sources);
 		if (!install.Found)
@@ -70,7 +70,11 @@ public static class ZomboidLaunch
 		}
 		string memoryNote = "";
 		bool applied = false;
-		if (ramMb >= 512)
+		if (ramMb >= 512 && !saveMemory)
+		{
+			memoryNote = "Memory for Project Zomboid is " + ramMb.ToString(System.Globalization.CultureInfo.InvariantCulture) + " MB.";
+		}
+		if (ramMb >= 512 && saveMemory)
 		{
 			try
 			{
@@ -110,9 +114,9 @@ public static class ZomboidLaunch
 		};
 	}
 
-	public static async Task<ZomboidLaunchPlan> PrepareAsync(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, HttpClient http, CancellationToken ct, string localPassword = "", int ramMb = 0)
+	public static async Task<ZomboidLaunchPlan> PrepareAsync(SteamSources sources, string userProfile, string launcherHome, string minecraftLockPath, string feedJson, HttpClient http, CancellationToken ct, string localPassword = "", int ramMb = 0, bool saveMemory = true)
 	{
-		ZomboidLaunchPlan plan = Prepare(sources, userProfile, launcherHome, minecraftLockPath, feedJson, localPassword, ramMb);
+		ZomboidLaunchPlan plan = Prepare(sources, userProfile, launcherHome, minecraftLockPath, feedJson, localPassword, ramMb, saveMemory);
 		if (!plan.CanStart || http == null)
 		{
 			return plan;

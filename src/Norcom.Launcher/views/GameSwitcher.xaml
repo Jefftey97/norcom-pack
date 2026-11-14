@@ -5,7 +5,7 @@
     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource GameTile}"><Style.Triggers><DataTrigger Binding="{Binding SelectedGameId}" Value="minecraft"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/><Setter Property="BorderBrush" Value="#ff3ea5"/><Setter Property="BorderThickness" Value="2"/></DataTrigger></Style.Triggers></Style></Button.Style>
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
      <Border Width="44" Height="44" CornerRadius="12" Margin="0,0,14,0"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#3ee08f" Offset="0"/><GradientStop Color="#4db8ff" Offset="1"/></LinearGradientBrush></Border.Background>
-      <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="#071321" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <TextBlock Text="&#xE7B8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="#071321" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
      <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Minecraft" FontSize="17" FontWeight="Bold"/><TextBlock Text="Opens in Prism · mods sync automatically" Style="{StaticResource Muted}" FontSize="12" LineHeight="16"/></StackPanel>
     </Grid>
    </Button>

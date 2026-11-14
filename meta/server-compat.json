@@ -5,8 +5,8 @@
   "pin": "c943e5bbbc7706582eb858ac3cbb2d5271d684725887f36122bc48309335ecc5",
   "source": "server",
   "updatedUtc": "2026-11-14T08:16:08Z",
-  "packVersion": "1.0.42",
-  "indexSha256": "a6565aeefa3806b0279dd67f1f18e326d5f776eb6594d37792bd456b450c3829",
+  "packVersion": "1.0.43",
+  "indexSha256": "2f1c82b89f87558e31ec3aa8251d02adcd3c49adbb421e70d9d1c55f05405b76",
   "both": {
     "Clumps-fabric-26.3-26.3.2.jar": "8c72b1505a11ad93ed19b5a914eb6a036da92eb323d58da288bef36c19ed7624",
     "DistantHorizons-3.3.4-26.3-fabric-neoforge.jar": "ba3e5c85a765a109219831df99b99ef5cfcdee05b2dfa6796116993bd48d3947",

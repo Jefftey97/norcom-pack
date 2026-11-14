@@ -1,31 +1,46 @@
 <UserControl x:Class="Norcom.Launcher.Views.GraphicsMenuView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Norcom.Launcher.Views">
- <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24,6,24,24">
-  <TextBlock x:Name="Heading" FontSize="30" FontWeight="SemiBold" Margin="0,0,0,8"/>
-  <TextBlock Text="These settings stay on this PC. Server settings are in Workstation Admin." Style="{StaticResource Muted}" Margin="0,0,0,16"/>
-  <TextBlock x:Name="SpecsText" TextWrapping="Wrap" Margin="0,0,0,8"/>
-  <TextBlock x:Name="RecommendationText" TextWrapping="Wrap" Foreground="{StaticResource BlueBrush}" Margin="0,0,0,16"/>
-  <StackPanel x:Name="TexturePanel" Visibility="Collapsed">
-   <TextBlock Text="TEXTURE PACK" Style="{StaticResource Eyebrow}"/>
-   <WrapPanel Margin="0,0,0,8">
-    <Button x:Name="PatrixPackButton" Content="Patrix" Click="ChoosePatrix" Margin="0,0,10,10" AutomationProperties.Name="Choose Patrix"/>
-    <Button x:Name="AlacrityPackButton" Content="Alacrity" Click="ChooseAlacrity" Margin="0,0,10,10" AutomationProperties.Name="Choose Alacrity"/>
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24,0,24,24">
+  <TextBlock x:Name="Heading" FontSize="32" FontWeight="Bold" Margin="0,0,0,6"/>
+  <TextBlock Text="These settings stay on this PC. Server settings are in Workstation Admin." Style="{StaticResource Muted}" Margin="0,0,0,18"/>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="YOUR PC" Style="{StaticResource Eyebrow}"/>
+   <TextBlock x:Name="SpecsText" TextWrapping="Wrap" Margin="0,0,0,10"/>
+   <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="14,10" BorderBrush="#334db8ff" BorderThickness="1"><TextBlock x:Name="RecommendationText" TextWrapping="Wrap" Foreground="{StaticResource BlueBrush}"/></Border>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <StackPanel x:Name="TexturePanel" Visibility="Collapsed">
+    <TextBlock Text="TEXTURE PACK" Style="{StaticResource Eyebrow}"/>
+    <WrapPanel Margin="0,0,0,8">
+     <Button x:Name="PatrixPackButton" Content="Patrix" Click="ChoosePatrix" Margin="0,0,10,10" AutomationProperties.Name="Choose Patrix"/>
+     <Button x:Name="AlacrityPackButton" Content="Alacrity" Click="ChooseAlacrity" Margin="0,0,10,10" AutomationProperties.Name="Choose Alacrity"/>
+    </WrapPanel>
+    <TextBlock Text="{Binding TextureChoiceLabel}" Margin="0,0,0,4"/>
+    <TextBlock Text="{Binding TextureHint}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+   </StackPanel>
+   <TextBlock Text="QUALITY PRESET" Style="{StaticResource Eyebrow}"/>
+   <TextBlock Text="Pick one and you're done. The recommendation is based on this PC." Style="{StaticResource Muted}" Margin="0,-6,0,4"/>
+   <WrapPanel x:Name="PresetButtons" Margin="0,8,0,8"/>
+   <WrapPanel>
+    <Button Content="Use recommendation" Click="UseRecommendationClick" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0"/>
+    <Button Content="Reset to preset" Click="ResetPresetClick" Margin="0,0,10,0"/>
    </WrapPanel>
-   <TextBlock Text="{Binding TextureChoiceLabel}" Margin="0,0,0,4"/>
-   <TextBlock Text="{Binding TextureHint}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-  </StackPanel>
-  <TextBlock Text="PRESET" Style="{StaticResource Eyebrow}"/>
-  <WrapPanel x:Name="PresetButtons" Margin="0,8,0,8"/>
-  <WrapPanel Margin="0,0,0,18">
-   <Button Content="Use recommendation" Click="UseRecommendationClick" Margin="0,0,10,10"/>
-   <Button Content="Reset to preset" Click="ResetPresetClick" Margin="0,0,10,10"/>
-  </WrapPanel>
-  <TextBlock Text="MANUAL SETTINGS" Style="{StaticResource Eyebrow}"/>
-  <TextBlock Text="Labels match the game. Sliders, choices, and switches only change graphics keys. Other lines in the file stay put." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,8"/>
-  <StackPanel x:Name="Manual"/>
+  </StackPanel></Border>
   <local:RamCard x:Name="MemoryCard"/>
-  <TextBlock Text="MOD SETTINGS" Style="{StaticResource Eyebrow}" Margin="0,18,0,0"/>
-  <TextBlock Text="Only mods in the pack are listed. When the pack feed gains a mod, its settings show up here with no launcher update. A schema file beside a mod can name the fields. Formats this launcher does not understand stay read-only." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,8"/>
-  <StackPanel x:Name="Mods"/>
-  <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,16,0,0"/>
+  <Expander Margin="0,0,0,18" Foreground="{StaticResource TextBrush}" IsExpanded="False">
+   <Expander.Header><TextBlock Text="Advanced: manual graphics and mod settings" FontWeight="SemiBold" FontSize="15"/></Expander.Header>
+   <StackPanel Margin="0,14,0,0">
+    <Border Style="{StaticResource Card}"><StackPanel>
+     <TextBlock Text="MANUAL SETTINGS" Style="{StaticResource Eyebrow}"/>
+     <TextBlock Text="Labels match the game. Sliders, choices, and switches only change graphics keys. Other lines in the file stay put." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+     <StackPanel x:Name="Manual"/>
+    </StackPanel></Border>
+    <Border Style="{StaticResource Card}"><StackPanel>
+     <TextBlock Text="MOD SETTINGS" Style="{StaticResource Eyebrow}"/>
+     <TextBlock Text="Only mods in the pack are listed. When the pack feed gains a mod, its settings show up here with no launcher update. A schema file beside a mod can name the fields. Formats this launcher does not understand stay read-only." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+     <StackPanel x:Name="Mods"/>
+    </StackPanel></Border>
+   </StackPanel>
+  </Expander>
+  <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,4,0,0"/>
  </StackPanel></ScrollViewer>
 </UserControl>

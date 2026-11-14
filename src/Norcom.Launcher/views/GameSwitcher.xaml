@@ -5,7 +5,7 @@
     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource GameTile}"><Style.Triggers><DataTrigger Binding="{Binding SelectedGameId}" Value="minecraft"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/><Setter Property="BorderBrush" Value="#ff3ea5"/><Setter Property="BorderThickness" Value="2"/></DataTrigger></Style.Triggers></Style></Button.Style>
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
      <Border Width="44" Height="44" CornerRadius="12" Margin="0,0,14,0"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#3ee08f" Offset="0"/><GradientStop Color="#4db8ff" Offset="1"/></LinearGradientBrush></Border.Background>
-      <TextBlock Text="&#xE7B8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="#071321" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <Viewbox Width="26" Height="26"><Canvas Width="24" Height="24"><Path Data="M12,2.5 L21.5,7.3 L12,12.1 L2.5,7.3 Z" Fill="#F2FFFFFF"/><Path Data="M2.5,7.3 L12,12.1 L12,21.8 L2.5,17 Z" Fill="#B8FFFFFF"/><Path Data="M21.5,7.3 L21.5,17 L12,21.8 L12,12.1 Z" Fill="#7AFFFFFF"/></Canvas></Viewbox></Border>
      <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Minecraft" FontSize="17" FontWeight="Bold"/><TextBlock Text="Opens in Prism · mods sync automatically" Style="{StaticResource Muted}" FontSize="12" LineHeight="16"/></StackPanel>
     </Grid>
    </Button>
@@ -13,7 +13,7 @@
     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource GameTile}"><Setter Property="Margin" Value="0,0,0,12"/><Style.Triggers><DataTrigger Binding="{Binding SelectedGameId}" Value="zomboid"><Setter Property="Background" Value="{StaticResource SelectedGradient}"/><Setter Property="BorderBrush" Value="#ff3ea5"/><Setter Property="BorderThickness" Value="2"/></DataTrigger></Style.Triggers></Style></Button.Style>
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
      <Border Width="44" Height="44" CornerRadius="12" Margin="0,0,14,0"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#ff3ea5" Offset="0"/><GradientStop Color="#ffc35c" Offset="1"/></LinearGradientBrush></Border.Background>
-      <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="#1a0b14" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <Viewbox Width="26" Height="26"><Canvas Width="24" Height="24"><Path Data="M2.5,11.5 L12,3.5 L21.5,11.5" Stroke="#1a0b14" StrokeThickness="2.2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/><Path Data="M5.5,10 V20.5 H18.5 V10" Stroke="#1a0b14" StrokeThickness="2" StrokeLineJoin="Round"/><Path Data="M7.6,12.4 H12.6 V17.2 H7.6 Z" Stroke="#1a0b14" StrokeThickness="1.4"/><Path Data="M6.6,13.4 L13.6,16.4 M6.6,16.2 L13.6,13.2" Stroke="#1a0b14" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/><Path Data="M14.6,20.5 V14.4 H17 V20.5" Stroke="#1a0b14" StrokeThickness="1.4"/></Canvas></Viewbox></Border>
      <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Project Zomboid" FontSize="17" FontWeight="Bold"/><TextBlock Text="Opens in Steam" Style="{StaticResource Muted}" FontSize="12" LineHeight="16"/></StackPanel>
     </Grid>
    </Button>

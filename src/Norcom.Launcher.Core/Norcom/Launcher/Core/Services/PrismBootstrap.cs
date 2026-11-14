@@ -120,6 +120,74 @@ public static class PrismBootstrap
 		Directory.Move(staging, target);
 	}
 
+	/// <summary>
+	/// Settings that, when blank, make a fresh Prism open its setup wizard (language, Java, theme)
+	/// before it will launch anything. NORCOM already supplies Java 25 per instance, so the Java
+	/// pages are not needed. Only the Microsoft sign-in page, which Prism needs, is left.
+	/// Values come from Prism 11.1.1 Application::createSetupWizard.
+	/// </summary>
+	public static readonly (string Key, string Value)[] FirstRunSettings =
+	{
+		("Language", "en_US"),
+		("ApplicationTheme", "dark"),
+		("IconTheme", "pe_colored"),
+		("IgnoreJavaWizard", "true"),
+		("UserAskedAboutAutomaticJavaDownload", "true"),
+	};
+
+	/// <summary>Adds only the first-run settings that are missing or blank. Existing choices are never changed.</summary>
+	public static bool SeedSettings(string cfgPath)
+	{
+		List<string> lines = File.Exists(cfgPath) ? new List<string>(File.ReadAllLines(cfgPath)) : new List<string>();
+		Dictionary<string, int> present = new Dictionary<string, int>(StringComparer.Ordinal);
+		for (int i = 0; i < lines.Count; i++)
+		{
+			int eq = lines[i].IndexOf('=');
+			if (eq > 0 && !lines[i].TrimStart().StartsWith('['))
+			{
+				present[lines[i].Substring(0, eq).Trim()] = i;
+			}
+		}
+		int general = lines.FindIndex(l => l.Trim().Equals("[General]", StringComparison.OrdinalIgnoreCase));
+		if (general < 0)
+		{
+			lines.Insert(0, "[General]");
+			general = 0;
+			present = new Dictionary<string, int>(present.Count, StringComparer.Ordinal);
+			for (int i = 1; i < lines.Count; i++)
+			{
+				int eq = lines[i].IndexOf('=');
+				if (eq > 0)
+				{
+					present[lines[i].Substring(0, eq).Trim()] = i;
+				}
+			}
+		}
+		bool changed = false;
+		int insertAt = general + 1;
+		foreach ((string key, string value) in FirstRunSettings)
+		{
+			if (present.TryGetValue(key, out int at))
+			{
+				if (lines[at].Substring(lines[at].IndexOf('=') + 1).Trim().Length == 0)
+				{
+					lines[at] = key + "=" + value;
+					changed = true;
+				}
+				continue;
+			}
+			lines.Insert(insertAt++, key + "=" + value);
+			changed = true;
+		}
+		if (changed)
+		{
+			Directory.CreateDirectory(Path.GetDirectoryName(cfgPath)!);
+			File.WriteAllLines(cfgPath, lines);
+			LauncherLog.Write("prism first-run settings filled");
+		}
+		return changed;
+	}
+
 	private static void DeleteQuiet(string path)
 	{
 		try

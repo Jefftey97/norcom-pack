@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Norcom.Launcher.Core.Text;
@@ -62,6 +63,14 @@ public static class PrismPlay
 		catch (Exception ex)
 		{
 			LauncherLog.Write("play heap " + ex.GetType().Name);
+		}
+		try
+		{
+			PrismBootstrap.SeedSettings(Path.Combine(prismDataDir, "prismlauncher.cfg"));
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("prism first-run settings " + ex.GetType().Name);
 		}
 		bool applied = PrismInstance.Ensure(prismDataDir, gameDir, javaPath, heap, applyMemory);
 		FriendsEndpoint endpoint = FriendsServer.Resolve();

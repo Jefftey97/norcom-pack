@@ -39,6 +39,36 @@ public class PrismBootstrapTests
 	}
 
 	[Fact]
+	public void FreshPrismGetsEveryFirstRunSetting()
+	{
+		string cfg = Path.Combine(NewDir(), "prismlauncher.cfg");
+		Assert.True(PrismBootstrap.SeedSettings(cfg));
+		string[] lines = File.ReadAllLines(cfg);
+		Assert.Equal("[General]", lines[0]);
+		foreach ((string key, string value) in PrismBootstrap.FirstRunSettings)
+		{
+			Assert.Contains(key + "=" + value, lines);
+		}
+		Assert.False(PrismBootstrap.SeedSettings(cfg));
+	}
+
+	[Fact]
+	public void ExistingChoicesAreKeptAndOnlyGapsAreFilled()
+	{
+		string cfg = Path.Combine(NewDir(), "prismlauncher.cfg");
+		File.WriteAllLines(cfg, new[] { "[General]", "ApplicationTheme=bright", "Language=de_DE", "IconTheme=", "MaxMemAlloc=8192" });
+		Assert.True(PrismBootstrap.SeedSettings(cfg));
+		string[] lines = File.ReadAllLines(cfg);
+		Assert.Contains("ApplicationTheme=bright", lines);
+		Assert.Contains("Language=de_DE", lines);
+		Assert.Contains("IconTheme=pe_colored", lines);
+		Assert.Contains("MaxMemAlloc=8192", lines);
+		Assert.Contains("IgnoreJavaWizard=true", lines);
+		Assert.Single(lines, l => l.StartsWith("Language="));
+		Assert.Single(lines, l => l == "[General]");
+	}
+
+	[Fact]
 	public void PinnedReleaseIsTheOfficialNonPortableBuild()
 	{
 		Assert.StartsWith("https://github.com/PrismLauncher/PrismLauncher/releases/download/" + PrismBootstrap.Version + "/", PrismBootstrap.ArchiveUrl);

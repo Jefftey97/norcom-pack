@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-10T21:35:02-07:00",
+  "generated_at": "2026-11-14T01:16:10-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
   "jar_count": 87,
   "jars": [
     {
-      "name": "alexsmobs-2.2.4-fabric+26.3.jar",
-      "sha256": "85441ea23343bb6f6c317bd6868b9b46acfed09e84b762f17470261cb4576352",
-      "size": 27815679
+      "name": "alexsmobs-2.3.0-fabric+26.3.jar",
+      "sha256": "faed757f5649002e676fd1eacef762d27e4df09147fe4aca5aec2d6bd97c6966",
+      "size": 27824441
     },
     {
       "name": "almanac-fabric-26.3-1.26.11.1.jar",
@@ -27,9 +27,9 @@
       "size": 622542
     },
     {
-      "name": "audioplayer-fabric-2.5.1+26.3.jar",
-      "sha256": "85d9da2354919fad25cd9fd2532cb7cfe62bd4bbe44ee0051ce6e80dc4430367",
-      "size": 1203512
+      "name": "audioplayer-fabric-2.5.2+26.3.jar",
+      "sha256": "10ed328e3526d46ca3121d04267336752588006e131bdb2ec978bd0c3bd04958",
+      "size": 1203775
     },
     {
       "name": "balm-fabric-26.3-26.3.0.3.jar",
@@ -132,19 +132,19 @@
       "size": 198400
     },
     {
-      "name": "Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.0.jar",
-      "sha256": "b08abe19f0ede7f8bff08a45b23d8e40e26b053e7075dc5601546e400af58366",
-      "size": 1089346
+      "name": "Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.1.jar",
+      "sha256": "8e589958b6f1e905a4ec47b23106ae96e21899a384a7aff68062ad09e1075941",
+      "size": 1087965
     },
     {
-      "name": "Enhanced-Celestials-2-Default-Lunar-Events-Fabric-26.3-5.0.0.0.jar",
-      "sha256": "7d5d03f00e9525c6aeee484eb5b0b727a6961d5085563a14171f19acf2779dc6",
-      "size": 1478376
+      "name": "Enhanced-Celestials-2-Default-Lunar-Events-Fabric-26.3-5.0.0.1.jar",
+      "sha256": "01be249f36f0fce4e4d2b96d824469c99b867fa88ebde04af7da94dea035a6bc",
+      "size": 1475996
     },
     {
-      "name": "fabric-api-0.165.2+26.3.jar",
-      "sha256": "2612a078a5daa06d9a14cabad40fe66de36b8cb22ee8cdf346d5d9894478c392",
-      "size": 1779306
+      "name": "fabric-api-0.166.2+26.3.jar",
+      "sha256": "e8acacc7836f39237c83c2a664b039647ee36f93822797acc40cda44666002ea",
+      "size": 1797523
     },
     {
       "name": "fabric-language-kotlin-1.14.2+kotlin.2.4.21.jar",
@@ -237,9 +237,9 @@
       "size": 997092
     },
     {
-      "name": "mc2discord-fabric-26.3-4.3.1.jar",
-      "sha256": "07923e1d85f003ae4e8c3ce83fabaee023f789f6c9fe6051ef45e14c7911c1c9",
-      "size": 26199705
+      "name": "mc2discord-fabric-26.3-4.4.0.jar",
+      "sha256": "5acaeae15746313cc0157e367a1aa2d07ac49133e254b96f3676e45f9dddad1c",
+      "size": 20069488
     },
     {
       "name": "mcw-furniture-3.4.2-mc26.3fabric.jar",
@@ -302,9 +302,9 @@
       "size": 1440300
     },
     {
-      "name": "puzzleslib-v26.3.17-mc26.3.x+fabric.jar",
-      "sha256": "f5ce767fb44b9f791ea8dde092248b9e5479942421ff9165b4c8561b3a04519b",
-      "size": 1094042
+      "name": "puzzleslib-v26.3.18-mc26.3.x+fabric.jar",
+      "sha256": "1b893c7276843a755c560d47707d09e0e9b8eee4a741c1044b524d44229fc2b2",
+      "size": 1095082
     },
     {
       "name": "repurposed_structures-7.8.4+26.3-fabric.jar",
@@ -407,9 +407,9 @@
       "size": 735126
     },
     {
-      "name": "travelersbackpack-fabric-26.3-11.4.3.jar",
-      "sha256": "0c1297de410317b6a07e541a2f34e7ab1bec5cdc47e4e92a32a84b01db16f781",
-      "size": 1522739
+      "name": "travelersbackpack-fabric-26.3-11.4.4.jar",
+      "sha256": "09b6a5d079b33f5d2b290318c999123e39322108c908276c264f75ee50383a77",
+      "size": 1547858
     },
     {
       "name": "vcinteraction-fabric-1.0.8+26.3.jar",
@@ -442,7 +442,7 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "ace5117d4e29b86fd1651fb6f3e145fdae5f73af73d0fa11cb66e319e9fd911e",
+  "pin_sha256": "c943e5bbbc7706582eb858ac3cbb2d5271d684725887f36122bc48309335ecc5",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",

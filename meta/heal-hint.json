@@ -1,1 +1,10 @@
-{"updatedUtc":"2026-11-11T04:35:02Z","loader":"0.20.1","schema":1,"source":"admin","mc":"26.3","repairAction":"resync-pack","minLauncher":"2.0.1","pin":"ace5117d4e29b86fd1651fb6f3e145fdae5f73af73d0fa11cb66e319e9fd911e"}
+{
+  "updatedUtc": "2026-11-14T08:16:08Z",
+  "loader": "0.20.1",
+  "schema": 1,
+  "source": "admin",
+  "mc": "26.3",
+  "repairAction": "resync-pack",
+  "minLauncher": "2.0.1",
+  "pin": "c943e5bbbc7706582eb858ac3cbb2d5271d684725887f36122bc48309335ecc5"
+}

@@ -1,12 +1,12 @@
 name = "Enhanced Celestials 2 Core"
-filename = "Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.0.jar"
+filename = "Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.1.jar"
 side = "both"
 
 [download]
-url = "https://cdn.modrinth.com/data/ugCWUHV9/versions/M0QQRJF3/Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.0.jar"
+url = "https://cdn.modrinth.com/data/ugCWUHV9/versions/fPrTXyAO/Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.1.jar"
 hash-format = "sha512"
-hash = "6968618a2197324a28ae67527076f109c9ed788fdc5a616ea64f4e14f3dffee4f336af3b02854b07cf922cfc68f7971d8ace97c8745d413f24aa5334b819b2b6"
+hash = "8582a89eb50f1f18a71c4f107f974550292db6d51c574d5e101b7f98e26917ede8b8ccbda8a2d4c78ce1dadfb70ab91e7c578f17f37d4c17441c0ecb448d9a79"
 
 [update.modrinth]
 mod-id = "enhanced-celestials"
-version = "auto"
+version = "fPrTXyAO"

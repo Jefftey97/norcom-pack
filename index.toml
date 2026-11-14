@@ -43,7 +43,7 @@ hash = "c26cd60236a10cb9dd7f562f193dcbe1e2bae9ae61fe6350f370d8f2307a5106"
 
 [[files]]
 file = "meta/mods-catalog.json"
-hash = "6cb5fb1e9c24951c9865b24e892c9d1130004ffb439be002ae3900e5a06b69e7"
+hash = "0fe8a942e49b51671caa0e46b0a0df6168aeca0d6c96873c84c24e658b11ec29"
 
 [[files]]
 file = "mods/Clumps-fabric-26.3-26.3.2.pw.toml"
@@ -62,12 +62,12 @@ metafile = true
 
 [[files]]
 file = "mods/Enhanced-Celestials-2-Core-Fabric-26.3-5.0.0.0.pw.toml"
-hash = "0e9f36c1d8533709dac1b229867d59e654dc449896fbdb94b7a23bd7fb2cd02c"
+hash = "66c583880d127f22248bb6b81d8fdb994b2f2330bc581c188b280e7082fa2a7c"
 metafile = true
 
 [[files]]
 file = "mods/Enhanced-Celestials-2-Default-Lunar-Events-Fabric-26.3-5.0.0.0.pw.toml"
-hash = "001cddbd96386a22fdb6289d6a50aebab25af7b4282abf6dbc409304ac88f0e6"
+hash = "b50af9574535c22632a2e78dc891395fbc20e637585da8754e60a72eb7bfc2af"
 metafile = true
 
 [[files]]
@@ -87,7 +87,7 @@ metafile = true
 
 [[files]]
 file = "mods/alexsmobs-2.2.4-fabric+26.3.pw.toml"
-hash = "c25ede6ce1d2a3818289c2aa6b79ae560685eaffe42370636a82535d56ad1342"
+hash = "4c6d8a362a1edb802aab79b0a96478b0c5604a6faffac6d4a8409d2890533794"
 metafile = true
 
 [[files]]
@@ -107,7 +107,7 @@ metafile = true
 
 [[files]]
 file = "mods/audioplayer-fabric-2.5.1+26.3.pw.toml"
-hash = "373995faa13d24e983272b60aba472e47c9e5d8d3746b0e2109a7275b26a3b2a"
+hash = "136280fa237201e09fbc0d37f2585ac850c52b67923fc6a9cbae4bfd9ac47a9d"
 metafile = true
 
 [[files]]
@@ -242,7 +242,7 @@ metafile = true
 
 [[files]]
 file = "mods/fabric-api-0.165.2+26.3.pw.toml"
-hash = "8952d8ef91974e3a235b187c68e2fed97929e381518a35519a784d464bf3ad0b"
+hash = "02e1d570ee6ea1f079f6cbcaa9bbd928a67f719b628eae8ffe1fc48131b2660c"
 metafile = true
 
 [[files]]
@@ -352,7 +352,7 @@ metafile = true
 
 [[files]]
 file = "mods/mc2discord-fabric-26.3-4.3.1.pw.toml"
-hash = "d32b402e27b21f1ad1857d1c8f8d0a7209612e0b87acb9d68d872b80d000c86a"
+hash = "31273bbd853a6d3420c9c557ac6ee0d26d2f6933bfec64ad86bc978ea1cf246f"
 metafile = true
 
 [[files]]
@@ -442,7 +442,7 @@ metafile = true
 
 [[files]]
 file = "mods/puzzleslib-v26.3.17-mc26.3.x+fabric.pw.toml"
-hash = "fd20b62aaaeddb30bc54332a259a0b42df03d8abd6a53846f3eb13202a7abdc0"
+hash = "a8b695fa44d0e2e939dde7273168b4eca77c113a2ca7c844d6e71baf223478df"
 metafile = true
 
 [[files]]
@@ -532,7 +532,7 @@ metafile = true
 
 [[files]]
 file = "mods/travelersbackpack-fabric-26.3-11.4.3.pw.toml"
-hash = "908b8e797d4b74a583d811e3a463f164cdead59d2ae0a4b0e8dac029a4bbc2b5"
+hash = "951888be48e4c8e2c559b379128c07b7d653eabba8f53c9df6c57e785923f1b3"
 metafile = true
 
 [[files]]

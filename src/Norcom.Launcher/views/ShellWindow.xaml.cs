@@ -65,6 +65,35 @@ public partial class ShellWindow : Window
         if(e.PropertyName==nameof(ShellViewModel.Page))
         {FrameworkElement target=_vm.IsHome?HomePanel:_vm.IsMinecraftPage?MinecraftPanel:_vm.IsZomboidPage?ZomboidPanel:SettingsPanel;target.BeginAnimation(OpacityProperty,new DoubleAnimation(0.88,1,TimeSpan.FromMilliseconds(160)));}
     }
+    // WindowStyle=None + WindowChrome maximizes to the full monitor, so the bottom of the
+    // launcher (status bar, end of each page) ends up behind the taskbar. Clamp the maximized
+    // size to the work area of the monitor the window is on.
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        if(System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(this).Handle) is { } source)source.AddHook(MaximizeHook);
+    }
+    private static IntPtr MaximizeHook(IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam,ref bool handled)
+    {
+        const int WM_GETMINMAXINFO=0x0024;
+        if(msg!=WM_GETMINMAXINFO)return IntPtr.Zero;
+        var monitor=MonitorFromWindow(hwnd,2);
+        var info=new MONITORINFO{cbSize=System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>()};
+        if(monitor==IntPtr.Zero || !GetMonitorInfo(monitor,ref info))return IntPtr.Zero;
+        var mmi=System.Runtime.InteropServices.Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        mmi.ptMaxPosition.X=info.rcWork.Left-info.rcMonitor.Left;
+        mmi.ptMaxPosition.Y=info.rcWork.Top-info.rcMonitor.Top;
+        mmi.ptMaxSize.X=info.rcWork.Right-info.rcWork.Left;
+        mmi.ptMaxSize.Y=info.rcWork.Bottom-info.rcWork.Top;
+        System.Runtime.InteropServices.Marshal.StructureToPtr(mmi,lParam,true);
+        return IntPtr.Zero;
+    }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)] private struct POINT{public int X;public int Y;}
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)] private struct RECT{public int Left;public int Top;public int Right;public int Bottom;}
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)] private struct MINMAXINFO{public POINT ptReserved;public POINT ptMaxSize;public POINT ptMaxPosition;public POINT ptMinTrackSize;public POINT ptMaxTrackSize;}
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)] private struct MONITORINFO{public int cbSize;public RECT rcMonitor;public RECT rcWork;public int dwFlags;}
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd,int flags);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor,ref MONITORINFO info);
     private void MinimizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState.Minimized;
     private void MaximizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState==WindowState.Maximized?WindowState.Normal:WindowState.Maximized;
     private void CloseClick(object sender,RoutedEventArgs e)=>Close();

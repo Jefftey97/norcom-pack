@@ -34,12 +34,12 @@ public class FriendsHomeContractTests
 	}
 
 	[Fact]
-	public void MissingSrvFallsBackToHost60313()
+	public void MissingSrvFallsBackToTheCurrentPlayitPort()
 	{
 		FriendsEndpoint endpoint = FriendsServer.Resolve(hostPc: false, () => Array.Empty<SrvTarget>());
 		Assert.Equal(FriendsServer.FallbackDisplay, endpoint.Display);
 		Assert.Equal("fallback", endpoint.Kind);
-		Assert.Equal("shrimp-cub.tun.ply.gg:60313", endpoint.Display);
+		Assert.Equal("shrimp-cub.tun.ply.gg:25344", endpoint.Display);
 		Assert.DoesNotContain(":25565", endpoint.Display);
 	}
 
@@ -85,7 +85,8 @@ public class FriendsHomeContractTests
 			Environment.SetEnvironmentVariable(FriendsServer.HostPcVariable, "0");
 			ServersDat.Ensure(friendsDir, "NORCOM", "shrimp-cub.tun.ply.gg");
 			string friends = Encoding.UTF8.GetString(File.ReadAllBytes(Path.Combine(friendsDir, "servers.dat")));
-			Assert.Contains(":60313", friends);
+			// The port comes from live DNS (or the fallback), so assert the shape, not a fixed number.
+			Assert.Matches(@"shrimp-cub\.tun\.ply\.gg:\d{2,5}", friends);
 			Assert.DoesNotContain(":25565", friends);
 			Environment.SetEnvironmentVariable(FriendsServer.HostPcVariable, "1");
 			ServersDat.Ensure(hostDir, "NORCOM", "shrimp-cub.tun.ply.gg");
@@ -96,6 +97,59 @@ public class FriendsHomeContractTests
 		finally
 		{
 			Environment.SetEnvironmentVariable(FriendsServer.HostPcVariable, previous);
+		}
+	}
+
+	private static byte[] ServerList(params (string Name, string Ip)[] servers)
+	{
+		using MemoryStream s = new MemoryStream();
+		void Str(string v) { byte[] b = Encoding.UTF8.GetBytes(v); s.WriteByte((byte)(b.Length >> 8)); s.WriteByte((byte)b.Length); s.Write(b); }
+		s.WriteByte(10); Str("");
+		s.WriteByte(9); Str("servers"); s.WriteByte(10);
+		s.WriteByte(0); s.WriteByte(0); s.WriteByte(0); s.WriteByte((byte)servers.Length);
+		foreach ((string name, string ip) in servers)
+		{
+			s.WriteByte(8); Str("name"); Str(name);
+			s.WriteByte(8); Str("ip"); Str(ip);
+			s.WriteByte(0);
+		}
+		s.WriteByte(0);
+		return s.ToArray();
+	}
+
+	[Fact]
+	public void StaleServerListPortIsRefreshedFromSrv()
+	{
+		string path = Path.Combine(Path.GetTempPath(), "norcom-srvdat-" + Guid.NewGuid().ToString("n") + ".dat");
+		try
+		{
+			File.WriteAllBytes(path, ServerList(("NORCOM", "shrimp-cub.tun.ply.gg:60313"), ("Other", "play.example.net:25565")));
+			bool changed = ServersDat.RefreshListedPort(path, new FriendsEndpoint("shrimp-cub.tun.ply.gg", 25344, "srv"));
+			Assert.True(changed);
+			Assert.Equal(ServerList(("NORCOM", "shrimp-cub.tun.ply.gg:25344"), ("Other", "play.example.net:25565")), File.ReadAllBytes(path));
+			Assert.False(ServersDat.RefreshListedPort(path, new FriendsEndpoint("shrimp-cub.tun.ply.gg", 25344, "srv")));
+		}
+		finally
+		{
+			File.Delete(path);
+		}
+	}
+
+	[Fact]
+	public void ServerListIsNotRewrittenWithoutALiveSrvAnswer()
+	{
+		string path = Path.Combine(Path.GetTempPath(), "norcom-srvdat-" + Guid.NewGuid().ToString("n") + ".dat");
+		try
+		{
+			byte[] original = ServerList(("NORCOM", "shrimp-cub.tun.ply.gg:60313"));
+			File.WriteAllBytes(path, original);
+			Assert.False(ServersDat.RefreshListedPort(path, new FriendsEndpoint("shrimp-cub.tun.ply.gg", 25344, "fallback")));
+			Assert.False(ServersDat.RefreshListedPort(path, null));
+			Assert.Equal(original, File.ReadAllBytes(path));
+		}
+		finally
+		{
+			File.Delete(path);
 		}
 	}
 

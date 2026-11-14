@@ -25,6 +25,14 @@ public sealed class GraphicsSetting
 
 	public string[] Choices { get; init; } = Array.Empty<string>();
 
+	/// <summary>Display names for <see cref="Choices"/>, same order. Empty means show the raw values.</summary>
+	public string[] ChoiceLabels { get; init; } = Array.Empty<string>();
+
+	public string ChoiceLabel(int index)
+	{
+		return index >= 0 && index < ChoiceLabels.Length && !string.IsNullOrWhiteSpace(ChoiceLabels[index]) ? ChoiceLabels[index] : Choices[index];
+	}
+
 	public string Target { get; init; } = "options";
 
 	public IReadOnlyDictionary<string, string> ByPreset { get; init; } = new Dictionary<string, string>();
@@ -236,7 +244,7 @@ public static class GameGraphicsCatalog
 		};
 	}
 
-	internal static GraphicsSetting Choice(string key, string label, string help, string target, string[] choices, string low, string medium, string mediumHigh, string ultra)
+	internal static GraphicsSetting Choice(string key, string label, string help, string target, string[] choices, string low, string medium, string mediumHigh, string ultra, string[] choiceLabels = null)
 	{
 		return new GraphicsSetting
 		{
@@ -246,6 +254,7 @@ public static class GameGraphicsCatalog
 			Kind = "choice",
 			Target = target,
 			Choices = choices,
+			ChoiceLabels = choiceLabels ?? Array.Empty<string>(),
 			ByPreset = Map(low, medium, mediumHigh, ultra)
 		};
 	}

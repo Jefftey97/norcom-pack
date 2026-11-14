@@ -20,7 +20,9 @@ public static class FriendsServer
 {
 	public const string PublicHost = NorcomPaths.ServerHost;
 
-	public const int FallbackPort = 60313;
+	// Only used when the SRV lookup fails. playit moved the tunnel from 60313 to 25344 (2026-11);
+	// the live SRV record is the source of truth.
+	public const int FallbackPort = 25344;
 
 	public const string LoopbackHost = "127.0.0.1";
 

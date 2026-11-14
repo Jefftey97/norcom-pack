@@ -4,7 +4,7 @@ public static class PrismMessages
 {
 	public const string Intro = "Microsoft sign-in is handled by Prism in its normal folder. Play starts the NORCOM instance and joins the NORCOM server. Sign in once in that Prism window if it asks. Prism may show a window. Prism Launcher is a separate GPL program, not part of NORCOM. NORCOM does not read Prism's accounts.";
 
-	public const string Missing = "Prism Launcher is not installed. Install it from the official Prism site, then press Play. Sign in with Microsoft in Prism's window if it asks. NORCOM does not start Minecraft without that.";
+	public const string Missing = "Prism Launcher is not installed and NORCOM could not install it for you. Press Get Prism Launcher to install it from the official Prism site, then press Play. Sign in with Microsoft in Prism's window if it asks. NORCOM does not start Minecraft without that.";
 
 	public const string Opening = "Opening Prism for the NORCOM instance. If Prism asks, sign in with Microsoft in that window. NORCOM does not keep that login and did not start an offline game.";
 

@@ -52,6 +52,9 @@ public sealed class MinecraftPlayRequest
 
 	public Action AfterSync { get; init; }
 
+	/// <summary>Installs Prism when it is missing. A failure here is logged and PreparePrism reports it.</summary>
+	public Func<CancellationToken, Task> EnsurePrism { get; init; }
+
 	public Func<string, PrismPreparation> PreparePrism { get; init; }
 
 	public Func<PrismPreparation, CancellationToken, Task<PrismPreparation>> RunPrism { get; init; }
@@ -216,6 +219,23 @@ public static class PlayConductor
 		{
 			LauncherLog.Write("play settings " + ex.GetType().Name);
 		}
+		string prismNote = "";
+		if (request.EnsurePrism != null)
+		{
+			try
+			{
+				await request.EnsurePrism(ct).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) when (ct.IsCancellationRequested)
+			{
+				throw;
+			}
+			catch (Exception ex)
+			{
+				LauncherLog.Write("play prism install " + ex.GetType().Name);
+				prismNote = " " + Redactor.Clean(ex.Message);
+			}
+		}
 		PrismPreparation prepared;
 		try
 		{
@@ -229,7 +249,7 @@ public static class PlayConductor
 		if (prepared == null || !prepared.CanStart || prepared.Executable == null)
 		{
 			string message = prepared == null || string.IsNullOrWhiteSpace(prepared.Message) ? PrismMessages.Missing : prepared.Message;
-			return PlayOutcome.Blocked("Prism is required", message);
+			return PlayOutcome.Blocked("Prism is required", message + prismNote);
 		}
 		PrismPreparation ran;
 		try

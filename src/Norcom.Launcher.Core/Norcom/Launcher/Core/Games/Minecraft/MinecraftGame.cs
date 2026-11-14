@@ -241,6 +241,13 @@ public sealed class MinecraftGame : IGame
 					}
 				},
 				AfterSync = () => Prepare(state),
+				EnsurePrism = async token =>
+				{
+					if (await PrismBootstrap.EnsureAsync(context.Http, meter, Environment.GetEnvironmentVariable("NORCOM_PRISM_EXE"), PrismInstall.Candidates(NorcomPaths.LocalAppData, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)), NorcomPaths.LocalAppData, NorcomPaths.NorcomHome, token).ConfigureAwait(false))
+					{
+						context.StatusLine = "Prism Launcher " + PrismBootstrap.Version + " was installed for you.";
+					}
+				},
 				PreparePrism = java =>
 				{
 					bool fillDefault = ShouldFillDefault(state, MinecraftRam.InstanceCfg(NorcomPaths.AppData), MinecraftRam.GlobalCfg(NorcomPaths.AppData));

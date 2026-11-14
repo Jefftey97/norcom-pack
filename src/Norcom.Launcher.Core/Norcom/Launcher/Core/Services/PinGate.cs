@@ -46,6 +46,19 @@ public static class PinGate
 
 	public const string LivePinGeneratedAt = "2026-11-06T14:25:17-07:00";
 
+	private static string _warnedPin = "";
+
+	// The pin check runs every minute; only log a baked/published difference when it changes.
+	private static void WarnBakedPin(string pin)
+	{
+		if (string.Equals(_warnedPin, pin, StringComparison.OrdinalIgnoreCase))
+		{
+			return;
+		}
+		_warnedPin = pin;
+		LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
+	}
+
 	public const string PreviousPin = "0517b6b64a967471914d12f7567823ac8a329e7d7e2200575b841350fc3afc48";
 
 	public const string LiveMarbleSha = "f99e1504c866d6f9a88565fce1f00043242e59333d69032b7e17842fedd4df50";
@@ -377,7 +390,7 @@ public static class PinGate
 		}
 		if (!string.IsNullOrWhiteSpace(pin) && !string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
 		{
-			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
+			WarnBakedPin(pin);
 		}
 		DeferAppliedWrite = actualPin.Length > 0 && !string.Equals(actualPin, pin, StringComparison.OrdinalIgnoreCase);
 		if (DeferAppliedWrite)
@@ -455,7 +468,7 @@ public static class PinGate
 		}
 		if (!string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
 		{
-			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
+			WarnBakedPin(pin);
 		}
 		return new PinSyncResult
 		{
@@ -654,7 +667,7 @@ public static class PinGate
 		}
 		if (!string.Equals(pin, LivePin, StringComparison.OrdinalIgnoreCase))
 		{
-			LauncherLog.Write("pin warn baked=" + LivePin + " published=" + pin);
+			WarnBakedPin(pin);
 		}
 		PublishedPin = pin.Trim();
 		LauncherLog.Write("pin adopted " + PublishedPin + " game=" + gameDir);

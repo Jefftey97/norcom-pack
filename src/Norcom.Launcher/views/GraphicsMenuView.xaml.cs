@@ -119,8 +119,22 @@ public partial class GraphicsMenuView : UserControl
 		}
 		string choice = _shell?.ActiveTexturePack ?? "";
 		Style selected = TryFindResource("SelectedChoiceButton") as Style;
-		PatrixPackButton.Style = string.Equals(choice, TexturePackChoice.Patrix, StringComparison.OrdinalIgnoreCase) ? selected : null;
-		AlacrityPackButton.Style = string.Equals(choice, TexturePackChoice.Alacrity, StringComparison.OrdinalIgnoreCase) ? selected : null;
+		ApplyChoiceStyle(PatrixPackButton, string.Equals(choice, TexturePackChoice.Patrix, StringComparison.OrdinalIgnoreCase), selected);
+		ApplyChoiceStyle(AlacrityPackButton, string.Equals(choice, TexturePackChoice.Alacrity, StringComparison.OrdinalIgnoreCase), selected);
+	}
+
+	// Style = null is a local value that blocks the theme's implicit Button style and shows the
+	// stock white Windows button. ClearValue lets the unselected button fall back to the theme.
+	private static void ApplyChoiceStyle(Button button, bool isSelected, Style selected)
+	{
+		if (isSelected && selected != null)
+		{
+			button.Style = selected;
+		}
+		else
+		{
+			button.ClearValue(StyleProperty);
+		}
 	}
 
 	private void ChoosePatrix(object sender, RoutedEventArgs args)
@@ -236,14 +250,19 @@ public partial class GraphicsMenuView : UserControl
 		if (setting.Kind == "choice")
 		{
 			ComboBox combo = new ComboBox { MinWidth = 160, MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left, Tag = setting.Key };
+			// Show the game's own words (Fast/Fancy/Fabulous) and keep the raw value in Tag for the options file.
 			for (int i = 0; i < setting.Choices.Length; i++)
 			{
-				combo.Items.Add(setting.Choices[i]);
+				ComboBoxItem item = new ComboBoxItem { Content = setting.ChoiceLabel(i), Tag = setting.Choices[i] };
+				combo.Items.Add(item);
+				if (string.Equals(setting.Choices[i], current, StringComparison.OrdinalIgnoreCase))
+				{
+					combo.SelectedItem = item;
+				}
 			}
-			combo.SelectedItem = current;
 			combo.SelectionChanged += delegate
 			{
-				if (combo.SelectedItem is string picked)
+				if (combo.SelectedItem is ComboBoxItem { Tag: string picked })
 				{
 					SetCustom(setting.Key, picked);
 				}

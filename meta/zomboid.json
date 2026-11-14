@@ -6,6 +6,14 @@
       "modId": "ZombieBuddy"
     },
     {
+      "workshopId": "3826630779",
+      "modId": "PzPerformanceFixes"
+    },
+    {
+      "workshopId": "3119788162",
+      "modId": "ETO_B"
+    },
+    {
       "workshopId": "3809306528",
       "modId": "Viewpoint"
     },
@@ -14,12 +22,32 @@
       "modId": "ViewpointRoofs"
     },
     {
-      "workshopId": "3829712469",
-      "modId": "RealUSA"
+      "workshopId": "3811256204",
+      "modId": "ProjectViewpointQOL"
     },
     {
-      "workshopId": "3829712469",
-      "modId": "RealUSA_ViewpointRelief"
+      "workshopId": "3813908957",
+      "modId": "ViewpointTrueWeathers"
+    },
+    {
+      "workshopId": "3810302175",
+      "modId": "PZVoxelStudioViewpoint"
+    },
+    {
+      "workshopId": "3818873810",
+      "modId": "DGVCurtains"
+    },
+    {
+      "workshopId": "3820833348",
+      "modId": "DGVWindows3D"
+    },
+    {
+      "workshopId": "3813172420",
+      "modId": "ProjectViewpointNearVegetation"
+    },
+    {
+      "workshopId": "3813929757",
+      "modId": "PV-modmapbakefix"
     },
     {
       "workshopId": "3171167894",
@@ -214,8 +242,52 @@
       "modId": "89defender"
     },
     {
+      "workshopId": "2478247379",
+      "modId": "67commando"
+    },
+    {
+      "workshopId": "3787530735",
+      "modId": "62daimlerFerret"
+    },
+    {
+      "workshopId": "3790021065",
+      "modId": "AMGeneralTankerFunctionality"
+    },
+    {
+      "workshopId": "3683878228",
+      "modId": "B42FRUsedCarsAnimAlpha"
+    },
+    {
+      "workshopId": "3683878228",
+      "modId": "B42FRUsedCarsAnimTitle"
+    },
+    {
+      "workshopId": "3685499657",
+      "modId": "VASinked"
+    },
+    {
       "workshopId": "3183820077",
       "modId": "guns93"
+    },
+    {
+      "workshopId": "3508537032",
+      "modId": "NeatUI_Framework"
+    },
+    {
+      "workshopId": "3783535220",
+      "modId": "NeatLockpicking"
+    },
+    {
+      "workshopId": "3750253491",
+      "modId": "VB_CommonSense"
+    },
+    {
+      "workshopId": "3042138819",
+      "modId": "FunctionalAppliances2"
+    },
+    {
+      "workshopId": "2956146279",
+      "modId": "RainCleansBlood"
     },
     {
       "workshopId": "2757712197",
@@ -226,8 +298,48 @@
       "modId": "VehicleSalvageOverhaulB42"
     },
     {
+      "workshopId": "3728775267",
+      "modId": "BetterVehicleDynamics"
+    },
+    {
+      "workshopId": "3838192146",
+      "modId": "NorcomCarBoost"
+    },
+    {
+      "workshopId": "3838192146",
+      "modId": "NorcomFRPatch"
+    },
+    {
+      "workshopId": "3786849936",
+      "modId": "ArcadiaRefillablePropaneTanks_B42"
+    },
+    {
+      "workshopId": "3838192146",
+      "modId": "NorcomPropane"
+    },
+    {
+      "workshopId": "3838192146",
+      "modId": "NorcomKitLoot"
+    },
+    {
       "workshopId": "3777958977",
       "modId": "undying_optimizer"
+    },
+    {
+      "workshopId": "3420478458",
+      "modId": "BetterFlashlightsFixed"
+    },
+    {
+      "workshopId": "3484263516",
+      "modId": "RavenCreekB42"
+    },
+    {
+      "workshopId": "3480990544",
+      "modId": "Constown42"
+    },
+    {
+      "workshopId": "2815966702",
+      "modId": "RabbitHashKY"
     }
   ],
   "files": [],

@@ -284,6 +284,13 @@ public class ShellViewModel : ObservableObject
     public bool CanManageClient => !QaGates.OfflineCheckRequested() && !IsBusy && !GameRunning && !BridgeRuntime.HandoffScheduled;
     private int _statusRefreshing;
     public string ServerCheckedAt {get;private set;}="Not checked yet";
+    // Project Zomboid server status (Steam server query). Kept apart from the Minecraft status above.
+    private int _zomboidRefreshing;
+    public bool ZomboidOnline {get;private set;}
+    public string ZomboidHeadline {get;private set;}="Checking server";
+    public string ZomboidPlayersText {get;private set;}="-";
+    public string ZomboidDetail {get;private set;}="";
+    public string ZomboidCheckedAt {get;private set;}="Not checked yet";
 
 	public string PinStatus => _pinStatus;
 
@@ -1914,8 +1921,30 @@ public class ShellViewModel : ObservableObject
         StatusLine = text;
 	}
 
+    private async Task RefreshZomboidStatusAsync()
+    {
+        if(QaGates.OfflineCheckRequested() || Interlocked.Exchange(ref _zomboidRefreshing,1)!=0)return;
+        try
+        {
+            var status=await ZomboidStatusClient.ReadAsync(_metadataHttp,CancellationToken.None);
+            ZomboidOnline=status.Online;
+            ZomboidHeadline=status.Online?"Online":"Offline";
+            ZomboidPlayersText=status.Online?status.Players+" of "+status.MaxPlayers+" online":"-";
+            ZomboidDetail=status.Online?"Server is up. Press Play to join.":status.Detail+" It may be off right now; ask in Discord.";
+            ZomboidCheckedAt="Last check "+DateTime.Now.ToString("HH:mm:ss");
+        }
+        catch(Exception ex){ZomboidOnline=false;ZomboidHeadline="Status unknown";ZomboidPlayersText="-";ZomboidDetail="The Zomboid server could not be checked. Try Refresh.";LauncherLog.Write("zomboid status "+ex.GetType().Name);}
+        finally
+        {
+            Interlocked.Exchange(ref _zomboidRefreshing,0);
+            OnPropertyChanged(nameof(ZomboidOnline));OnPropertyChanged(nameof(ZomboidHeadline));OnPropertyChanged(nameof(ZomboidPlayersText));
+            OnPropertyChanged(nameof(ZomboidDetail));OnPropertyChanged(nameof(ZomboidCheckedAt));
+        }
+    }
+
     private async Task RefreshServerAsync()
     {
+        _=RefreshZomboidStatusAsync();
         if(QaGates.OfflineCheckRequested() || Interlocked.Exchange(ref _statusRefreshing,1)!=0)return;
         try
         {

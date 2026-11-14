@@ -69,6 +69,17 @@ public class PrismBootstrapTests
 	}
 
 	[Fact]
+	public void ExistingPrismInPlacesOtherThanTheDefaultIsFound()
+	{
+		string local = NewDir();
+		List<string> candidates = PrismInstall.Candidates(local, Path.Combine(local, "pf")).ToList();
+		string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+		Assert.Contains(Path.Combine(home, "scoop", "apps", "prismlauncher", "current", "prismlauncher.exe"), candidates);
+		Assert.Contains(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Prism Launcher", "prismlauncher.exe"), candidates);
+		Assert.All(PrismInstall.Registered(), p => Assert.EndsWith("prismlauncher.exe", p, StringComparison.OrdinalIgnoreCase));
+	}
+
+	[Fact]
 	public void PinnedReleaseIsTheOfficialNonPortableBuild()
 	{
 		Assert.StartsWith("https://github.com/PrismLauncher/PrismLauncher/releases/download/" + PrismBootstrap.Version + "/", PrismBootstrap.ArchiveUrl);

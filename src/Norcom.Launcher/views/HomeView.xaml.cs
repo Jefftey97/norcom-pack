@@ -40,6 +40,14 @@ public partial class HomeView : UserControl
         Overview.ColumnDefinitions[1].Width=narrow?new GridLength(0):new GridLength(2,GridUnitType.Star);
         Grid.SetRow(ServerCard,narrow?1:0);Grid.SetColumn(ServerCard,narrow?0:1);
         PlayCard.Margin=new Thickness(0,0,narrow?0:18,18);
+        if(Details==null)return;
+        Details.ColumnDefinitions[1].Width=narrow?new GridLength(0):new GridLength(1,GridUnitType.Star);
+        for(int i=0;i<Details.Children.Count;i++)
+        {
+            if(Details.Children[i] is not FrameworkElement card)continue;
+            Grid.SetRow(card,narrow?i:i/2);Grid.SetColumn(card,narrow?0:i%2);
+            var m=card.Margin;card.Margin=new Thickness(m.Left,m.Top,narrow||i%2==1?0:18,m.Bottom);
+        }
     }
     private void StopClick(object sender,RoutedEventArgs e)
     {

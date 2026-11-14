@@ -7,9 +7,9 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Install-NORCOM</AssemblyName>
     <RootNamespace>Norcom.Installer</RootNamespace>
-    <Version>3.0.11</Version>
-    <FileVersion>3.0.11.0</FileVersion>
-    <InformationalVersion>3.0.11</InformationalVersion>
+    <Version>3.0.13</Version>
+    <FileVersion>3.0.13.0</FileVersion>
+    <InformationalVersion>3.0.13</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>

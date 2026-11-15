@@ -137,26 +137,50 @@ public static class TexturePackChoice
 	public static string BuildList(string packs, string choice)
 	{
 		List<string> items = GraphicsPack.ParsePacks(packs);
+		bool alacrity = string.Equals(Normalize(choice), Alacrity, StringComparison.Ordinal);
 		for (int i = items.Count - 1; i >= 0; i--)
 		{
-			if (IsPatrix(items[i]) || items[i].Equals("file/Alacrity.zip", StringComparison.OrdinalIgnoreCase))
+			string item = items[i];
+			if (IsPatrix(item) || item.Equals("file/Alacrity.zip", StringComparison.OrdinalIgnoreCase) || item.Equals("file/" + GraphicsPack.OverlayFile, StringComparison.OrdinalIgnoreCase))
+			{
+				items.RemoveAt(i);
+				continue;
+			}
+			if (alacrity && (item.Equals("file/" + GraphicsPack.MarbleFile, StringComparison.OrdinalIgnoreCase) || item.Contains(GraphicsPack.NeverEnable, StringComparison.OrdinalIgnoreCase)))
 			{
 				items.RemoveAt(i);
 			}
 		}
-		int at = Index(items, "continuity:default");
-		if (at < 0)
+		if (!alacrity)
 		{
-			at = Index(items, "vanilla");
+			int at = Index(items, "continuity:default");
+			if (at < 0)
+			{
+				at = Index(items, "vanilla");
+			}
+			int insert = at + 1;
+			string[] add = new string[3] { "file/" + PatrixFiles[0], "file/" + PatrixFiles[1], "file/" + PatrixFiles[2] };
+			for (int i = 0; i < add.Length; i++)
+			{
+				items.Insert(insert, add[i]);
+				insert++;
+			}
+			return GraphicsPack.FormatPacks(items);
 		}
-		int insert = at + 1;
-		string[] add = Normalize(choice) == Patrix
-			? new string[3] { "file/" + PatrixFiles[0], "file/" + PatrixFiles[1], "file/" + PatrixFiles[2] }
-			: new string[1] { "file/Alacrity.zip" };
-		for (int i = 0; i < add.Length; i++)
+		if (Index(items, "vanilla") < 0)
 		{
-			items.Insert(insert, add[i]);
-			insert++;
+			items.Insert(0, "vanilla");
+		}
+		if (Index(items, "continuity:default") < 0)
+		{
+			items.Insert(Index(items, "vanilla") + 1, "continuity:default");
+		}
+		int place = Index(items, "continuity:default") + 1;
+		string[] stack = new string[3] { "file/Alacrity.zip", "file/" + GraphicsPack.OverlayFile, "file/" + GraphicsPack.MarbleFile };
+		for (int i = 0; i < stack.Length; i++)
+		{
+			items.Insert(place, stack[i]);
+			place++;
 		}
 		return GraphicsPack.FormatPacks(items);
 	}
@@ -167,7 +191,7 @@ public static class TexturePackChoice
 		{
 			return new string[3] { "file/" + PatrixFiles[0], "file/" + PatrixFiles[1], "file/" + PatrixFiles[2] };
 		}
-		return new string[1] { "file/Alacrity.zip" };
+		return new string[3] { "file/Alacrity.zip", "file/" + GraphicsPack.OverlayFile, "file/" + GraphicsPack.MarbleFile };
 	}
 
 	private static string DropEnabled(string blocked, string[] enabled)

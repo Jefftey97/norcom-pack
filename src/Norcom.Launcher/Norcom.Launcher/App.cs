@@ -45,7 +45,7 @@ public partial class App : Application
 		await ((DispatcherObject)this).Dispatcher.InvokeAsync((Action)delegate
 		{
 		}, (DispatcherPriority)7);
-		ShellViewModel vm = new ShellViewModel();
+		ShellViewModel vm = new ShellViewModel(null, KnownVisualAssets.EnsureAsync);
 		ShellWindow shellWindow = new ShellWindow();
 		if (QaGates.OfflineCheckRequested()) shellWindow.Title = "NORCOM Launcher — offline verification";
 		((FrameworkElement)shellWindow).DataContext = vm;

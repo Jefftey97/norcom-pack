@@ -23,7 +23,7 @@ public class ChoiceAndDialogTests
 		Assert.Contains("_profile.Preset", code, StringComparison.Ordinal);
 		string shell = File.ReadAllText(Repo("src", "Norcom.Launcher", "Norcom.Launcher.ViewModels", "ShellViewModel.cs"));
 		Assert.Contains("ChooseTexturePackCommand", shell, StringComparison.Ordinal);
-		Assert.Contains("new RelayCommand<string>(ChooseTexturePack)", shell, StringComparison.Ordinal);
+		Assert.Contains("new AsyncRelayCommand<string>(ChooseTexturePack)", shell, StringComparison.Ordinal);
 		Assert.Contains("InputOnAccentBrush", theme, StringComparison.Ordinal);
 	}
 

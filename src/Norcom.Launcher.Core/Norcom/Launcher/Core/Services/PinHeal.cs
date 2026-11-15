@@ -84,14 +84,14 @@ public static class PinHeal
 		return hint;
 	}
 
-	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct, bool packSynced = false, bool instancePresent = true)
+	public static async Task RunAsync(HttpClient http, string gameDir, TomlLite.Doc pack, string? packUrl, Func<CancellationToken, Task> resync, CancellationToken ct, bool packSynced = false, bool instancePresent = true, bool identityMatches = false, bool force = false, string installedPackVersion = null)
 	{
 		RepairTrace.Begin();
 		string appliedBefore = PinGate.ReadAppliedPin(gameDir) ?? "";
 		PinGate.PinCheck check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 		if (!instancePresent)
 		{
-			if (ShouldSkip(check, packSynced, appliedBefore))
+			if (ShouldSkip(check, packSynced, appliedBefore, identityMatches, force))
 			{
 				LauncherLog.Write("pack resync skipped");
 				return;
@@ -110,8 +110,7 @@ public static class PinHeal
 		}
 		HealHint hint = await FetchHintAsync(http, ct).ConfigureAwait(false);
 		LauncherLog.Write("heal-hint " + HintUrl + " repairAction=" + hint.RepairAction + " pin=" + hint.Pin + " minLauncher=" + hint.MinLauncher + " source=" + hint.Source);
-		pack.Keys.TryGetValue("version", out var packVersion);
-		if (NeedsUpdate(NorcomVersion.Current, packVersion, hint))
+		if (NeedsUpdate(NorcomVersion.Current, installedPackVersion, hint))
 		{
 			await FeedCheckAsync(http, hint, ct).ConfigureAwait(false);
 		}
@@ -131,7 +130,7 @@ public static class PinHeal
 			}
 			if (check == PinGate.PinCheck.Open || check == PinGate.PinCheck.Match)
 			{
-				if (ShouldSkip(check, packSynced, appliedBefore))
+				if (ShouldSkip(check, packSynced, appliedBefore, identityMatches, force))
 				{
 					LauncherLog.Write("pack resync skipped");
 					return;
@@ -144,12 +143,11 @@ public static class PinHeal
 				}
 				catch (Exception ex) when (ex is not PinMismatchException)
 				{
-					LauncherLog.Write("pin heal failed " + ex.GetType().Name);
-					if (attempt >= max)
+					if (GiveUp(ex, attempt, max, ct))
 					{
-						throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
+						continue;
 					}
-					continue;
+					return;
 				}
 			}
 			LauncherLog.Write("pin heal attempt " + attempt + " " + hint.RepairAction);
@@ -160,12 +158,11 @@ public static class PinHeal
 			}
 			catch (Exception ex) when (ex is not PinMismatchException)
 			{
-				LauncherLog.Write("pin heal failed " + ex.GetType().Name);
-				if (attempt >= max)
+				if (GiveUp(ex, attempt, max, ct))
 				{
-					throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
+					continue;
 				}
-				continue;
+				return;
 			}
 			check = await PinGate.CheckAsync(http, gameDir, pack, ct, packUrl, null).ConfigureAwait(false);
 			if (check == PinGate.PinCheck.Match || check == PinGate.PinCheck.Open)
@@ -176,17 +173,32 @@ public static class PinHeal
 		throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
 	}
 
-	private static bool ShouldSkip(PinGate.PinCheck check, bool packSynced, string appliedBefore)
+	private static bool ShouldSkip(PinGate.PinCheck check, bool packSynced, string appliedBefore, bool identityMatches, bool force)
 	{
-		if (!packSynced || string.IsNullOrWhiteSpace(appliedBefore))
+		if (force || !identityMatches || !packSynced || string.IsNullOrWhiteSpace(appliedBefore))
 		{
 			return false;
 		}
-		if (check == PinGate.PinCheck.Open)
-		{
-			return true;
-		}
 		return check == PinGate.PinCheck.Match && !PinGate.DeferAppliedWrite;
+	}
+
+	private static bool GiveUp(Exception ex, int attempt, int max, CancellationToken ct)
+	{
+		LauncherLog.Write("pin heal failed " + ex.GetType().Name);
+		if (ex is OperationCanceledException && ct.IsCancellationRequested)
+		{
+			throw ex;
+		}
+		if (attempt >= max)
+		{
+			if (PackIdentity.IsUnreachable(ex, ct))
+			{
+				LauncherLog.Write("pack feed unreachable; keeping the installed client");
+				throw ex;
+			}
+			throw new PinMismatchException(RepairTrace.Fail("pack resync", PinGate.BlockCopy));
+		}
+		return true;
 	}
 
 	private static async Task ResyncAsync(Func<CancellationToken, Task> resync, string gameDir, CancellationToken ct)

@@ -80,7 +80,7 @@ public class UpgradePlayTests
 	}
 
 	[Fact]
-	public async Task StaleKnownTipAloneDoesNotBlockAndASyncedPackDoesNotResync()
+	public async Task StaleKnownTipAloneDoesNotBlockAndAnUnconfirmedPinStillResyncs()
 	{
 		PinFetch.ResetForTests();
 		string game = NewDir();
@@ -97,8 +97,8 @@ public class UpgradePlayTests
 		{
 			resyncs++;
 			return Task.CompletedTask;
-		}, CancellationToken.None, packSynced: true);
-		Assert.Equal(0, resyncs);
+		}, CancellationToken.None, packSynced: true, identityMatches: true);
+		Assert.Equal(1, resyncs);
 	}
 
 	[Fact]

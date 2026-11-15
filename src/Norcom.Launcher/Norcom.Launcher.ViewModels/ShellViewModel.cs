@@ -1335,6 +1335,34 @@ public class ShellViewModel : ObservableObject
 		}
 		// Queued reports remain local until the user explicitly sends diagnostics.
 		await Task.WhenAll(RefreshServerAsync(), LoadNewsAsync(), LoadDiscordAsync()).ConfigureAwait(continueOnCapturedContext: true);
+		await SyncPackOnStartupAsync().ConfigureAwait(continueOnCapturedContext: true);
+	}
+
+	private async Task SyncPackOnStartupAsync()
+	{
+		if (StartupHeal.GameLockAlive(NorcomPaths.GameLockPath))
+		{
+			LauncherLog.Write("startup pack skipped; minecraft is open");
+			return;
+		}
+		bool ownsPinLock = false;
+		try
+		{
+			await _pinLock.WaitAsync().ConfigureAwait(continueOnCapturedContext: true);
+			ownsPinLock = true;
+			await new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, NorcomPaths.PackTomlUrl, new TransferMeter(), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("startup pack " + ex.GetType().Name);
+		}
+		finally
+		{
+			if (ownsPinLock)
+			{
+				_pinLock.Release();
+			}
+		}
 	}
 
 	public Task PollLivePinAsync(bool force) => PollLivePinCoreAsync(force, ownsPinLock: false, CancellationToken.None);
@@ -1887,7 +1915,7 @@ public class ShellViewModel : ObservableObject
 		pump = StartPump(meter);
 			StartupHeal.ClearStale(NorcomPaths.LauncherDir, NorcomPaths.GameDir);
 			GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
-			string line = await RepairRun.ExecuteAsync(meter, (CancellationToken token) => new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, "https://github.com/Jefftey97/norcom-pack/raw/refs/heads/main/pack.toml", meter, token), (CancellationToken token) => JavaRuntime.EnsureAsync(_http, meter, token), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
+			string line = await RepairRun.ExecuteAsync(meter, (CancellationToken token) => new PackSyncService(_http).SyncAsync(NorcomPaths.GameDir, NorcomPaths.ManagedManifestPath, NorcomPaths.PackwizCacheDir, NorcomPaths.PackTomlUrl, meter, token, force: true), (CancellationToken token) => JavaRuntime.EnsureAsync(_http, meter, token), CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
 			ProgressFraction = 1.0;
 			ProgressLabel = "Repair finished";
 			ProgressDetail = line;

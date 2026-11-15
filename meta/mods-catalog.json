@@ -364,6 +364,32 @@
     "page": "https://modrinth.com/mod/entity-model-features"
   },
   {
+    "id": "1bokaNcj",
+    "version_id": "MfxfgXaO",
+    "slug": "xaeros-minimap",
+    "name": "Xaero's Minimap",
+    "summary": "Displays a map of the nearby world terrain, players, mobs, entities in the corner of your screen. Lets you create waypoints which help you find the locations you've marked.",
+    "icon_url": "https://cdn.modrinth.com/data/1bokaNcj/354080f65407e49f486fcf9c4580e82c45ae63b8_96.webp",
+    "filename": "xaerominimap-fabric-26.3-26.6.2.jar",
+    "path": "mods/xaerominimap-fabric-26.3-26.6.2.jar",
+    "side": "client",
+    "category": "mods",
+    "page": "https://modrinth.com/mod/xaeros-minimap"
+  },
+  {
+    "id": "NcUtCpym",
+    "version_id": "VM8lNSSM",
+    "slug": "xaeros-world-map",
+    "name": "Xaero's World Map",
+    "summary": "Adds a full screen world map which shows you what you have explored in the world. Works great together with Xaero's Minimap.",
+    "icon_url": "https://cdn.modrinth.com/data/NcUtCpym/354080f65407e49f486fcf9c4580e82c45ae63b8_96.webp",
+    "filename": "xaeroworldmap-fabric-26.3-1.47.2.jar",
+    "path": "mods/xaeroworldmap-fabric-26.3-1.47.2.jar",
+    "side": "client",
+    "category": "mods",
+    "page": "https://modrinth.com/mod/xaeros-world-map"
+  },
+  {
     "id": "nfn13YXA",
     "version_id": "rKsAE6bX",
     "slug": "rei",

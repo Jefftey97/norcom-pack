@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-14T01:16:10-07:00",
+  "generated_at": "2026-11-15T15:24:26-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
-  "jar_count": 87,
+  "jar_count": 88,
   "jars": [
     {
       "name": "alexsmobs-2.3.0-fabric+26.3.jar",
@@ -277,6 +277,11 @@
       "size": 11406776
     },
     {
+      "name": "norcom-economy-1.0.0.jar",
+      "sha256": "14be689faff6414f72ad4d2ebf6d0aa84ea55137733b0ee15646384abd3fe922",
+      "size": 72173
+    },
+    {
       "name": "norcom-marble-1.0.0.jar",
       "sha256": "10aa2d283639a415b803240b31922750316955e0b5bb4b451a19d663df5abfd2",
       "size": 1332715
@@ -442,7 +447,7 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "c943e5bbbc7706582eb858ac3cbb2d5271d684725887f36122bc48309335ecc5",
+  "pin_sha256": "626ec07358766fc2fe2d4a70a32555f48effa5b4fbb4b5a9c3b7183539faaa0a",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",

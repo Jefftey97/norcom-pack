@@ -19,7 +19,9 @@ public sealed class PackSyncService
 		_http = http;
 	}
 
-	public async Task SyncAsync(string gameDir, string managedPath, string cacheDir, string packUrl, TransferMeter meter, CancellationToken ct)
+	public const string UnreachableLog = "pack.toml unreachable";
+
+	public async Task SyncAsync(string gameDir, string managedPath, string cacheDir, string packUrl, TransferMeter meter, CancellationToken ct, bool force = false)
 	{
 		try
 		{
@@ -30,11 +32,29 @@ public sealed class PackSyncService
 			LauncherLog.Write("launcher cleanup " + ex.GetType().Name);
 		}
 		meter.SetPhase("Reading pack", 0.02, 0.05);
-		TomlLite.Doc doc = TomlLite.Parse(await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false));
+		string packBody;
+		try
+		{
+			packBody = await _http.GetStringAsync(packUrl, ct).ConfigureAwait(continueOnCapturedContext: false);
+		}
+		catch (Exception ex) when (PackIdentity.IsUnreachable(ex, ct))
+		{
+			LauncherLog.Write(UnreachableLog + " " + ex.GetType().Name);
+			throw;
+		}
+		TomlLite.Doc doc = TomlLite.Parse(packBody);
+		PackIdentity.ReadRemote(doc, out string version, out string hashFormat, out string indexHash);
+		PackIdentity installed = PackIdentity.TryRead(managedPath);
+		bool identityMatches = installed != null && installed.Matches(version, hashFormat, indexHash);
 		bool packSynced = HasSyncRecord(gameDir, managedPath);
 		bool instancePresent = PrismInstance.HasNorcomInstance(PrismCommand.DefaultDataDir(NorcomPaths.AppData));
 		await PinHeal.RunAsync(_http, gameDir, doc, packUrl, async _ =>
 		{
+		if (force)
+		{
+			ClearPackwizCache(cacheDir);
+			PackIdentity.Delete(managedPath);
+		}
 		meter.SetPhase("Repair: resyncing the pack", 0.08, 0.8);
 		string value;
 		string text = (doc.Keys.TryGetValue("index.file", out value) ? value : "index.toml");
@@ -122,8 +142,9 @@ public sealed class PackSyncService
 		}), ct).ConfigureAwait(continueOnCapturedContext: false);
 		meter.SetPhase("Pack ready", 0.92, 0.0);
 		LauncherLog.Write("Pack sync complete files=" + managed.Count);
+		PackIdentity.Record(managedPath, version, hashFormat, indexHash);
 		meter.HandOff();
-		}, ct, packSynced, instancePresent).ConfigureAwait(continueOnCapturedContext: false);
+		}, ct, packSynced, instancePresent, identityMatches, force, installed == null ? null : installed.PackVersion).ConfigureAwait(continueOnCapturedContext: false);
 		RequireMods(gameDir, managedPath);
 	}
 
@@ -615,6 +636,36 @@ public sealed class PackSyncService
 		catch (Exception ex)
 		{
 			LauncherLog.Write("pack partial " + ex.GetType().Name);
+		}
+	}
+
+	public static void ClearPackwizCache(string cacheDir)
+	{
+		if (string.IsNullOrWhiteSpace(cacheDir) || !Directory.Exists(cacheDir))
+		{
+			return;
+		}
+		foreach (string entry in Directory.EnumerateFileSystemEntries(cacheDir))
+		{
+			try
+			{
+				if ((File.GetAttributes(entry) & FileAttributes.ReparsePoint) != 0)
+				{
+					continue;
+				}
+				if (Directory.Exists(entry))
+				{
+					Directory.Delete(entry, recursive: true);
+				}
+				else
+				{
+					File.Delete(entry);
+				}
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				LauncherLog.Write("pack cache " + ex.GetType().Name);
+			}
 		}
 	}
 

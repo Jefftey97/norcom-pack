@@ -106,9 +106,53 @@ public class PinHealTests
 		{
 			calls++;
 			return Task.CompletedTask;
-		}, CancellationToken.None, packSynced: true);
+		}, CancellationToken.None, packSynced: true, identityMatches: true);
 		Assert.Equal(0, calls);
 		Assert.Equal(PinGate.LivePin, PinGate.ReadAppliedPin(dir));
+	}
+
+	[Fact]
+	public async Task MatchingPinWithoutAPackIdentityStillResyncs()
+	{
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+		int calls = 0;
+		using HttpClient http = new(new PinHttp(Slim()));
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			calls++;
+			return Task.CompletedTask;
+		}, CancellationToken.None, packSynced: true);
+		Assert.Equal(1, calls);
+	}
+
+	[Fact]
+	public async Task RepairIgnoresAMatchingPinAndPackIdentity()
+	{
+		string dir = NewDir();
+		await File.WriteAllTextAsync(Path.Combine(dir, PinGate.AppliedPinFile), PinGate.LivePin + "\n");
+		int calls = 0;
+		using HttpClient http = new(new PinHttp(Slim()));
+		await PinHeal.RunAsync(http, dir, TomlLite.Parse(Pack), null, _ =>
+		{
+			calls++;
+			return Task.CompletedTask;
+		}, CancellationToken.None, packSynced: true, identityMatches: true, force: true);
+		Assert.Equal(1, calls);
+	}
+
+	[Fact]
+	public async Task FeedCheckUsesTheInstalledPackVersionNotTheFetchedToml()
+	{
+		string hint = LiveHint.Replace("\"minLauncher\":\"2.0.1\"", "\"minLauncher\":\"2.0.1\",\"packVersion\":\"1.0.45\"");
+		List<string> behind = new List<string>();
+		using HttpClient behindHttp = new(new PinHttp(Slim(), hint, behind));
+		await PinHeal.RunAsync(behindHttp, NewDir(), TomlLite.Parse(Pack.Replace("1.0.35", "1.0.45")), null, _ => Task.CompletedTask, CancellationToken.None, installedPackVersion: "1.0.42");
+		Assert.Contains("manifest.json", behind);
+		List<string> current = new List<string>();
+		using HttpClient currentHttp = new(new PinHttp(Slim(), hint, current));
+		await PinHeal.RunAsync(currentHttp, NewDir(), TomlLite.Parse(Pack.Replace("1.0.35", "1.0.42")), null, _ => Task.CompletedTask, CancellationToken.None, installedPackVersion: "1.0.45");
+		Assert.DoesNotContain("manifest.json", current);
 	}
 
 	[Fact]

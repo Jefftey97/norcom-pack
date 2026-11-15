@@ -38,12 +38,22 @@ hash = "b865bdf247d5fb138f297871a43c4a1e84053e8a65904ed2c7a31f2600978df2"
 preserve = true
 
 [[files]]
+file = "config/xaero/minimap/profiles/default.cfg"
+hash = "a6f8888fc79f00174bc10dcbfade53f964820eb057768f38b81f264a3c16b78c"
+preserve = true
+
+[[files]]
+file = "config/xaero/world-map/profiles/default.cfg"
+hash = "13c3f8e6d21aba60e73cbd789c7c1551a30d7ee5ea2d6bdba5816b65f9a84882"
+preserve = true
+
+[[files]]
 file = "discord-link.txt"
 hash = "c26cd60236a10cb9dd7f562f193dcbe1e2bae9ae61fe6350f370d8f2307a5106"
 
 [[files]]
 file = "meta/mods-catalog.json"
-hash = "3079054dfe0d229b74cb78f0983fc23693d9cf5205feca059b35b298b2c6852b"
+hash = "8d157d05b735575da28052f983830c53eb85bd73175648097ee89f90a367e4c1"
 
 [[files]]
 file = "mods/Clumps-fabric-26.3-26.3.2.pw.toml"
@@ -561,6 +571,16 @@ hash = "13b514ede7ca61a17cd55c042a3bd43ea629bf8dd4c76272d610f00cb2ef3469"
 metafile = true
 
 [[files]]
+file = "mods/xaerominimap-fabric-26.3-26.6.2.pw.toml"
+hash = "69ac166fd8160cce556bfeff0bc37e8805191e30ce4769b1eb8489edf027003f"
+metafile = true
+
+[[files]]
+file = "mods/xaeroworldmap-fabric-26.3-1.47.2.pw.toml"
+hash = "b0617e4ab4ebae4b841a3a478f58fb1ebe811240a30e3506fadb7bdda2f4a328"
+metafile = true
+
+[[files]]
 file = "mods/yet_another_config_lib_v3-3.9.7+26.3-fabric.pw.toml"
 hash = "e6623ef7a1900b614d10dadda7278d07525bc6f1f38e8ab459690f878d433ccd"
 metafile = true
@@ -585,12 +605,12 @@ preserve = true
 
 [[files]]
 file = "options.txt"
-hash = "75d1ed9efb547354abf9e79991772f1db85e55b0df9e089fd9f8273899296455"
+hash = "d5f82980418dfcb007eaa0caf57d7e9f67a1b54aa746002278e8a3112f3a43fa"
 preserve = true
 
 [[files]]
 file = "pack-notes.md"
-hash = "7cc4bc10d0abd3b000a41f5361b212fd008e50a6d529b563a5ac12dba7572553"
+hash = "af7df11030e970d009a5c28d76efbdf912bb29eb606c8c0347c7f98276c020cf"
 
 [[files]]
 file = "pack-notes.txt"

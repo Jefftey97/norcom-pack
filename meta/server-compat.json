@@ -2,10 +2,10 @@
   "schema": 1,
   "mc": "26.3",
   "loader": "0.20.1",
-  "pin": "c943e5bbbc7706582eb858ac3cbb2d5271d684725887f36122bc48309335ecc5",
+  "pin": "626ec07358766fc2fe2d4a70a32555f48effa5b4fbb4b5a9c3b7183539faaa0a",
   "source": "server",
-  "updatedUtc": "2026-11-15T04:43:35Z",
-  "packVersion": "1.0.45",
+  "updatedUtc": "2026-11-15T22:24:26Z",
+  "packVersion": "1.0.46",
   "indexSha256": "d11507527d6d318743bc626a88edb2f11fe27b52bb6c77d3f765e9557cb426a1",
   "both": {
     "Clumps-fabric-26.3-26.3.2.jar": "8c72b1505a11ad93ed19b5a914eb6a036da92eb323d58da288bef36c19ed7624",
@@ -77,7 +77,7 @@
     "yet_another_config_lib_v3-3.9.7+26.3-fabric.jar": "c52d41d444522d9abba994cd4c4ee2e71a065d7c31010f92a9959b80ccb4b0f5"
   },
   "bothCount": 67,
-  "serverJarCount": 87,
+  "serverJarCount": 88,
   "ledger": "G:\\MinecraftServer\\admin\\norcom-mod-pin.json",
   "pinAlgo": "sha256(canonical JSON of sorted [{name,sha256,size}] from G:\\MinecraftServer\\mods\\*.jar)"
 }

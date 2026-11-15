@@ -171,10 +171,10 @@ public class ShellViewModel : ObservableObject
 	private AsyncRelayCommand? playCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
-	private RelayCommand<GraphicsTier>? applyTierCommand;
+	private AsyncRelayCommand<GraphicsTier>? applyTierCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
-	private RelayCommand? applyAutoCommand;
+	private AsyncRelayCommand? applyAutoCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	private AsyncRelayCommand? fixVisualsCommand;
@@ -204,7 +204,7 @@ public class ShellViewModel : ObservableObject
 	private RelayCommand? openPrismDownloadCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
-	private RelayCommand<string>? chooseTexturePackCommand;
+	private AsyncRelayCommand<string>? chooseTexturePackCommand;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	private AsyncRelayCommand? signInBrowserCommand;
@@ -958,33 +958,15 @@ public class ShellViewModel : ObservableObject
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	[ExcludeFromCodeCoverage]
-	public IRelayCommand<GraphicsTier> ApplyTierCommand => (IRelayCommand<GraphicsTier>)(object)(applyTierCommand ?? (applyTierCommand = new RelayCommand<GraphicsTier>((Action<GraphicsTier>)ApplyTier)));
+	public IRelayCommand<GraphicsTier> ApplyTierCommand => applyTierCommand ?? (applyTierCommand = new AsyncRelayCommand<GraphicsTier>(ApplyTier));
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	[ExcludeFromCodeCoverage]
-	public IRelayCommand<string> ChooseTexturePackCommand => chooseTexturePackCommand ?? (chooseTexturePackCommand = new RelayCommand<string>(ChooseTexturePack));
+	public IRelayCommand<string> ChooseTexturePackCommand => chooseTexturePackCommand ?? (chooseTexturePackCommand = new AsyncRelayCommand<string>(ChooseTexturePack));
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	[ExcludeFromCodeCoverage]
-	public IRelayCommand ApplyAutoCommand
-	{
-		get
-		{
-			//IL_0017: Unknown result type (might be due to invalid IL or missing references)
-			//IL_001c: Unknown result type (might be due to invalid IL or missing references)
-			//IL_001e: Expected O, but got Unknown
-			//IL_0023: Expected O, but got Unknown
-			RelayCommand obj = applyAutoCommand;
-			if (obj == null)
-			{
-				RelayCommand val = new RelayCommand((Action)ApplyAuto);
-				RelayCommand val2 = val;
-				applyAutoCommand = val;
-				obj = val2;
-			}
-			return (IRelayCommand)(object)obj;
-		}
-	}
+	public IRelayCommand ApplyAutoCommand => applyAutoCommand ?? (applyAutoCommand = new AsyncRelayCommand(ApplyAuto));
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.4.0.0")]
 	[ExcludeFromCodeCoverage]
@@ -1272,7 +1254,7 @@ public class ShellViewModel : ObservableObject
 		}
 	}
 
-	public ShellViewModel():this(null){}
+	public ShellViewModel() : this(null, KnownVisualAssets.EnsureAsync) {}
 
     internal ShellViewModel(IGameProcessLookup gameLookup, Func<HttpClient,string,TransferMeter,CancellationToken,Task> ensureVisualAssets=null)
 	{
@@ -1731,56 +1713,110 @@ public class ShellViewModel : ObservableObject
 	}
 
 	[RelayCommand]
-	private void ChooseTexturePack(string choice)
+	private async Task ChooseTexturePack(string choice)
 	{
 		if (!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
 		{
 			StatusLine = "Close Minecraft before changing the texture pack.";
 			return;
 		}
+		if (!_pinLock.Wait(0))
+		{
+			StatusLine = "Wait for the pack check to finish before changing the texture pack.";
+			return;
+		}
+		CancellationTokenSource pump = null;
 		try
 		{
+			IsBusy = true;
+			TransferMeter meter = new TransferMeter();
+			pump = StartPump(meter);
+			await TexturePackActivation.EnableAsync(NorcomPaths.GameDir, choice, _http, meter, CancellationToken.None).ConfigureAwait(true);
 			Active.ChooseTexture(choice);
 			StatusLine = TexturePackChoice.Normalize(choice) + " is the texture pack.";
 		}
 		catch (Exception ex)
 		{
-			StatusLine = "The texture pack could not be changed. " + Redactor.Clean(ex.Message);
+			StatusLine = PackFailureStatus("The texture pack could not be changed. ", ex);
 		}
-		OnPropertyChanged(nameof(ActiveTexturePack));
-		OnPropertyChanged(nameof(TextureChoiceLabel));
-		OnPropertyChanged(nameof(TextureHint));
+		finally
+		{
+			pump?.Cancel();
+			_pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
+			OnPropertyChanged(nameof(ActiveTexturePack));
+			OnPropertyChanged(nameof(TextureChoiceLabel));
+			OnPropertyChanged(nameof(TextureHint));
+		}
 	}
 
 	[RelayCommand]
-	private void ApplyTier(GraphicsTier tier)
+	private Task ApplyTier(GraphicsTier tier)
 	{
-		ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
+		return ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
 	}
 
 	[RelayCommand]
-	private void ApplyAuto()
+	private Task ApplyAuto()
 	{
 		PcHardware pcHardware = new WmiPcProbe().TryRead();
 		GraphicsTier tier = (((object)pcHardware == null) ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware));
 		string why = (((object)pcHardware == null) ? "This PC could not be read, so High was applied." : ("This PC was read as " + pcHardware.GpuName + "."));
-		ApplyResolved(tier, auto: true, why);
+		return ApplyResolved(tier, auto: true, why);
 	}
 
-    private void ApplyResolved(GraphicsTier tier,bool auto,string why)
-    {
-        if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
-        if(!_pinLock.Wait(0)){StatusLine="Wait for the pack check to finish before changing graphics.";return;}
-        try
-        {
-            if(!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))return;
-            _graphics.Apply(NorcomPaths.GameDir,tier);var removed=_graphics.ClearShaderCache(NorcomPaths.GameDir);
-            _settings.GraphicsTier=tier;_settings.GraphicsAuto=auto;_settings.Save(NorcomPaths.SettingsPath);
-            SelectedTier=tier;AutoOn=auto;StatusLine=GraphicsPresets.TierLabel(tier)+" applied. Shader cache cleared ("+removed.Count+").";
-        }
-        catch(Exception ex){StatusLine="Graphics could not be changed. "+Redactor.Clean(ex.Message);}
-        finally{_pinLock.Release();}
-    }
+	private async Task ApplyResolved(GraphicsTier tier, bool auto, string why)
+	{
+		_ = why;
+		if (!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+		{
+			return;
+		}
+		if (!_pinLock.Wait(0))
+		{
+			StatusLine = "Wait for the pack check to finish before changing graphics.";
+			return;
+		}
+		CancellationTokenSource pump = null;
+		try
+		{
+			if (!CanManageClient || GameUpdateGuard.IsBlocked(NorcomPaths.GameLockPath))
+			{
+				return;
+			}
+			IsBusy = true;
+			TransferMeter meter = new TransferMeter();
+			pump = StartPump(meter);
+			await TexturePackActivation.ApplyTierAsync(NorcomPaths.GameDir, tier, _graphics, _http, meter, CancellationToken.None).ConfigureAwait(true);
+			IReadOnlyList<string> removed = _graphics.ClearShaderCache(NorcomPaths.GameDir);
+			_settings.GraphicsTier = tier;
+			_settings.GraphicsAuto = auto;
+			_settings.Save(NorcomPaths.SettingsPath);
+			SelectedTier = tier;
+			AutoOn = auto;
+			StatusLine = GraphicsPresets.TierLabel(tier) + " applied. Shader cache cleared (" + removed.Count + "). Alacrity is the texture pack.";
+		}
+		catch (Exception ex)
+		{
+			StatusLine = PackFailureStatus("Graphics could not be changed. ", ex);
+		}
+		finally
+		{
+			pump?.Cancel();
+			_pinLock.Release();
+			IsBusy = BridgeRuntime.HandoffScheduled;
+		}
+	}
+
+	private static string PackFailureStatus(string prefix, Exception ex)
+	{
+		string message = Redactor.Clean(ex.Message);
+		if (message.Contains("left as it was", StringComparison.Ordinal))
+		{
+			return message;
+		}
+		return prefix + message;
+	}
 
 	[RelayCommand]
 	private async Task FixVisualsAsync()

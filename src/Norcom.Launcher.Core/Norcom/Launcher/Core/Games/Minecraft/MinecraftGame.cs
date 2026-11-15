@@ -239,6 +239,18 @@ public sealed class MinecraftGame : IGame
 					{
 						throw new PlayStoppedException("Pack ready", "Stopped after the pack sync. Minecraft was not started.");
 					}
+					try
+					{
+						await TexturePackActivation.EnsureSelectedAsync(NorcomPaths.GameDir, state.TexturePack, state.TexturePackSpecified, context.Http, meter, token).ConfigureAwait(false);
+					}
+					catch (PlayStoppedException)
+					{
+						throw;
+					}
+					catch (Exception ex)
+					{
+						throw new PlayStoppedException("Texture pack wasn't downloaded", ex.Message);
+					}
 				},
 				AfterSync = () => Prepare(state),
 				EnsurePrism = async token =>

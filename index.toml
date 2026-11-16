@@ -8,6 +8,7 @@ preserve = true
 [[files]]
 file = "config/continuity.json"
 hash = "82603b18e80a58605032201f04efd4b3bb1fc5c1c15afa99a4c5b30963d7dc3e"
+preserve = true
 
 [[files]]
 file = "config/inventoryprofilesnext/inventoryprofiles.json"

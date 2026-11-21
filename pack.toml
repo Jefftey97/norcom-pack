@@ -1,12 +1,12 @@
 name = "NORCOM"
 author = "Jeffrey"
-version = "1.0.47"
+version = "1.0.48"
 pack-format = "packwiz:1.1.0"
 
 [index]
 file = "index.toml"
 hash-format = "sha256"
-hash = "448d12467df8ad9080553fbb67f8da152833e479cde374eb112efe265aa4745c"
+hash = "6dbf27735f96aae84a670c838bfb34148703138d1dcd36fd79958fdf3b8b4657"
 
 [versions]
 fabric = "0.20.1"

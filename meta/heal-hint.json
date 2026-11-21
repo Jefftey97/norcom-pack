@@ -1,10 +1,10 @@
 {
-  "updatedUtc": "2026-11-15T22:24:26Z",
+  "updatedUtc": "2026-11-21T04:01:08Z",
   "loader": "0.20.1",
   "schema": 1,
   "source": "admin",
   "mc": "26.3",
   "repairAction": "resync-pack",
   "minLauncher": "2.0.1",
-  "pin": "626ec07358766fc2fe2d4a70a32555f48effa5b4fbb4b5a9c3b7183539faaa0a"
+  "pin": "1aecc6e8336bb66e0c0cd16d0c7b04f550dd93c759941d2d6c9f001ccbba7bd8"
 }

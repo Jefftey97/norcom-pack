@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-15T15:24:26-07:00",
+  "generated_at": "2026-11-20T21:01:10-07:00",
   "minecraft": "26.3",
   "fabric_loader": "0.20.1",
   "source": "G:\\MinecraftServer\\mods",
@@ -22,9 +22,9 @@
       "size": 52230
     },
     {
-      "name": "architectury-fabric-22.0.5.jar",
-      "sha256": "c6a60979f75fdf07a97971711b42529bc84cd7e4c873625d2ce0faf34278ecda",
-      "size": 622542
+      "name": "architectury-fabric-22.0.6.jar",
+      "sha256": "345701ec6d30c89fef227c58d9606d98d7d47ce1c4c59ea098f21250e6e7722e",
+      "size": 622575
     },
     {
       "name": "audioplayer-fabric-2.5.2+26.3.jar",
@@ -72,9 +72,9 @@
       "size": 203497
     },
     {
-      "name": "cookingforblockheads-fabric-26.3-26.3.0.2.jar",
-      "sha256": "7f1ce03e554cbfccaa31f17ea9bf6539cca2937eb8ef5309d1d4deeb102e31c3",
-      "size": 1735170
+      "name": "cookingforblockheads-fabric-26.3-26.3.0.3.jar",
+      "sha256": "7cf7d4daf91e3562deea19b82f35983d27649d5cb675f0f43a45e07b2657c556",
+      "size": 1736011
     },
     {
       "name": "crawl-mc26.3-fabric-0.15.0.jar",
@@ -102,9 +102,9 @@
       "size": 28476894
     },
     {
-      "name": "dungeons-and-taverns-6.1.0.jar",
-      "sha256": "64cac608534b9973da8bbb4dae4cb8391b065fbe675e4060d0b467f3c390fa7b",
-      "size": 42595560
+      "name": "dungeons-and-taverns-6.2.0.jar",
+      "sha256": "d499e378524e116c17f1d74315f3914b7373e30bf009fc6e71b97061d7b6bc7e",
+      "size": 42569145
     },
     {
       "name": "easy_model_entities-fabric-26.3-2.6.0.jar",
@@ -112,19 +112,19 @@
       "size": 782206
     },
     {
-      "name": "easy_npc-fabric-26.3-7.18.0.jar",
-      "sha256": "091b9d79fba9ea00d85083bff5b3470feefdd736db7ce5fafb42e95833915ed6",
-      "size": 3245521
+      "name": "easy_npc-fabric-26.3-7.20.0.jar",
+      "sha256": "6c2deeb1d5e9f51a292117b11b938540d81f82135a388d128eba5e6d1ad7c76c",
+      "size": 3276054
     },
     {
-      "name": "easy_npc_config_ui-fabric-26.3-7.18.0.jar",
-      "sha256": "50476cb488bc2dcd1e539915d5648f54717da55b335b4f85303c5fc1e980bfad",
-      "size": 1184186
+      "name": "easy_npc_config_ui-fabric-26.3-7.20.0.jar",
+      "sha256": "ee7d64ca36d28ac9518b7747dedf2c97f22a7e7a1e8ef6b991ec9a1c0d7920d5",
+      "size": 1184188
     },
     {
-      "name": "enderscape-fabric-3.0.5+mc26.3.jar",
-      "sha256": "3791dba1a424ba6f04cb75af80c1a81941854c3c94c0b729e9871beb892dc5d8",
-      "size": 104161493
+      "name": "enderscape-fabric-3.0.6+mc26.3.jar",
+      "sha256": "56c48801e10203045527d3bb6b80a38063ab9323e3c5b83c56f5d62406cfe478",
+      "size": 104161466
     },
     {
       "name": "endrem-fabric-26.3-6.2.2.jar",
@@ -177,9 +177,9 @@
       "size": 609574
     },
     {
-      "name": "friendsandfoes-fabric-5.0.4+mc26.3.jar",
-      "sha256": "a122974418a7cdb6f377f5de5f359924bc3d75450fcc21fee929c27b6e0c8253",
-      "size": 4419964
+      "name": "friendsandfoes-fabric-5.0.5+mc26.3.jar",
+      "sha256": "c557667383ed99303e40cbbf9543401e71240c3b3caa5a593e9f3445ac7b1003",
+      "size": 4422485
     },
     {
       "name": "geckolib-fabric-26.3-5.5.7.jar",
@@ -227,9 +227,9 @@
       "size": 30356
     },
     {
-      "name": "lithium-fabric-0.26.3+mc26.3.jar",
-      "sha256": "103b6aab3932f119155565254a3f33b1be0da26b9bf7a5eec24851542144fc78",
-      "size": 919892
+      "name": "lithium-fabric-0.26.4+mc26.3.jar",
+      "sha256": "d4677707fd539d778382deaaea4a466243a81062432ee85f8d62a0eedb49f114",
+      "size": 921530
     },
     {
       "name": "lithostitched-2.0.6-fabric-26.3.jar",
@@ -412,9 +412,9 @@
       "size": 735126
     },
     {
-      "name": "travelersbackpack-fabric-26.3-11.4.4.jar",
-      "sha256": "09b6a5d079b33f5d2b290318c999123e39322108c908276c264f75ee50383a77",
-      "size": 1547858
+      "name": "travelersbackpack-fabric-26.3-11.4.6.jar",
+      "sha256": "3c112a0db39525597fd987e348f5c35e98efb8a21ad120f3aa4a042de1e582c5",
+      "size": 1576052
     },
     {
       "name": "vcinteraction-fabric-1.0.8+26.3.jar",
@@ -437,9 +437,9 @@
       "size": 5611159
     },
     {
-      "name": "waystones-fabric-26.3-26.3.0.2.jar",
-      "sha256": "88fb07c60c0ed79d93a81ac0ecb4fee942734520e0ae3d37845bf25476eab9d2",
-      "size": 1211879
+      "name": "waystones-fabric-26.3-26.3.0.3.jar",
+      "sha256": "00dc6abfee6fa2e71f110d42fa6610227f3d50b38bfe49098d072a51d645a784",
+      "size": 1262275
     },
     {
       "name": "yet_another_config_lib_v3-3.9.7+26.3-fabric.jar",
@@ -447,7 +447,7 @@
       "size": 1125377
     }
   ],
-  "pin_sha256": "626ec07358766fc2fe2d4a70a32555f48effa5b4fbb4b5a9c3b7183539faaa0a",
+  "pin_sha256": "1aecc6e8336bb66e0c0cd16d0c7b04f550dd93c759941d2d6c9f001ccbba7bd8",
   "rules": {
     "owner": "NORCOM Server",
     "admin_publish": "refuse if dual-sided / required set mismatches pin",

@@ -54,7 +54,7 @@ hash = "c26cd60236a10cb9dd7f562f193dcbe1e2bae9ae61fe6350f370d8f2307a5106"
 
 [[files]]
 file = "meta/mods-catalog.json"
-hash = "8d157d05b735575da28052f983830c53eb85bd73175648097ee89f90a367e4c1"
+hash = "af858e5997190a199b5fe19a457075e38eb18d8c611be25d481579283eaf23ef"
 
 [[files]]
 file = "mods/Clumps-fabric-26.3-26.3.2.pw.toml"
@@ -113,7 +113,7 @@ metafile = true
 
 [[files]]
 file = "mods/architectury-fabric-22.0.5.pw.toml"
-hash = "5d72e52239df2a27fddb569b0139a7f47ce5561e5c1709bcfb6a5a2f29032887"
+hash = "02fe4599e03f3be73d4396a2b1b8165a26fb9e207870bd175960f13962edc125"
 metafile = true
 
 [[files]]
@@ -163,7 +163,7 @@ metafile = true
 
 [[files]]
 file = "mods/cookingforblockheads-fabric-26.3-26.3.0.2.pw.toml"
-hash = "a4760dfb5850ae4dccae23ab2b631f95726a63f1eb4ea1cb7f09302be679afb1"
+hash = "595d28e026c9fe930cb084b1866bba6fdd8f59c3f119a9a468ae24c33c1a2d95"
 metafile = true
 
 [[files]]
@@ -203,7 +203,7 @@ metafile = true
 
 [[files]]
 file = "mods/dungeons-and-taverns-6.1.0.pw.toml"
-hash = "da46f457e9a15bb5de926be39fb001dc932172a791f74116c03f78f81d5493d8"
+hash = "7e2603608f86cd0d9d2177a336b6d3c8fb4786c481c82f9079f274415df86105"
 metafile = true
 
 [[files]]
@@ -218,17 +218,17 @@ metafile = true
 
 [[files]]
 file = "mods/easy_npc-fabric-26.3-7.18.0.pw.toml"
-hash = "7f8493b0463f9e2984320d2d8b384121d4022a172d879501f9407600cc243137"
+hash = "b435c99fcaf3841e1c761e02d2c79d4f2c79db89a9ade6e26add12e08c7ab0e1"
 metafile = true
 
 [[files]]
 file = "mods/easy_npc_config_ui-fabric-26.3-7.18.0.pw.toml"
-hash = "a2b01ea2cf891ee5c82da10952583a83af20c026a48cc1464efc0d7a921415ed"
+hash = "3cfbd1a198b018fd39b4045f5be8d59ba962759cb81bfb748f7c85e5299331a1"
 metafile = true
 
 [[files]]
 file = "mods/enderscape-fabric-3.0.5+mc26.3.pw.toml"
-hash = "43c578289f542c3301cdd6a3f1078d4fe053003561471e4e0a143c48d902dbf2"
+hash = "8426b7e254f4d9b593f7fd3aaab8a0f78e83dc2b0ab007142944276799697145"
 metafile = true
 
 [[files]]
@@ -293,7 +293,7 @@ metafile = true
 
 [[files]]
 file = "mods/friendsandfoes-fabric-5.0.4+mc26.3.pw.toml"
-hash = "b4ebb88b80d7f149073474937bb630f8ef65a27c7629711b1e7fe729d911fd47"
+hash = "6ca6eac6a8ff25cb7b4586d9029ff00ffba0a82a84a71f0a3f4f005afa5dc470"
 metafile = true
 
 [[files]]
@@ -353,7 +353,7 @@ metafile = true
 
 [[files]]
 file = "mods/lithium-fabric-0.26.3+mc26.3.pw.toml"
-hash = "73c41c392c03c219c7d3a4fc86c3cc7cf2884198d2420f9fe77c9127c828b5af"
+hash = "b58d644f29f23c3ddd561a121f7b0dee5dedb09c71fded7092937dc7e18eb019"
 metafile = true
 
 [[files]]
@@ -433,7 +433,7 @@ metafile = true
 
 [[files]]
 file = "mods/particlerain-4.0.3+26.3-fabric.pw.toml"
-hash = "050bc38db485639764b88343e8be4072a7ee6f7e408b4e08b805e1ff3efbb80e"
+hash = "87b87c323d73a64075319f1f540a6dcc57501ab6c028766f85c4f40a119b4b3e"
 metafile = true
 
 [[files]]
@@ -448,7 +448,7 @@ metafile = true
 
 [[files]]
 file = "mods/presencefootsteps-1.14.0+26.3.pw.toml"
-hash = "9327f4642aeccb38eb40cd028b263ba16abbdf37992fceaf265dfb6d4fe7a168"
+hash = "ea58f87e79c0c85f5168a7a99232f080bdecbfcf5dca2fdac060a0bbf4f66f24"
 metafile = true
 
 [[files]]
@@ -543,7 +543,7 @@ metafile = true
 
 [[files]]
 file = "mods/travelersbackpack-fabric-26.3-11.4.3.pw.toml"
-hash = "951888be48e4c8e2c559b379128c07b7d653eabba8f53c9df6c57e785923f1b3"
+hash = "a54266a4c9d71ff442594bf684f66344e92eee6f143fbf87ab08e02117202fe8"
 metafile = true
 
 [[files]]
@@ -568,7 +568,7 @@ metafile = true
 
 [[files]]
 file = "mods/waystones-fabric-26.3-26.3.0.2.pw.toml"
-hash = "13b514ede7ca61a17cd55c042a3bd43ea629bf8dd4c76272d610f00cb2ef3469"
+hash = "67023a1b65d4da6bd6ad6e5ec976024f7071149b6f6586e6997e7ba779d8aeaa"
 metafile = true
 
 [[files]]

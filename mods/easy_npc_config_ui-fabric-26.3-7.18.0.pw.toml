@@ -1,12 +1,12 @@
 name = "Easy NPC Config UI"
-filename = "easy_npc_config_ui-fabric-26.3-7.18.0.jar"
+filename = "easy_npc_config_ui-fabric-26.3-7.20.0.jar"
 side = "both"
 
 [download]
-url = "https://cdn.modrinth.com/data/uTGjf7vA/versions/EAwdLvxz/easy_npc_config_ui-fabric-26.3-7.18.0.jar"
+url = "https://cdn.modrinth.com/data/uTGjf7vA/versions/tpggDHXX/easy_npc_config_ui-fabric-26.3-7.20.0.jar"
 hash-format = "sha512"
-hash = "99b5ecd7cf05724272a55523699edb2a0b1925adbf11bd3137cb170425199d7688c5a2071106103c49b9869c4360f82c915f51aec8f1430d126c6849cab0b528"
+hash = "f98122d6450ade549de12845bc2884baf3efd667b7ea165756c18caff18e78b51c063e70d247b79c61e72aed5472b59c3399c1d98e29c00618d38bf38064429a"
 
 [update.modrinth]
 mod-id = "easy-npc-config-ui"
-version = "auto"
+version = "tpggDHXX"

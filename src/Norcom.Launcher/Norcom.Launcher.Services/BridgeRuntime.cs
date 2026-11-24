@@ -89,6 +89,9 @@ public static class BridgeRuntime
             coordinator.RecoverInterrupted(store);
             if(SingleInstance.ActivateExisting())return false;
         }
+        // Idle startup still holds the installation lease. Pending activations are left untouched.
+        try { store.PruneRetiredPayloads(); }
+        catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
         for(var attempt=0;attempt<3;attempt++)
         {
             state=store.Read();

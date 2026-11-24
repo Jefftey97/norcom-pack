@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Norcom.Launcher.Core.Services;
 
@@ -35,15 +36,109 @@ public sealed class MachineSpecs
 
 public static class MachineSpecsProbe
 {
+	private static readonly object Gate = new object();
+
+	private static Func<MachineSpecs>? _cachedOverride;
+
+	private static MachineSpecs? _cached;
+
+	private static Func<MachineSpecs>? _inflightOverride;
+
+	private static Task<MachineSpecs>? _inflight;
+
 	public static Func<MachineSpecs>? Override { get; set; }
+
+	public static bool TryGetCached(out MachineSpecs specs)
+	{
+		lock (Gate)
+		{
+			if (_cached != null && ReferenceEquals(_cachedOverride, Override))
+			{
+				specs = _cached;
+				return true;
+			}
+		}
+		specs = new MachineSpecs();
+		return false;
+	}
 
 	public static MachineSpecs Read()
 	{
-		if (Override != null)
+		return Start(background: false).GetAwaiter().GetResult();
+	}
+
+	public static Task<MachineSpecs> ReadAsync()
+	{
+		return Start(background: true);
+	}
+
+	private static Task<MachineSpecs> Start(bool background)
+	{
+		Func<MachineSpecs>? snapshot;
+		TaskCompletionSource<MachineSpecs> created;
+		lock (Gate)
+		{
+			if (_cached != null && ReferenceEquals(_cachedOverride, Override))
+			{
+				return Task.FromResult(_cached);
+			}
+			if (_inflight != null && ReferenceEquals(_inflightOverride, Override))
+			{
+				return _inflight;
+			}
+			snapshot = Override;
+			created = new TaskCompletionSource<MachineSpecs>(TaskCreationOptions.RunContinuationsAsynchronously);
+			_inflight = created.Task;
+			_inflightOverride = snapshot;
+		}
+		if (background)
+		{
+			Task.Run(() => Complete(snapshot, created));
+			return created.Task;
+		}
+		Complete(snapshot, created);
+		return created.Task;
+	}
+
+	private static void Complete(Func<MachineSpecs>? snapshot, TaskCompletionSource<MachineSpecs> created)
+	{
+		try
+		{
+			MachineSpecs specs = Probe(snapshot);
+			lock (Gate)
+			{
+				if (ReferenceEquals(Override, snapshot))
+				{
+					_cached = specs;
+					_cachedOverride = snapshot;
+				}
+				if (ReferenceEquals(_inflight, created.Task))
+				{
+					_inflight = null;
+				}
+			}
+			created.TrySetResult(specs);
+		}
+		catch (Exception ex)
+		{
+			lock (Gate)
+			{
+				if (ReferenceEquals(_inflight, created.Task))
+				{
+					_inflight = null;
+				}
+			}
+			created.TrySetException(ex);
+		}
+	}
+
+	private static MachineSpecs Probe(Func<MachineSpecs>? snapshot)
+	{
+		if (snapshot != null)
 		{
 			try
 			{
-				return Override();
+				return snapshot();
 			}
 			catch (Exception ex)
 			{

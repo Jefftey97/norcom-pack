@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Norcom.Launcher.Core.Services;
+using Norcom.Launcher.Core.Text;
 
 namespace Norcom.Launcher.Core.Updates;
 
@@ -222,6 +223,82 @@ public sealed class UpdateStore
             throw new InvalidDataException("Launcher health acknowledgement does not match its launch.");
         VerifyLocal(pending.Candidate);
         Save(state with{Active=pending.Candidate,Previous=pending.Previous,Pending=null,Outcome="healthy",DeferredRetry=pending.Mode=="open"?state.DeferredRetry:null});
+        // A healthy commit no longer needs payloads older than Active and Previous.
+        // Prune swallows locked files so the acknowledgement itself still stands.
+        try { PruneRetiredPayloads(); }
+        catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
+    }
+    // Requires the installation lock. Keeps Active, Previous, a pending candidate, and a
+    // deferred retry. A pending activation skips pruning entirely. Links are left in place.
+    public void PruneRetiredPayloads()
+    {
+        Guard();
+        try { PruneRetiredPayloads(Read()); }
+        catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
+    }
+    private void PruneRetiredPayloads(UpdateState state)
+    {
+        if(state.Pending!=null)return;
+        var app=Path.Combine(Root,"app");
+        if(!Directory.Exists(app))return;
+        OwnedFiles.CheckAncestors(app);
+        if(IsLink(app))return;
+        var keep=new HashSet<string>(StringComparer.Ordinal);
+        if(state.Active!=null)keep.Add(state.Active.PackageHash);
+        if(state.Previous!=null)keep.Add(state.Previous.PackageHash);
+        if(state.Pending!=null)keep.Add(state.Pending.Candidate.PackageHash);
+        if(state.DeferredRetry!=null)keep.Add(state.DeferredRetry.Candidate.PackageHash);
+        var removed=0;
+        foreach(var dir in Directory.EnumerateDirectories(app))
+        {
+            try { if(TryDeleteRetired(app,dir,keep))removed++; }
+            catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
+        }
+        if(removed>0)LauncherLog.Write("payload prune removed="+removed.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+    private static bool TryDeleteRetired(string app,string dir,HashSet<string> keep)
+    {
+        var full=Path.GetFullPath(dir);
+        OwnedFiles.CheckAncestors(full);
+        if(IsLink(full))return false;
+        var appFull=Path.GetFullPath(app);
+        if(!string.Equals(Path.GetDirectoryName(full),appFull,StringComparison.OrdinalIgnoreCase))return false;
+        var name=Path.GetFileName(full);
+        if(!ReleaseVerifier.IsHash(name) || keep.Contains(name))return false;
+        var prefix=appFull.EndsWith(Path.DirectorySeparatorChar)?appFull:appFull+Path.DirectorySeparatorChar;
+        if(!full.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))return false;
+        if((File.GetAttributes(full)&FileAttributes.ReparsePoint)!=0)return false;
+        DeleteTree(full);
+        return true;
+    }
+    private static void DeleteTree(string path)
+    {
+        if(IsLink(path))return;
+        foreach(var entry in Directory.EnumerateFileSystemEntries(path))
+        {
+            if(IsLink(entry))
+            {
+                // Unlink the entry itself. Never walk into a link's target.
+                try { File.Delete(entry); }
+                catch(IOException) { Directory.Delete(entry,recursive:false); }
+                catch(UnauthorizedAccessException) { Directory.Delete(entry,recursive:false); }
+                continue;
+            }
+            if((File.GetAttributes(entry)&FileAttributes.Directory)!=0)DeleteTree(entry);
+            else File.Delete(entry);
+        }
+        Directory.Delete(path,recursive:false);
+    }
+    private static bool IsLink(string path)
+    {
+        try
+        {
+            FileSystemInfo info=File.Exists(path)||Directory.Exists(path)?(Directory.Exists(path)?new DirectoryInfo(path):new FileInfo(path)):new FileInfo(path);
+            if(info.LinkTarget!=null)return true;
+            return info.Exists && (info.Attributes&FileAttributes.ReparsePoint)!=0;
+        }
+        catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+        { return true; }
     }
     public void Rollback(string attempt,RollbackReason reason=RollbackReason.CandidateFailed)
     {

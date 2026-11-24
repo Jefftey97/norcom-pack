@@ -1272,16 +1272,8 @@ public class ShellViewModel : ObservableObject
 		{
 			LauncherLog.Write("upgrade sweep " + ex.GetType().Name);
 		}
-		try
-		{
-			_specs = MachineSpecsProbe.Read();
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("specs " + ex.GetType().Name);
-			_specs = new MachineSpecs();
-		}
 		ShowGameMemory();
+		_ = ProbeMachineSpecsAsync();
 		SelectedTier = _settings.GraphicsTier;
 		AutoOn = _settings.GraphicsAuto;
 		LauncherSounds = _settings.LauncherSounds;
@@ -1299,6 +1291,37 @@ public class ShellViewModel : ObservableObject
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
         _loadingSettings=false;
+	}
+
+	private async Task ProbeMachineSpecsAsync()
+	{
+		MachineSpecs specs;
+		try
+		{
+			specs = await MachineSpecsProbe.ReadAsync().ConfigureAwait(true);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+			specs = new MachineSpecs();
+		}
+		try
+		{
+			OnUi(delegate
+			{
+				_specs = specs;
+				ShowGameMemory();
+				OnPropertyChanged(nameof(SpecGpu));
+				OnPropertyChanged(nameof(SpecVram));
+				OnPropertyChanged(nameof(SpecRam));
+				OnPropertyChanged(nameof(SpecCpu));
+				OnPropertyChanged(nameof(SpecCores));
+			});
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+		}
 	}
 
 	public void AdvanceClock()
@@ -1785,12 +1808,12 @@ public class ShellViewModel : ObservableObject
 	}
 
 	[RelayCommand]
-	private Task ApplyAuto()
+	private async Task ApplyAuto()
 	{
-		PcHardware pcHardware = new WmiPcProbe().TryRead();
-		GraphicsTier tier = (((object)pcHardware == null) ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware));
-		string why = (((object)pcHardware == null) ? "This PC could not be read, so High was applied." : ("This PC was read as " + pcHardware.GpuName + "."));
-		return ApplyResolved(tier, auto: true, why);
+		PcHardware pcHardware = await Task.Run(() => new WmiPcProbe().TryRead()).ConfigureAwait(true);
+		GraphicsTier tier = pcHardware == null ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware);
+		string why = pcHardware == null ? "This PC could not be read, so High was applied." : "This PC was read as " + pcHardware.GpuName + ".";
+		await ApplyResolved(tier, auto: true, why).ConfigureAwait(true);
 	}
 
 	private async Task ApplyResolved(GraphicsTier tier, bool auto, string why)

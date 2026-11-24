@@ -5,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,6 +29,10 @@ public partial class GraphicsMenuView : UserControl
 
 	private bool _building;
 
+	private int _specsRequest;
+
+	private bool _unloaded;
+
 	private ShellViewModel _shell;
 
 	public static readonly DependencyProperty GameIdProperty = DependencyProperty.Register(nameof(GameId), typeof(string), typeof(GraphicsMenuView), new PropertyMetadata("minecraft", OnGameIdChanged));
@@ -49,7 +54,12 @@ public partial class GraphicsMenuView : UserControl
 		InitializeComponent();
 		Loaded += delegate
 		{
+			_unloaded = false;
 			Refresh();
+		};
+		Unloaded += delegate
+		{
+			_unloaded = true;
 		};
 		DataContextChanged += delegate
 		{
@@ -80,14 +90,84 @@ public partial class GraphicsMenuView : UserControl
 		{
 			TexturePanel.Visibility = board.ShowTexturePacks ? Visibility.Visible : Visibility.Collapsed;
 		}
-		_specs = MachineSpecsProbe.Read();
+		ShowTextureChoice();
+		int request = ++_specsRequest;
+		if (MachineSpecsProbe.TryGetCached(out MachineSpecs specs))
+		{
+			BindSpecs(specs);
+			return;
+		}
+		if (SpecsText != null)
+		{
+			SpecsText.Text = "Reading this PC...";
+		}
+		SetPresetActionsEnabled(false);
+		_ = BindSpecsWhenReady(request);
+	}
+
+	private async Task BindSpecsWhenReady(int request)
+	{
+		MachineSpecs specs;
+		try
+		{
+			specs = await MachineSpecsProbe.ReadAsync().ConfigureAwait(true);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+			specs = new MachineSpecs();
+		}
+		try
+		{
+			if (!Dispatcher.CheckAccess())
+			{
+				await Dispatcher.InvokeAsync(delegate
+				{
+					ApplyBoundSpecs(request, specs);
+				});
+				return;
+			}
+			ApplyBoundSpecs(request, specs);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+		}
+	}
+
+	private void ApplyBoundSpecs(int request, MachineSpecs specs)
+	{
+		if (_unloaded || request != _specsRequest)
+		{
+			return;
+		}
+		BindSpecs(specs);
+	}
+
+	private void BindSpecs(MachineSpecs specs)
+	{
+		IGameBoard board = GameHost.Require(_gameId).Board;
+		_specs = specs;
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
 		LoadProfile();
+		SetPresetActionsEnabled(true);
 		BuildPresets();
 		BuildManual();
 		BuildMods();
 		board.RefreshFeed(BuildMods);
 		ShowTextureChoice();
+	}
+
+	private void SetPresetActionsEnabled(bool enabled)
+	{
+		if (UseRecommendationButton != null)
+		{
+			UseRecommendationButton.IsEnabled = enabled;
+		}
+		if (ResetPresetButton != null)
+		{
+			ResetPresetButton.IsEnabled = enabled;
+		}
 	}
 
 	private void WatchShell()

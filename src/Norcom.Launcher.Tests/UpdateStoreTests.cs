@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Norcom.Launcher.Core;
 using Norcom.Launcher.Core.Updates;
 using Xunit;
 
@@ -299,6 +300,204 @@ public sealed class UpdateStoreTests:IDisposable
         Assert.Throws<InvalidDataException>(()=>store.Stage(renewed,p.zip));
         Assert.Equal(old.PayloadDigest,store.VerifyLocal(old).PayloadDigest);
         Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(store.PayloadPath(old))!,"release-"+renewed.PayloadDigest+".json")));
+    }
+    [Fact] public void PruneRequiresTheInstallationLock()
+    {
+        var store=new UpdateStore(root,Verifier);
+        Assert.Throws<InvalidOperationException>(()=>store.PruneRetiredPayloads());
+    }
+    [Fact] public void PruneRemovesRetiredHashesAndKeepsActivePreviousAndUnrelatedNames()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var second=CommitPackage(store,2,"2.0.47","second");
+        var retired=HashDir('a');var notes=Path.Combine(root,"app","notes");
+        Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"NorcomLauncher.exe"),"old");
+        Directory.CreateDirectory(notes);File.WriteAllText(Path.Combine(notes,"readme.txt"),"keep");
+        File.WriteAllText(Path.Combine(root,"app","loose.txt"),"file");
+        store.PruneRetiredPayloads();
+        Assert.False(Directory.Exists(retired));
+        Assert.Equal("keep",File.ReadAllText(Path.Combine(notes,"readme.txt")));
+        Assert.Equal("file",File.ReadAllText(Path.Combine(root,"app","loose.txt")));
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
+    }
+    [Fact] public void CommitPrunesPayloadsOlderThanActiveAndPrevious()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var second=CommitPackage(store,2,"2.0.47","second");
+        var retired=HashDir('b');Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"NorcomLauncher.exe"),"old");
+        var third=CommitPackage(store,3,"2.0.48","third");
+        Assert.False(Directory.Exists(retired));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(store.PayloadPath(first))));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        Assert.Equal("third",File.ReadAllText(store.PayloadPath(third)));
+        Assert.Equal(third,store.Read().Active);Assert.Equal(second,store.Read().Previous);
+    }
+    [Fact] public void PruneDoesNothingWhileAnActivationIsPending()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");
+        var p=Package(2,"2.0.47","second");var pending=store.Stage(p.release,p.zip);store.Prepare(pending);
+        var retired=HashDir('c');Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"NorcomLauncher.exe"),"old");
+        store.PruneRetiredPayloads();
+        Assert.Equal("old",File.ReadAllText(Path.Combine(retired,"NorcomLauncher.exe")));
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(pending)));
+        Assert.Equal(pending,store.Read().Pending?.Candidate);
+    }
+    [Fact] public void PruneKeepsDeferredRetryCandidate()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var active=CommitPackage(store,2,"2.0.47","second");
+        var attempt=store.Prepare(active,reopening:true);store.RecordLaunched(attempt.Id,1,2);store.Rollback(attempt.Id);
+        Assert.Equal(active,store.Read().DeferredRetry?.Candidate);
+        var retired=HashDir('d');Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"x"),"old");
+        store.PruneRetiredPayloads();
+        Assert.False(Directory.Exists(retired));
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(active)));
+        Assert.Equal(active,store.Read().DeferredRetry?.Candidate);Assert.Null(store.Read().Pending);
+    }
+    [Fact] public void PruneDoesNotFollowAPayloadSymlink()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var active=CommitPackage(store,1,"2.0.46","first");
+        var outside=Path.Combine(Path.GetTempPath(),"norcom-prune-link-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);File.WriteAllText(Path.Combine(outside,"keep.txt"),"safe");
+        var link=HashDir('e');
+        try
+        {
+            Directory.CreateSymbolicLink(link,outside);
+            store.PruneRetiredPayloads();
+            Assert.Equal("safe",File.ReadAllText(Path.Combine(outside,"keep.txt")));
+            Assert.True(Directory.Exists(outside));
+            Assert.NotNull(new DirectoryInfo(link).LinkTarget);
+            Assert.Equal("first",File.ReadAllText(store.PayloadPath(active)));
+        }
+        finally {Directory.Delete(outside,true);}
+    }
+    [Fact] public void PruneDoesNotEnterAnAppDirectorySymlink()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var active=CommitPackage(store,1,"2.0.46","first");
+        var app=Path.Combine(root,"app");var parked=Path.Combine(root,"app-parked");
+        Directory.Move(app,parked);
+        var outside=Path.Combine(Path.GetTempPath(),"norcom-prune-app-"+Guid.NewGuid().ToString("N"));
+        var precious=Path.Combine(outside,new string('f',64));
+        Directory.CreateDirectory(precious);File.WriteAllText(Path.Combine(precious,"keep.txt"),"precious");
+        try
+        {
+            Directory.CreateSymbolicLink(app,outside);
+            store.PruneRetiredPayloads();
+            Assert.Equal("precious",File.ReadAllText(Path.Combine(precious,"keep.txt")));
+            Assert.Equal("first",File.ReadAllText(Path.Combine(parked,active.PackageHash,"NorcomLauncher.exe")));
+            Assert.NotNull(new DirectoryInfo(app).LinkTarget);
+        }
+        finally
+        {
+            var link=new DirectoryInfo(app);
+            if(link.Exists && link.LinkTarget!=null)link.Delete(false);
+            Directory.Delete(outside,true);
+        }
+    }
+    [Fact] public void PruneDeletesRetiredPayloadWithoutDeletingSymlinkTargets()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        CommitPackage(store,1,"2.0.46","first");
+        var outside=Path.Combine(Path.GetTempPath(),"norcom-prune-file-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);var target=Path.Combine(outside,"keep.txt");File.WriteAllText(target,"safe");
+        var retired=HashDir('9');Directory.CreateDirectory(retired);
+        File.CreateSymbolicLink(Path.Combine(retired,"link.txt"),target);
+        try
+        {
+            store.PruneRetiredPayloads();
+            Assert.Equal("safe",File.ReadAllText(target));
+            Assert.False(Directory.Exists(retired));
+        }
+        finally {Directory.Delete(outside,true);}
+    }
+    [Fact] public void CommitSurvivesWhenARetiredPayloadCannotBeDeleted()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");
+        var retired=HashDir('7');Directory.CreateDirectory(retired);var busy=Path.Combine(retired,"busy");File.WriteAllText(busy,"busy");
+        var before=CountLog("payload prune");
+        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
+        try
+        {
+            PayloadIdentity second;
+            using(var locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
+            {
+                Assert.False(locked.SafeFileHandle.IsClosed);
+                second=CommitPackage(store,2,"2.0.47","second");
+            }
+            Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
+            Assert.True(File.Exists(busy));
+            Assert.Equal("busy",File.ReadAllText(busy));
+            Assert.True(CountLog("payload prune")>before);
+            Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        }
+        finally
+        {
+            if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
+        }
+    }
+    [Fact] public void PayloadPruneRemovesRetiredHashesAndKeepsRetainedPayloads()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var second=CommitPackage(store,2,"2.0.47","second");
+        var retired=HashDir('8');Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"NorcomLauncher.exe"),"old");
+        store.PruneForRunningPayload();
+        Assert.False(Directory.Exists(retired));
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
+        var reopen=store.Prepare(second,reopening:true);store.RecordLaunched(reopen.Id,1,2);store.Rollback(reopen.Id);
+        var extra=HashDir('6');Directory.CreateDirectory(extra);File.WriteAllText(Path.Combine(extra,"x"),"old");
+        store.PruneForRunningPayload();
+        Assert.False(Directory.Exists(extra));
+        Assert.Equal(second,store.Read().DeferredRetry?.Candidate);
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        var p=Package(3,"2.0.48","third");var pending=store.Stage(p.release,p.zip);store.Prepare(pending);
+        var during=HashDir('5');Directory.CreateDirectory(during);File.WriteAllText(Path.Combine(during,"NorcomLauncher.exe"),"stay");
+        store.PruneForRunningPayload();
+        Assert.Equal("stay",File.ReadAllText(Path.Combine(during,"NorcomLauncher.exe")));
+        Assert.Equal("third",File.ReadAllText(store.PayloadPath(pending)));
+        Assert.Equal(pending,store.Read().Pending?.Candidate);
+        Assert.Equal(second,store.Read().DeferredRetry?.Candidate);
+    }
+    [Fact] public void PayloadPruneDoesNotThrowWhenTheLeaseIsMissingOrAFolderIsLocked()
+    {
+        var store=new UpdateStore(root,Verifier);
+        Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+        using var held=store.Acquire();
+        var active=CommitPackage(store,1,"2.0.46","first");
+        var retired=HashDir('4');Directory.CreateDirectory(retired);var busy=Path.Combine(retired,"busy");File.WriteAllText(busy,"busy");
+        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
+        try
+        {
+            using(var locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
+            {
+                Assert.False(locked.SafeFileHandle.IsClosed);
+                Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+            }
+            Assert.True(File.Exists(busy));
+            Assert.Equal("busy",File.ReadAllText(busy));
+            Assert.Equal(active,store.Read().Active);
+            Assert.Equal("first",File.ReadAllText(store.PayloadPath(active)));
+        }
+        finally
+        {
+            if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
+        }
+    }
+    private string HashDir(char digit)=>Path.Combine(root,"app",new string(digit,64));
+    private static int CountLog(string needle)
+    {
+        var path=NorcomPaths.LogPath;if(!File.Exists(path))return 0;var text=File.ReadAllText(path);int n=0,i=0;
+        while((i=text.IndexOf(needle,i,StringComparison.Ordinal))>=0){n++;i+=needle.Length;}return n;
     }
     public void Dispose(){key.Dispose();Directory.Delete(root,true);}
 }

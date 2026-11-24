@@ -47,9 +47,12 @@ public class ShellViewModel : ObservableObject
 
 	private readonly GraphicsService _graphics = new GraphicsService();
 
+	private readonly GraphicsChoiceGate _graphicsChoice = new GraphicsChoiceGate();
+
 	private readonly LauncherSettings _settings;
     private bool _loadingSettings=true;
 	private bool _syncingRam;
+	private bool _ramFromSpecsPending;
 	private MachineSpecs _specs = new MachineSpecs();
 
 	private readonly NorcomSignIn _signIn;
@@ -1272,16 +1275,8 @@ public class ShellViewModel : ObservableObject
 		{
 			LauncherLog.Write("upgrade sweep " + ex.GetType().Name);
 		}
-		try
-		{
-			_specs = MachineSpecsProbe.Read();
-		}
-		catch (Exception ex)
-		{
-			LauncherLog.Write("specs " + ex.GetType().Name);
-			_specs = new MachineSpecs();
-		}
 		ShowGameMemory();
+		_ = ProbeMachineSpecsAsync();
 		SelectedTier = _settings.GraphicsTier;
 		AutoOn = _settings.GraphicsAuto;
 		LauncherSounds = _settings.LauncherSounds;
@@ -1299,6 +1294,43 @@ public class ShellViewModel : ObservableObject
 		GameRunning = StartupHeal.GameLockAlive(NorcomPaths.GameLockPath);
 		AnimationsPaused = GameRunning && PauseWhilePlaying;
         _loadingSettings=false;
+	}
+
+	private async Task ProbeMachineSpecsAsync()
+	{
+		MachineSpecs specs;
+		try
+		{
+			specs = await MachineSpecsProbe.ReadAsync().ConfigureAwait(true);
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+			specs = new MachineSpecs();
+		}
+		try
+		{
+			OnUi(delegate
+			{
+				_specs = specs;
+				OnPropertyChanged(nameof(SpecGpu));
+				OnPropertyChanged(nameof(SpecVram));
+				OnPropertyChanged(nameof(SpecRam));
+				OnPropertyChanged(nameof(SpecCpu));
+				OnPropertyChanged(nameof(SpecCores));
+				if (IsBusy || BridgeRuntime.HandoffScheduled)
+				{
+					_ramFromSpecsPending = true;
+					return;
+				}
+				_ramFromSpecsPending = false;
+				ShowGameMemory();
+			});
+		}
+		catch (Exception ex)
+		{
+			LauncherLog.Write("specs " + ex.GetType().Name);
+		}
 	}
 
 	public void AdvanceClock()
@@ -1781,16 +1813,22 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private Task ApplyTier(GraphicsTier tier)
 	{
+		_graphicsChoice.NoteManual();
 		return ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
 	}
 
 	[RelayCommand]
-	private Task ApplyAuto()
+	private async Task ApplyAuto()
 	{
-		PcHardware pcHardware = new WmiPcProbe().TryRead();
-		GraphicsTier tier = (((object)pcHardware == null) ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware));
-		string why = (((object)pcHardware == null) ? "This PC could not be read, so High was applied." : ("This PC was read as " + pcHardware.GpuName + "."));
-		return ApplyResolved(tier, auto: true, why);
+		int choice = _graphicsChoice.Capture();
+		PcHardware pcHardware = await Task.Run(() => new WmiPcProbe().TryRead()).ConfigureAwait(true);
+		if (!_graphicsChoice.IsCurrent(choice))
+		{
+			return;
+		}
+		GraphicsTier tier = pcHardware == null ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware);
+		string why = pcHardware == null ? "This PC could not be read, so High was applied." : "This PC was read as " + pcHardware.GpuName + ".";
+		await ApplyResolved(tier, auto: true, why).ConfigureAwait(true);
 	}
 
 	private async Task ApplyResolved(GraphicsTier tier, bool auto, string why)
@@ -2367,6 +2405,11 @@ public class ShellViewModel : ObservableObject
 		((IRelayCommand)SignInBrowserCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInDeviceCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignOutCommand).NotifyCanExecuteChanged();
+		if (!value && _ramFromSpecsPending && !BridgeRuntime.HandoffScheduled)
+		{
+			_ramFromSpecsPending = false;
+			ShowGameMemory();
+		}
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

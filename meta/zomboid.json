@@ -66,6 +66,42 @@
       "modId": "ViewpointFPS"
     },
     {
+      "workshopId": "3812702301",
+      "modId": "ViewpointAdvancedMovement"
+    },
+    {
+      "workshopId": "3812702301",
+      "modId": "ViewpointAdvancedMovementServer"
+    },
+    {
+      "workshopId": "3838464296",
+      "modId": "ExpeditionVPAMFix"
+    },
+    {
+      "workshopId": "3819018807",
+      "modId": "ViewpointRightClick"
+    },
+    {
+      "workshopId": "3828228765",
+      "modId": "LiveWristwatch"
+    },
+    {
+      "workshopId": "3829214172",
+      "modId": "CheckYourself"
+    },
+    {
+      "workshopId": "3830332205",
+      "modId": "CheckYourselfTriage"
+    },
+    {
+      "workshopId": "3821610732",
+      "modId": "ViewpointWorkingTVs"
+    },
+    {
+      "workshopId": "3793875056",
+      "modId": "HopOverIt"
+    },
+    {
       "workshopId": "3827957976",
       "modId": "RealLimbs"
     },
@@ -294,6 +330,10 @@
       "modId": "guns93"
     },
     {
+      "workshopId": "3816584372",
+      "modId": "ViewpointArsenal"
+    },
+    {
       "workshopId": "3508537032",
       "modId": "NeatUI_Framework"
     },
@@ -324,6 +364,10 @@
     {
       "workshopId": "3728775267",
       "modId": "BetterVehicleDynamics"
+    },
+    {
+      "workshopId": "3826550325",
+      "modId": "ViewpointInteriors"
     },
     {
       "workshopId": "3838192146",

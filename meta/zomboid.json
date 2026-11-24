@@ -370,6 +370,58 @@
       "modId": "ViewpointInteriors"
     },
     {
+      "workshopId": "3077900375",
+      "modId": "ChuckleberryFinnAlertSystem"
+    },
+    {
+      "workshopId": "2896041179",
+      "modId": "errorMagnifier"
+    },
+    {
+      "workshopId": "2503622437",
+      "modId": "SkillRecoveryJournal"
+    },
+    {
+      "workshopId": "2544353492",
+      "modId": "P4HasBeenRead"
+    },
+    {
+      "workshopId": "2553809727",
+      "modId": "KillCount"
+    },
+    {
+      "workshopId": "2847184718",
+      "modId": "ProximityInventory"
+    },
+    {
+      "workshopId": "3828360540",
+      "modId": "RadioVoices"
+    },
+    {
+      "workshopId": "3813362974",
+      "modId": "TheyKnewContinued"
+    },
+    {
+      "workshopId": "3837693164",
+      "modId": "KentuckyBirdsCore"
+    },
+    {
+      "workshopId": "3835027823",
+      "modId": "KentuckyCrows"
+    },
+    {
+      "workshopId": "3831068957",
+      "modId": "KentuckyVultures"
+    },
+    {
+      "workshopId": "3740052292",
+      "modId": "CompanionDogs"
+    },
+    {
+      "workshopId": "3825990309",
+      "modId": "CDViewpointNameTags"
+    },
+    {
       "workshopId": "3838192146",
       "modId": "NorcomCarBoost"
     },

@@ -47,6 +47,8 @@ public class ShellViewModel : ObservableObject
 
 	private readonly GraphicsService _graphics = new GraphicsService();
 
+	private readonly GraphicsChoiceGate _graphicsChoice = new GraphicsChoiceGate();
+
 	private readonly LauncherSettings _settings;
     private bool _loadingSettings=true;
 	private bool _syncingRam;
@@ -1811,13 +1813,19 @@ public class ShellViewModel : ObservableObject
 	[RelayCommand]
 	private Task ApplyTier(GraphicsTier tier)
 	{
+		_graphicsChoice.NoteManual();
 		return ApplyResolved(tier, auto: false, "from the " + GraphicsPresets.TierLabel(tier) + " button");
 	}
 
 	[RelayCommand]
 	private async Task ApplyAuto()
 	{
+		int choice = _graphicsChoice.Capture();
 		PcHardware pcHardware = await Task.Run(() => new WmiPcProbe().TryRead()).ConfigureAwait(true);
+		if (!_graphicsChoice.IsCurrent(choice))
+		{
+			return;
+		}
 		GraphicsTier tier = pcHardware == null ? GraphicsTier.High : GraphicsAuto.Choose(pcHardware);
 		string why = pcHardware == null ? "This PC could not be read, so High was applied." : "This PC was read as " + pcHardware.GpuName + ".";
 		await ApplyResolved(tier, auto: true, why).ConfigureAwait(true);

@@ -423,20 +423,23 @@ public sealed class UpdateStoreTests:IDisposable
         var first=CommitPackage(store,1,"2.0.46","first");
         var retired=HashDir('7');Directory.CreateDirectory(retired);var busy=Path.Combine(retired,"busy");File.WriteAllText(busy,"busy");
         var before=CountLog("payload prune");
-        FileStream? locked=null;
         if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
         try
         {
-            if(OperatingSystem.IsWindows())locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.Read);
-            var second=CommitPackage(store,2,"2.0.47","second");
+            PayloadIdentity second;
+            using(var locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
+            {
+                Assert.False(locked.SafeFileHandle.IsClosed);
+                second=CommitPackage(store,2,"2.0.47","second");
+            }
             Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
+            Assert.True(File.Exists(busy));
             Assert.Equal("busy",File.ReadAllText(busy));
             Assert.True(CountLog("payload prune")>before);
             Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
         }
         finally
         {
-            locked?.Dispose();
             if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         }
     }
@@ -472,19 +475,21 @@ public sealed class UpdateStoreTests:IDisposable
         using var held=store.Acquire();
         var active=CommitPackage(store,1,"2.0.46","first");
         var retired=HashDir('4');Directory.CreateDirectory(retired);var busy=Path.Combine(retired,"busy");File.WriteAllText(busy,"busy");
-        FileStream? locked=null;
         if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
         try
         {
-            if(OperatingSystem.IsWindows())locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.Read);
-            Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+            using(var locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
+            {
+                Assert.False(locked.SafeFileHandle.IsClosed);
+                Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+            }
+            Assert.True(File.Exists(busy));
             Assert.Equal("busy",File.ReadAllText(busy));
             Assert.Equal(active,store.Read().Active);
             Assert.Equal("first",File.ReadAllText(store.PayloadPath(active)));
         }
         finally
         {
-            locked?.Dispose();
             if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         }
     }

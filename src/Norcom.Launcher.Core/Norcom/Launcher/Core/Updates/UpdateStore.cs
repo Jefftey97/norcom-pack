@@ -236,6 +236,13 @@ public sealed class UpdateStore
         try { PruneRetiredPayloads(Read()); }
         catch(Exception ex) when(ex is IOException || ex is UnauthorizedAccessException) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
     }
+    // The running payload calls this after it owns the lease and has seen no pending activation.
+    // Any failure is logged. A locked folder or a missing lease must not stop the update check.
+    public void PruneForRunningPayload()
+    {
+        try { PruneRetiredPayloads(); }
+        catch(Exception ex) { LauncherLog.Write("payload prune "+ex.GetType().Name); }
+    }
     private void PruneRetiredPayloads(UpdateState state)
     {
         if(state.Pending!=null)return;

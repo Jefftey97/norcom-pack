@@ -101,6 +101,7 @@ public partial class GraphicsMenuView : UserControl
 		{
 			SpecsText.Text = "Reading this PC...";
 		}
+		SetPresetActionsEnabled(false);
 		_ = BindSpecsWhenReady(request);
 	}
 
@@ -149,11 +150,24 @@ public partial class GraphicsMenuView : UserControl
 		_specs = specs;
 		SpecsText.Text = GameGraphicsCatalog.Describe(_specs);
 		LoadProfile();
+		SetPresetActionsEnabled(true);
 		BuildPresets();
 		BuildManual();
 		BuildMods();
 		board.RefreshFeed(BuildMods);
 		ShowTextureChoice();
+	}
+
+	private void SetPresetActionsEnabled(bool enabled)
+	{
+		if (UseRecommendationButton != null)
+		{
+			UseRecommendationButton.IsEnabled = enabled;
+		}
+		if (ResetPresetButton != null)
+		{
+			ResetPresetButton.IsEnabled = enabled;
+		}
 	}
 
 	private void WatchShell()

@@ -50,6 +50,7 @@ public class ShellViewModel : ObservableObject
 	private readonly LauncherSettings _settings;
     private bool _loadingSettings=true;
 	private bool _syncingRam;
+	private bool _ramFromSpecsPending;
 	private MachineSpecs _specs = new MachineSpecs();
 
 	private readonly NorcomSignIn _signIn;
@@ -1310,12 +1311,18 @@ public class ShellViewModel : ObservableObject
 			OnUi(delegate
 			{
 				_specs = specs;
-				ShowGameMemory();
 				OnPropertyChanged(nameof(SpecGpu));
 				OnPropertyChanged(nameof(SpecVram));
 				OnPropertyChanged(nameof(SpecRam));
 				OnPropertyChanged(nameof(SpecCpu));
 				OnPropertyChanged(nameof(SpecCores));
+				if (IsBusy || BridgeRuntime.HandoffScheduled)
+				{
+					_ramFromSpecsPending = true;
+					return;
+				}
+				_ramFromSpecsPending = false;
+				ShowGameMemory();
 			});
 		}
 		catch (Exception ex)
@@ -2390,6 +2397,11 @@ public class ShellViewModel : ObservableObject
 		((IRelayCommand)SignInBrowserCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignInDeviceCommand).NotifyCanExecuteChanged();
 		((IRelayCommand)SignOutCommand).NotifyCanExecuteChanged();
+		if (!value && _ramFromSpecsPending && !BridgeRuntime.HandoffScheduled)
+		{
+			_ramFromSpecsPending = false;
+			ShowGameMemory();
+		}
 	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.4.0.0")]

@@ -21,8 +21,8 @@
    <TextBlock Text="Pick one and you're done. The recommendation is based on this PC." Style="{StaticResource Muted}" Margin="0,-6,0,4"/>
    <WrapPanel x:Name="PresetButtons" Margin="0,8,0,8"/>
    <WrapPanel>
-    <Button Content="Use recommendation" Click="UseRecommendationClick" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0"/>
-    <Button Content="Reset to preset" Click="ResetPresetClick" Margin="0,0,10,0"/>
+    <Button x:Name="UseRecommendationButton" IsEnabled="False" Content="Use recommendation" Click="UseRecommendationClick" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0"/>
+    <Button x:Name="ResetPresetButton" IsEnabled="False" Content="Reset to preset" Click="ResetPresetClick" Margin="0,0,10,0"/>
    </WrapPanel>
   </StackPanel></Border>
   <local:RamCard x:Name="MemoryCard"/>

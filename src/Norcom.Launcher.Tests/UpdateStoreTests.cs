@@ -377,7 +377,7 @@ public sealed class UpdateStoreTests:IDisposable
         }
         finally {Directory.Delete(outside,true);}
     }
-    [Fact] public void PruneDoesNotEnterAnAppDirectoryThatIsALink()
+    [Fact] public void PruneDoesNotEnterAnAppDirectorySymlink()
     {
         var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
         var active=CommitPackage(store,1,"2.0.46","first");
@@ -427,12 +427,60 @@ public sealed class UpdateStoreTests:IDisposable
         if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
         try
         {
-            if(OperatingSystem.IsWindows())locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.None);
+            if(OperatingSystem.IsWindows())locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.Read);
             var second=CommitPackage(store,2,"2.0.47","second");
             Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
             Assert.Equal("busy",File.ReadAllText(busy));
             Assert.True(CountLog("payload prune")>before);
             Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        }
+        finally
+        {
+            locked?.Dispose();
+            if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
+        }
+    }
+    [Fact] public void PayloadPruneRemovesRetiredHashesAndKeepsRetainedPayloads()
+    {
+        var store=new UpdateStore(root,Verifier);using var held=store.Acquire();
+        var first=CommitPackage(store,1,"2.0.46","first");var second=CommitPackage(store,2,"2.0.47","second");
+        var retired=HashDir('8');Directory.CreateDirectory(retired);File.WriteAllText(Path.Combine(retired,"NorcomLauncher.exe"),"old");
+        store.PruneForRunningPayload();
+        Assert.False(Directory.Exists(retired));
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        Assert.Equal(second,store.Read().Active);Assert.Equal(first,store.Read().Previous);
+        var reopen=store.Prepare(second,reopening:true);store.RecordLaunched(reopen.Id,1,2);store.Rollback(reopen.Id);
+        var extra=HashDir('6');Directory.CreateDirectory(extra);File.WriteAllText(Path.Combine(extra,"x"),"old");
+        store.PruneForRunningPayload();
+        Assert.False(Directory.Exists(extra));
+        Assert.Equal(second,store.Read().DeferredRetry?.Candidate);
+        Assert.Equal("first",File.ReadAllText(store.PayloadPath(first)));
+        Assert.Equal("second",File.ReadAllText(store.PayloadPath(second)));
+        var p=Package(3,"2.0.48","third");var pending=store.Stage(p.release,p.zip);store.Prepare(pending);
+        var during=HashDir('5');Directory.CreateDirectory(during);File.WriteAllText(Path.Combine(during,"NorcomLauncher.exe"),"stay");
+        store.PruneForRunningPayload();
+        Assert.Equal("stay",File.ReadAllText(Path.Combine(during,"NorcomLauncher.exe")));
+        Assert.Equal("third",File.ReadAllText(store.PayloadPath(pending)));
+        Assert.Equal(pending,store.Read().Pending?.Candidate);
+        Assert.Equal(second,store.Read().DeferredRetry?.Candidate);
+    }
+    [Fact] public void PayloadPruneDoesNotThrowWhenTheLeaseIsMissingOrAFolderIsLocked()
+    {
+        var store=new UpdateStore(root,Verifier);
+        Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+        using var held=store.Acquire();
+        var active=CommitPackage(store,1,"2.0.46","first");
+        var retired=HashDir('4');Directory.CreateDirectory(retired);var busy=Path.Combine(retired,"busy");File.WriteAllText(busy,"busy");
+        FileStream? locked=null;
+        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(retired,UnixFileMode.UserRead|UnixFileMode.UserExecute);
+        try
+        {
+            if(OperatingSystem.IsWindows())locked=new FileStream(busy,FileMode.Open,FileAccess.ReadWrite,FileShare.Read);
+            Assert.Null(Record.Exception(()=>store.PruneForRunningPayload()));
+            Assert.Equal("busy",File.ReadAllText(busy));
+            Assert.Equal(active,store.Read().Active);
+            Assert.Equal("first",File.ReadAllText(store.PayloadPath(active)));
         }
         finally
         {

@@ -141,6 +141,9 @@ public static class BridgeRuntime
         var store=new UpdateStore(NorcomPaths.LauncherDir,verifier);
         using var lease=await AcquireForStartupAsync(store,false).ConfigureAwait(true);
         if(store.Read().Pending!=null)throw new IOException("A launcher update is already pending.");
+        // Friends stay on the 2.0.45 stub, so EnterAsync returns before its prune. The payload
+        // that is actually running owns this lease and is the copy that can delete old hashes.
+        store.PruneForRunningPayload();
         using var channel=new SignedChannelClient(verifier);
         report?.Invoke("Checking signed launcher updates",0.05);
         var release=await channel.FetchAsync(ct).ConfigureAwait(true);

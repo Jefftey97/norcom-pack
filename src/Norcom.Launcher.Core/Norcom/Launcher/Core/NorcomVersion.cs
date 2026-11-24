@@ -63,6 +63,6 @@ public static class NorcomVersion
 				return text;
 			}
 		}
-		return "3.0.16";
+		return "3.0.17";
 	}
 }

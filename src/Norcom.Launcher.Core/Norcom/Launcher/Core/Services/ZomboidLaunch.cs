@@ -87,6 +87,15 @@ public static class ZomboidLaunch
 				memoryNote = "Project Zomboid memory was not saved (" + ex.GetType().Name + ").";
 			}
 		}
+		string texCacheNote = "";
+		try
+		{
+			texCacheNote = ZomboidTexCache.Apply(zomboidRoot);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			texCacheNote = "";
+		}
 		string url = ZomboidMemory.WithHeap(ZomboidFeed.SteamUrl(feed, localPassword, out string passwordNote), ramMb);
 		string workshop = ZomboidFeed.WorkshopNotice(launcherHome, install.LibraryPath, feed.Workshop);
 		string message = "Opening Project Zomboid in Steam. Workshop items are subscribed in Steam.";
@@ -101,6 +110,10 @@ public static class ZomboidLaunch
 		if (memoryNote.Length > 0)
 		{
 			message += " " + memoryNote;
+		}
+		if (texCacheNote.Length > 0)
+		{
+			message += " " + texCacheNote;
 		}
 		return new ZomboidLaunchPlan
 		{
